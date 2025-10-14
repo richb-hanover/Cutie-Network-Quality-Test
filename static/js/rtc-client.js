@@ -1,5 +1,5 @@
 const DEFAULT_SIGNAL_URL = '/api/webrtc';
-const ICE_GATHER_TIMEOUT_MS = 5_000;
+const ICE_GATHER_TIMEOUT_MS = 15_000;
 
 function shouldNormaliseAddress(address) {
 	if (!address) {
@@ -168,18 +168,26 @@ function waitForIceGatheringComplete(peer) {
 
 	return new Promise((resolve) => {
 		const finish = () => {
+			console.log('ICE gathering finished. Final state:', peer.iceGatheringState);
 			clearTimeout(timeout);
 			peer.removeEventListener?.('icegatheringstatechange', handleStateChange);
 			resolve();
 		};
 
 		const handleStateChange = () => {
+			console.log('ICE gathering state changed to:', peer.iceGatheringState);
 			if (peer.iceGatheringState === 'complete') {
 				finish();
 			}
 		};
 
-		const timeout = setTimeout(finish, ICE_GATHER_TIMEOUT_MS);
+		// const timeout = setTimeout(finish, ICE_GATHER_TIMEOUT_MS);
+		
+		const timeout = setTimeout(() => {
+      console.log('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
+      finish();
+    }, ICE_GATHER_TIMEOUT_MS);
+		
 		if (peer.addEventListener) {
 			peer.addEventListener('icegatheringstatechange', handleStateChange);
 		} else {

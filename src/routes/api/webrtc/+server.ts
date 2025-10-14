@@ -12,7 +12,7 @@ type ManagedConnection = {
 
 const connections = new Map<string, ManagedConnection>();
 
-const ICE_GATHER_TIMEOUT_MS = 5_000;
+const ICE_GATHER_TIMEOUT_MS = 15_000;
 
 function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidateInit {
 	if (!candidate?.candidate) {
@@ -27,7 +27,10 @@ function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidat
 	const address = parts[4];
 	if (
 		!address ||
-		(!address.endsWith('.local') && address !== 'localhost' && address !== '::1' && address !== '[::1]')
+		(!address.endsWith('.local') &&
+			address !== 'localhost' &&
+			address !== '::1' &&
+			address !== '[::1]')
 	) {
 		return candidate;
 	}
@@ -184,7 +187,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	const remoteDescription = new RTCSessionDescription(offer);
 	await pc.setRemoteDescription(remoteDescription);
 
-	const normalisedClientCandidates = clientCandidates.map((candidate) => normaliseLocalCandidate(candidate));
+	const normalisedClientCandidates = clientCandidates.map((candidate) =>
+		normaliseLocalCandidate(candidate)
+	);
 
 	for (const candidate of normalisedClientCandidates) {
 		try {
