@@ -1,4 +1,4 @@
-export const LATENCY_INTERVAL_MS = 5000; // msec
+export const LATENCY_INTERVAL_MS = 100; // msec
 export const LOSS_TIMEOUT_MS = 2000; // msec
 export const LOSS_CHECK_INTERVAL_MS = 250; // msec
 export const MAX_LATENCY_HISTORY = 25; // depth of history
