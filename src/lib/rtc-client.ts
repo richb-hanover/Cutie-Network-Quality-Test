@@ -284,12 +284,17 @@ async function negotiate(
 	}
 
 	const dataChannel = peer.createDataChannel(connectionInit?.label ?? 'client-data');
+	dataChannel.binaryType = 'arraybuffer';
 	const channelPromise = new Promise<RTCDataChannel>((resolve) => {
 		dataChannel.onopen = () => resolve(dataChannel);
 	});
 
 	if (connectionInit?.onDataChannelMessage) {
-		dataChannel.onmessage = (event) => connectionInit.onDataChannelMessage?.(event, dataChannel);
+		dataChannel.onmessage = (event) => {
+			Promise.resolve(connectionInit.onDataChannelMessage?.(event, dataChannel)).catch((error) => {
+				console.error('Data channel message handler failed', error);
+			});
+		};
 	}
 
 	if (connectionInit?.onDataChannelOpen) {
@@ -382,7 +387,7 @@ export type CreateServerConnectionOptions = {
 	rtcConfig?: RTCConfiguration;
 	signalUrl?: string;
 	label?: string;
-	onMessage?: (event: MessageEvent, dataChannel?: RTCDataChannel) => void;
+	onMessage?: (event: MessageEvent, dataChannel?: RTCDataChannel) => void | Promise<void>;
 	onOpen?: (dataChannel: RTCDataChannel) => void;
 	onError?: (error: unknown) => void;
 };

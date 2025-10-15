@@ -18,18 +18,39 @@
 	let isConnecting = false;
 	let errorMessage = '';
 	let outgoingMessage = 'ping';
-	let messageId = 0;
+let messageId = 0;
 
-	let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
+let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
 
-	let stopStats: (() => void) | null = null;
-	let latencyStats: LatencyStats = createEmptyLatencyStats();
+let stopStats: (() => void) | null = null;
+let latencyStats: LatencyStats = createEmptyLatencyStats();
+const textDecoder = new TextDecoder();
 
-	const latencyProbe = createLatencyProbe({
-		onStats: (stats) => {
-			latencyStats = { ...stats, history: [...stats.history] };
-		}
-	});
+const latencyProbe = createLatencyProbe({
+	onStats: (stats) => {
+		latencyStats = { ...stats, history: [...stats.history] };
+	}
+});
+
+async function normaliseDataMessage(data: unknown): Promise<string> {
+	if (typeof data === 'string') {
+		return data;
+	}
+	if (data instanceof ArrayBuffer) {
+		return textDecoder.decode(data);
+	}
+	if (ArrayBuffer.isView(data)) {
+		return textDecoder.decode(data as ArrayBufferView);
+	}
+	if (typeof Blob !== 'undefined' && data instanceof Blob) {
+		const buffer = await data.arrayBuffer();
+		return textDecoder.decode(buffer);
+	}
+	if (data === null || data === undefined) {
+		return '';
+	}
+	return String(data);
+}
 
 	async function connectToServer() {
 		if (isConnecting) return;
@@ -43,8 +64,8 @@
 			}
 
 			connection = await createServerConnection({
-				onMessage: (event: MessageEvent) => {
-					const payload = String(event.data);
+				onMessage: async (event: MessageEvent) => {
+					const payload = await normaliseDataMessage(event.data);
 					if (latencyProbe.handleMessage(payload)) {
 						return;
 					}
