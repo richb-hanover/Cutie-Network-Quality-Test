@@ -1,4 +1,3 @@
-
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 
@@ -43,6 +42,27 @@
 		stats: StatsModule;
 	};
 
+	const LATENCY_INTERVAL_MS = 100;
+	const LOSS_TIMEOUT_MS = 2000;
+	const LOSS_CHECK_INTERVAL_MS = 250;
+	const MAX_LATENCY_HISTORY = 25;
+
+	type LatencySample = {
+		seq: number;
+		status: 'received' | 'lost';
+		latencyMs: number | null;
+		at: string;
+	};
+
+	type LatencyStats = {
+		lastLatencyMs: number | null;
+		averageLatencyMs: number | null;
+		totalSent: number;
+		totalReceived: number;
+		totalLost: number;
+		history: LatencySample[];
+	};
+
 	let helpersPromise: Promise<HelperModules> | null = null;
 	let connection: ConnectionResult | null = null;
 	let connectionId: string | null = null;
@@ -58,6 +78,21 @@
 	let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
 
 	let stopStats: (() => void) | null = null;
+
+	const pendingPings = new Map<number, number>();
+	let activeProbeChannel: RTCDataChannel | null = null;
+	let pingInterval: ReturnType<typeof setInterval> | null = null;
+	let lossCheckInterval: ReturnType<typeof setInterval> | null = null;
+	let nextPingSeq = 0;
+	let latencySumMs = 0;
+	let latencyStats: LatencyStats = {
+		lastLatencyMs: null,
+		averageLatencyMs: null,
+		totalSent: 0,
+		totalReceived: 0,
+		totalLost: 0,
+		history: []
+	};
 
 	function loadScript(src: string): Promise<void> {
 		if (typeof document === 'undefined') {
@@ -108,21 +143,126 @@
 		}
 
 		if (!helpersPromise) {
-			helpersPromise = Promise.all([loadScript('/js/rtc-client.js'), loadScript('/js/rtc-stats.js')]).then(
-				() => {
-					if (!window.RtcClient || !window.RtcStats) {
-						throw new Error('RTC helper scripts failed to initialise.');
-					}
-
-					return {
-						client: window.RtcClient!,
-						stats: window.RtcStats!
-					};
+			helpersPromise = Promise.all([
+				loadScript('/js/rtc-client.js'),
+				loadScript('/js/rtc-stats.js')
+			]).then(() => {
+				if (!window.RtcClient || !window.RtcStats) {
+					throw new Error('RTC helper scripts failed to initialise.');
 				}
-			);
+
+				return {
+					client: window.RtcClient!,
+					stats: window.RtcStats!
+				};
+			});
 		}
 
 		return helpersPromise;
+	}
+
+	function trimHistory(history: LatencySample[]): LatencySample[] {
+		return history.length > MAX_LATENCY_HISTORY ? history.slice(-MAX_LATENCY_HISTORY) : history;
+	}
+
+	function resetLatencyStats() {
+		latencyStats = {
+			lastLatencyMs: null,
+			averageLatencyMs: null,
+			totalSent: 0,
+			totalReceived: 0,
+			totalLost: 0,
+			history: []
+		};
+		latencySumMs = 0;
+		nextPingSeq = 0;
+		pendingPings.clear();
+	}
+
+	function stopLatencyProbe() {
+		if (pingInterval) {
+			clearInterval(pingInterval);
+			pingInterval = null;
+		}
+		if (lossCheckInterval) {
+			clearInterval(lossCheckInterval);
+			lossCheckInterval = null;
+		}
+		pendingPings.clear();
+		activeProbeChannel = null;
+	}
+
+	function startLatencyProbe(dataChannel: RTCDataChannel) {
+		if (activeProbeChannel === dataChannel && pingInterval) {
+			return;
+		}
+
+		stopLatencyProbe();
+		activeProbeChannel = dataChannel;
+		resetLatencyStats();
+
+		const sendProbe = () => {
+			if (dataChannel.readyState !== 'open') {
+				return;
+			}
+
+			const seq = nextPingSeq++;
+			const sentAt = performance.now();
+			const payload = JSON.stringify({
+				type: 'latency-probe',
+				seq,
+				t0: sentAt,
+				sentAt: Date.now()
+			});
+
+			try {
+				dataChannel.send(payload);
+				pendingPings.set(seq, sentAt);
+				latencyStats = {
+					...latencyStats,
+					totalSent: latencyStats.totalSent + 1
+				};
+			} catch (err) {
+				console.error('Failed to send latency probe', err);
+			}
+		};
+
+		sendProbe();
+		pingInterval = setInterval(sendProbe, LATENCY_INTERVAL_MS);
+
+		lossCheckInterval = setInterval(() => {
+			const now = performance.now();
+			const expired: number[] = [];
+
+			for (const [seq, t0] of pendingPings) {
+				if (now - t0 > LOSS_TIMEOUT_MS) {
+					expired.push(seq);
+				}
+			}
+
+			if (expired.length === 0) {
+				return;
+			}
+
+			for (const seq of expired) {
+				pendingPings.delete(seq);
+			}
+
+			const lostSamples = expired.map((seq) => ({
+				seq,
+				status: 'lost' as const,
+				latencyMs: null,
+				at: new Date().toLocaleTimeString()
+			}));
+
+			const history = trimHistory([...latencyStats.history, ...lostSamples]);
+
+			latencyStats = {
+				...latencyStats,
+				totalLost: latencyStats.totalLost + expired.length,
+				history
+			};
+		}, LOSS_CHECK_INTERVAL_MS);
 	}
 
 	async function connectToServer() {
@@ -140,12 +280,59 @@
 
 			connection = await client.createServerConnection({
 				onMessage: (event: MessageEvent) => {
+					const payload = String(event.data);
+					let parsedProbe: { type?: string; seq?: number } | null = null;
+
+					try {
+						const candidate = JSON.parse(payload);
+						if (
+							candidate &&
+							typeof candidate === 'object' &&
+							'type' in candidate &&
+							(candidate as { type: unknown }).type === 'latency-probe'
+						) {
+							parsedProbe = candidate as { type?: string; seq?: number };
+						}
+					} catch {
+						// Non-JSON payloads are handled below.
+					}
+
+					if (parsedProbe?.seq !== undefined) {
+						const seq = Number(parsedProbe.seq);
+						const startedAt = pendingPings.get(seq);
+
+						if (Number.isFinite(seq) && startedAt !== undefined) {
+							pendingPings.delete(seq);
+
+							const latencyMs = performance.now() - startedAt;
+							latencySumMs += latencyMs;
+							const totalReceived = latencyStats.totalReceived + 1;
+							const sample: LatencySample = {
+								seq,
+								status: 'received',
+								latencyMs,
+								at: new Date().toLocaleTimeString()
+							};
+							const history = trimHistory([...latencyStats.history, sample]);
+
+							latencyStats = {
+								...latencyStats,
+								lastLatencyMs: latencyMs,
+								totalReceived,
+								averageLatencyMs: latencySumMs / totalReceived,
+								history
+							};
+						}
+
+						return;
+					}
+
 					messages = [
 						...messages,
 						{
 							id: ++messageId,
 							direction: 'in',
-							payload: String(event.data),
+							payload,
 							at: new Date().toLocaleTimeString()
 						}
 					];
@@ -155,6 +342,7 @@
 				},
 				onError: (err: unknown) => {
 					errorMessage = err instanceof Error ? err.message : String(err);
+					stopLatencyProbe();
 				}
 			});
 
@@ -175,11 +363,21 @@
 
 			dataChannel.addEventListener('open', () => {
 				dataChannelState = dataChannel.readyState;
+				startLatencyProbe(dataChannel);
 			});
 
 			dataChannel.addEventListener('close', () => {
 				dataChannelState = dataChannel.readyState;
+				stopLatencyProbe();
 			});
+
+			dataChannel.addEventListener('error', () => {
+				stopLatencyProbe();
+			});
+
+			if (dataChannel.readyState === 'open') {
+				startLatencyProbe(dataChannel);
+			}
 
 			stopStats?.();
 			stopStats = stats.startStatsReporter(peerConnection, (summary: StatsSummary) => {
@@ -188,12 +386,14 @@
 		} catch (err) {
 			errorMessage = err instanceof Error ? err.message : String(err);
 			connectionState = 'failed';
+			stopLatencyProbe();
 		} finally {
 			isConnecting = false;
 		}
 	}
 
 	async function disconnect() {
+		stopLatencyProbe();
 		stopStats?.();
 		stopStats = null;
 
@@ -238,7 +438,7 @@
 
 <main class="container">
 	<section class="panel">
-		<h1>WebRTC Control Panel</h1>
+		<h1>WebRTC Network Stability Test</h1>
 		<p>
 			Establish a data-channel connection to the server, exchange messages, and monitor live WebRTC
 			statistics.
@@ -339,6 +539,71 @@
 	</section>
 
 	<section class="panel">
+		<h2>Latency Monitor</h2>
+		<table>
+			<tbody>
+				<tr>
+					<th>Probe Interval</th>
+					<td>{LATENCY_INTERVAL_MS} ms</td>
+				</tr>
+				<tr>
+					<th>Pings Sent</th>
+					<td>{latencyStats.totalSent}</td>
+				</tr>
+				<tr>
+					<th>Pings Received</th>
+					<td>{latencyStats.totalReceived}</td>
+				</tr>
+				<tr>
+					<th>Pings Lost</th>
+					<td>{latencyStats.totalLost}</td>
+				</tr>
+				<tr>
+					<th>Last RTT</th>
+					<td>
+						{latencyStats.lastLatencyMs !== null
+							? `${latencyStats.lastLatencyMs.toFixed(2)} ms`
+							: '—'}
+					</td>
+				</tr>
+				<tr>
+					<th>Average RTT</th>
+					<td>
+						{latencyStats.averageLatencyMs !== null
+							? `${latencyStats.averageLatencyMs.toFixed(2)} ms`
+							: '—'}
+					</td>
+				</tr>
+			</tbody>
+		</table>
+		{#if latencyStats.history.length > 0}
+			<h3>Recent Probes</h3>
+			<table class="latency-history">
+				<thead>
+					<tr>
+						<th>Seq</th>
+						<th>Status</th>
+						<th>Latency</th>
+						<th>Time</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each latencyStats.history.slice().reverse() as sample (sample.seq + '-' + sample.at)}
+						<tr class={sample.status}>
+							<td>{sample.seq}</td>
+							<td>{sample.status}</td>
+							<td>{sample.latencyMs !== null ? `${sample.latencyMs.toFixed(2)} ms` : '—'}</td>
+							<td>{sample.at}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		{:else}
+			<p>No latency samples yet.</p>
+		{/if}
+	</section>
+
+	<section class="panel">
 		<h2>Message Log</h2>
 		{#if messages.length === 0}
 			<p>No messages exchanged yet.</p>
@@ -348,7 +613,8 @@
 					<li class={entry.direction}>
 						<span class="meta">{entry.at}</span>
 						<span class="bubble">
-							<strong>{entry.direction === 'in' ? 'Server' : 'Client'}:</strong> {entry.payload}
+							<strong>{entry.direction === 'in' ? 'Server' : 'Client'}:</strong>
+							{entry.payload}
 						</span>
 					</li>
 				{/each}
@@ -396,7 +662,10 @@
 		padding: 0.65rem 1.2rem;
 		font-size: 1rem;
 		font-weight: 500;
-		transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.2s ease;
+		transition:
+			transform 0.1s ease,
+			box-shadow 0.1s ease,
+			opacity 0.2s ease;
 	}
 
 	button:hover:not(:disabled) {
@@ -489,6 +758,14 @@
 	.messages li.out .bubble {
 		background: #10b981;
 		box-shadow: 0 8px 18px rgba(16, 185, 129, 0.2);
+	}
+
+	.latency-history {
+		margin-top: 0.75rem;
+	}
+
+	.latency-history tr.lost td {
+		color: #b91c1c;
 	}
 
 	@media (max-width: 640px) {

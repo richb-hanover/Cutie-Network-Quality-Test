@@ -75,7 +75,7 @@ function waitForIceGatheringComplete(pc: RTCPeerConnection): Promise<void> {
 			originalHandler = pc.onicegatheringstatechange;
 			pc.onicegatheringstatechange = (...args) => {
 				handleStateChange();
-				originalHandler?.apply(pc, args as unknown as []);
+				originalHandler?.apply(pc, args); //as unknown as []
 			};
 		}
 	});
@@ -150,18 +150,20 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			if (candidateInit?.candidate) {
 				const normalised = normaliseLocalCandidate(candidateInit as RTCIceCandidateInit);
-				console.debug('Server gathered ICE candidate', normalised);
+				// console.debug('Server gathered ICE candidate', normalised);
 				localCandidates.push(normalised);
 			}
 		}
 	};
 
 	pc.onicecandidateerror = (event: unknown) => {
-		console.error('Server ICE candidate error', event);
+		// console.error('Server ICE candidate error', event);
 	};
 
 	pc.ondatachannel = (event) => {
 		const channel = event.channel;
+
+		// Send a (wholly unnecessary) welcome message
 
 		channel.onopen = () => {
 			channel.send(
@@ -173,14 +175,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			);
 		};
 
+		// Simply send back any received message
+		// (This is the heart of the server, right here)
 		channel.onmessage = (msgEvent) => {
-			channel.send(
-				JSON.stringify({
-					type: 'echo',
-					received: msgEvent.data,
-					at: new Date().toISOString()
-				})
-			);
+			channel.send(msgEvent.data);
 		};
 	};
 

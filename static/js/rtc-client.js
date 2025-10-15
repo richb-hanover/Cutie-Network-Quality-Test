@@ -120,6 +120,16 @@ function logCandidate(stage, candidateInit) {
 		return;
 	}
 
+	if (info.type === 'host' && (stage === 'Remote' || stage === 'Local')) {
+		// console.info(`[RTC] ${stage} ICE candidate (${info.type})`, {
+		// 	address: info.address,
+		// 	port: info.port,
+		// 	protocol: info.protocol,
+		// 	raw: info.raw
+		// });
+		return;
+	}
+
 	console.info(`[RTC] ${stage} ICE candidate (${info.type})`, {
 		address: info.address,
 		port: info.port,
