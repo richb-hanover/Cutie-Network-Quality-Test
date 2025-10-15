@@ -156,7 +156,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	};
 
-	pc.onicecandidateerror = (event: unknown) => {
+	pc.onicecandidateerror = (_event: unknown) => {
 		// console.error('Server ICE candidate error', event);
 	};
 
@@ -166,6 +166,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Send a (wholly unnecessary) welcome message
 
 		channel.onopen = () => {
+			console.log(`Connection established`);
+
 			channel.send(
 				JSON.stringify({
 					type: 'welcome',

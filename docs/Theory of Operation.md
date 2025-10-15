@@ -1,56 +1,94 @@
 # Theory of Operation
 
-## How the VSee Network Stability Test works
+## How WebRTC Network Stability Test works
 
-The code establishes a connection to an RTC server endpoint and measures the responses.
+This project uses a WebRTC connection to
+send "probe messages" multiple times a second
+to a server and use the resulting data to
+measure latency, jitter, and packet loss.
 
-The original code makes a POST request to
-[the VSee server](https://test.vsee.com/network/connections)
-and receives a blob of JSON that gives the ID of the
-RTC thingie that we could talk to.
-
-This fetch() call fails because of a CORS error. (test.vsee.com is not configured to allow "\*" to connect, only its own pages.)
-
-Making the request manually (in a browser) and pasting the response into
-the code moves to the next error message, which is: `WebRTC: ICE failed, add a TURN server and see about:webrtc for more details`
-
-But if we could set up our own server running on `localhost`, or on
-`foo.local`, or even on `vseetest.mydomain.com`
-to serve the pages and host the RTC server, this could be useful.
-
-I asked ChatGPT to review this code and suggest an RTC server implementation.
-
-Also used [webcrack](https://webcrack.netlify.app/) to break out modules
-from the index.js file.
-This removed thousands of lines of code
-(which were all the bundled dependencies) from the original _index.js_ file.
-Webcrack also seems to convert CJS `require()` to `import` statements.
-It may also have produced the _package.json_ file.
-
-## rtcClient.js
-
-This code sends a POST `/connections` and
-(optionally) receives back credentials to be added
-to the `iceservers` array.
-
-## Development Strategies
-
-- Must bind to `0.0.0.0` in development mode for Firefox.
-  Chrome and Safari are less strict about addresses:
-  Use: `npm run dev --host 0.0.0.0 --port 5173`
+Specifically, the client inserts
+a timestamp and sequence number into its "probe" messages.
+The server is configured to echo those probe messages
+back to the client.
+By comparing the data in the probe message
+to the current time and sequence number,
+the client can then derive a fine-grained measurement of
+latency, jitter, and packet loss.
 
 ## latency-probes.ts
 
-- src/lib/latency-probe.ts:1 defines interval and history constants that control how often probes fire, how long before a ping counts as lost, and how many samples to retain.
-- src/lib/latency-probe.ts:7 exports TypeScript types describing latency samples, aggregate stats, and the public LatencyProbe API so other modules get strong typing.
-- src/lib/latency-probe.ts:26 `createEmptyLatencyStats()` helper
-  resets counters and history to a known baseline.
-- src/lib/latency-probe.ts:34 builds `createLatencyProbe()` is the
-  main function, wiring configurable timings, timers, and optional
-  callbacks for timestamping, clock source, and error logging.
-- src/lib/latency-probe.ts:47 tracks outbound pings in pendingPings, keeps running totals, and enforces a max history with appendHistory.
-- src/lib/latency-probe.ts:83 implements reset and stop, clearing timers and pending state while emitting fresh stats snapshots.
-- src/lib/latency-probe.ts:101 periodically scans pending pings, marks those exceeding lossTimeoutMs as lost, updates totals, and notifies listeners.
-- src/lib/latency-probe.ts:119 handles start: stops prior runs, resets stats, kicks off the first probe immediately, then schedules recurring probes and loss checks.
-- src/lib/latency-probe.ts:131 crafts each probe message with sequence and timestamp metadata, stores the send time, and increments the sent counter; errors go through the injected logger.
-- src/lib/latency-probe.ts:148 parses incoming messages, validates they are latency probes, calculates round-trip latency for known sequences, updates totals and averages, prunes history, and returns true so callers know the payload was handled.
+This is the heart of the measurement process:
+
+- `createEmptyLatencyStats` (src/lib/latency-probe.ts:43):
+  Builds the baseline LatencyStats object with all numeric fields
+  nulled or zeroed and an empty history, giving the monitor a
+  clean slate to mutate.
+- `createLatencyMonitor` (src/lib/latency-probe.ts:55):
+  Factory that wires together timers, state, and callbacks for
+  probing latency over a data channel; configures defaults for
+  cadence, loss detection, clock sources (now), timestamp
+  formatting, and logging, and returns the public monitor API.
+- `appendHistory` (src/lib/latency-probe.ts:77):
+  Keeps the rolling history capped to the requested historySize
+  by merging new samples with prior ones and trimming the oldest
+  entries.
+- `emitStats` (src/lib/latency-probe.ts:82):
+  Pushes the current latencyStats snapshot to the optional
+  onStats callback whenever state changes.
+- `clearTimers` (src/lib/latency-probe.ts:86):
+  Cancels the active send and loss-detection intervals and nulls
+  their handles so the monitor stops scheduling work.
+- `reset` (src/lib/latency-probe.ts:97):
+  Reinitializes counters, jitter estimate, sequence number, and
+  pending ping map to their defaults, then emits the fresh stats—
+  used both on startup and when reusing the monitor.
+- `stop` (src/lib/latency-probe.ts:107):
+  Calls clearTimers, drops the active channel, preserves the
+  existing history array contents, and emits stats so the UI can
+  reflect the idle state.
+- `recordLostPings` (src/lib/latency-probe.ts:115):
+  Scans outstanding probes for ones older than the loss timeout,
+  marks them as lost samples, updates totals/history, and emits
+  stats; keeps the pending map pruned.
+- `start` (src/lib/latency-probe.ts:149):
+  Public entry point that ensures a clean state, binds the given
+  RTCDataChannel, seeds an immediate probe, and schedules
+  periodic sending plus loss checks.
+- `sendProbe` (src/lib/latency-probe.ts:159):
+  Inner helper that verifies channel readiness, serializes a
+  latency probe payload, sends it, tracks the send time for later
+  RTT calculation, and increments the sent counter, logging
+  errors if transmission fails.
+- `handleMessage` (src/lib/latency-probe.ts:194):
+  Parses inbound JSON, validates that it’s a latency-probe
+  response, resolves the matching pending ping, updates latency/
+  jitter aggregates and history, and emits refreshed stats;
+  returns whether the payload was recognized.
+- `getStats` (src/lib/latency-probe.ts:262):
+  Arrow function exposed in the returned monitor that simply
+  hands back the latest latencyStats snapshot for consumers.
+
+## Provenance
+
+This is a completely new implementation of the concept above
+using SvelteKit, ChatGPT, and native network knowledge.
+The project was inspired by the WebRTC capabilities of
+[VSee Network Stability Test](https://test.vsee.com/network/index.html).
+
+The structure of this SvelteKit project came from creating
+a new SvelteKit project with `npx vs WebRTC-Stability-Test`.
+I then asked ChatGPT (in VSCode) to create an app
+using this file layout that would:
+
+- start a WebRTC listener on the server
+- serve out a GUI that would establish a WebRTC connection
+- send messages to the server and display the responses.
+- Someplace along the line, I also asked for some statistics
+  in the GUI.
+- After that was working, I manually tweaked the server
+  code to echo back any received message.
+- I also asked ChatGPT to implement the client "probe message"
+  facility, factoring it into _latency-probes.ts_
+
+After that, it's just general fussing with the features/GUI.

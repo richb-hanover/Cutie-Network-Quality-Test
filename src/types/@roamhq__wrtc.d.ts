@@ -5,13 +5,7 @@ declare module '@roamhq/wrtc' {
 	const MediaStream: typeof globalThis.MediaStream;
 	const mediaDevices: MediaDevices;
 
-	export {
-		RTCPeerConnection,
-		RTCSessionDescription,
-		RTCIceCandidate,
-		MediaStream,
-		mediaDevices
-	};
+	export { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, MediaStream, mediaDevices };
 
 	const _default: {
 		RTCPeerConnection: typeof globalThis.RTCPeerConnection;

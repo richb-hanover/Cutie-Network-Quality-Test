@@ -1,25 +1,27 @@
-export const LATENCY_INTERVAL_MS = 5000;
-export const LOSS_TIMEOUT_MS = 2000;
-export const LOSS_CHECK_INTERVAL_MS = 250;
-export const MAX_LATENCY_HISTORY = 25;
+export const LATENCY_INTERVAL_MS = 5000; // msec
+export const LOSS_TIMEOUT_MS = 2000; // msec
+export const LOSS_CHECK_INTERVAL_MS = 250; // msec
+export const MAX_LATENCY_HISTORY = 25; // depth of history
 
 export type LatencySample = {
 	seq: number;
 	status: 'received' | 'lost';
 	latencyMs: number | null;
+	jitterMs: number | null;
 	at: string;
 };
 
 export type LatencyStats = {
 	lastLatencyMs: number | null;
 	averageLatencyMs: number | null;
+	jitterMs: number | null;
 	totalSent: number;
 	totalReceived: number;
 	totalLost: number;
 	history: LatencySample[];
 };
 
-export type LatencyProbe = {
+export type LatencyMonitor = {
 	start: (channel: RTCDataChannel) => void;
 	stop: () => void;
 	reset: () => void;
@@ -27,7 +29,7 @@ export type LatencyProbe = {
 	getStats: () => LatencyStats;
 };
 
-type LatencyProbeOptions = {
+type LatencyMonitorOptions = {
 	intervalMs?: number;
 	lossTimeoutMs?: number;
 	lossCheckIntervalMs?: number;
@@ -42,6 +44,7 @@ export function createEmptyLatencyStats(): LatencyStats {
 	return {
 		lastLatencyMs: null,
 		averageLatencyMs: null,
+		jitterMs: null,
 		totalSent: 0,
 		totalReceived: 0,
 		totalLost: 0,
@@ -49,7 +52,7 @@ export function createEmptyLatencyStats(): LatencyStats {
 	};
 }
 
-export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyProbe {
+export function createLatencyMonitor(options: LatencyMonitorOptions = {}): LatencyMonitor {
 	const {
 		intervalMs = LATENCY_INTERVAL_MS,
 		lossTimeoutMs = LOSS_TIMEOUT_MS,
@@ -65,6 +68,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 
 	let latencyStats = createEmptyLatencyStats();
 	let totalLatencyMs = 0;
+	let jitterEstimateMs = 0;
 	let nextSeq = 0;
 	let activeChannel: RTCDataChannel | null = null;
 	let sendInterval: ReturnType<typeof setInterval> | null = null;
@@ -93,6 +97,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 	const reset = () => {
 		latencyStats = createEmptyLatencyStats();
 		totalLatencyMs = 0;
+		jitterEstimateMs = 0;
 		nextSeq = 0;
 		pendingPings.clear();
 		latencyStats = { ...latencyStats };
@@ -129,6 +134,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 			seq,
 			status: 'lost',
 			latencyMs: null,
+			jitterMs: null,
 			at: formatTimestamp()
 		}));
 
@@ -217,11 +223,22 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 		const latencyMs = now() - startedAt;
 		totalLatencyMs += latencyMs;
 		const totalReceived = latencyStats.totalReceived + 1;
+		const previousLatency = latencyStats.lastLatencyMs;
+
+		if (previousLatency !== null) {
+			const delta = Math.abs(latencyMs - previousLatency);
+			jitterEstimateMs += (delta - jitterEstimateMs) / 16;
+		} else {
+			jitterEstimateMs = 0;
+		}
+
+		const jitterMs = previousLatency !== null ? jitterEstimateMs : 0;
 
 		const sample: LatencySample = {
 			seq,
 			status: 'received',
 			latencyMs,
+			jitterMs,
 			at: formatTimestamp()
 		};
 
@@ -230,6 +247,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 			lastLatencyMs: latencyMs,
 			totalReceived,
 			averageLatencyMs: totalLatencyMs / totalReceived,
+			jitterMs,
 			history: appendHistory([sample])
 		};
 		emitStats();

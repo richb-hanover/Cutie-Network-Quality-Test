@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import {
-		createLatencyProbe,
+		createLatencyMonitor,
 		createEmptyLatencyStats,
 		LATENCY_INTERVAL_MS,
 		type LatencyStats
@@ -26,7 +26,7 @@
 	let latencyStats: LatencyStats = createEmptyLatencyStats();
 	const textDecoder = new TextDecoder();
 
-	const latencyProbe = createLatencyProbe({
+	const latencyProbe = createLatencyMonitor({
 		onStats: (stats) => {
 			latencyStats = { ...stats, history: [...stats.history] };
 		}
@@ -316,6 +316,12 @@
 							: '—'}
 					</td>
 				</tr>
+				<tr>
+					<th>Jitter</th>
+					<td>
+						{latencyStats.jitterMs !== null ? `${latencyStats.jitterMs.toFixed(2)} ms` : '—'}
+					</td>
+				</tr>
 			</tbody>
 		</table>
 		{#if latencyStats.history.length > 0}
@@ -326,6 +332,7 @@
 						<th>Seq</th>
 						<th>Status</th>
 						<th>Latency</th>
+						<th>Jitter</th>
 						<th>Time</th>
 					</tr>
 				</thead>
@@ -335,6 +342,7 @@
 							<td>{sample.seq}</td>
 							<td>{sample.status}</td>
 							<td>{sample.latencyMs !== null ? `${sample.latencyMs.toFixed(2)} ms` : '—'}</td>
+							<td>{sample.jitterMs !== null ? `${sample.jitterMs.toFixed(2)} ms` : '—'}</td>
 							<td>{sample.at}</td>
 						</tr>
 					{/each}

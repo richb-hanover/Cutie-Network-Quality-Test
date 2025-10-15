@@ -104,7 +104,9 @@ type CandidateInfo = {
 	raw: string;
 };
 
-function extractCandidateInfo(candidateInit: RTCIceCandidateInit | null | undefined): CandidateInfo | null {
+function extractCandidateInfo(
+	candidateInit: RTCIceCandidateInit | null | undefined
+): CandidateInfo | null {
 	if (!candidateInit?.candidate) {
 		return null;
 	}
@@ -254,7 +256,9 @@ async function negotiate(
 		}
 	};
 
-	let originalCandidateHandler: ((this: RTCPeerConnection, ev: RTCPeerConnectionIceEvent) => any) | null = null;
+	let originalCandidateHandler:
+		| ((this: RTCPeerConnection, ev: RTCPeerConnectionIceEvent) => void)
+		| null = null;
 
 	if (peer.addEventListener) {
 		peer.addEventListener('icecandidate', candidateListener);
@@ -283,7 +287,10 @@ async function negotiate(
 		};
 	}
 
-	const dataChannel = peer.createDataChannel(connectionInit?.label ?? 'client-data');
+	const dataChannel = peer.createDataChannel(connectionInit?.label ?? 'client-data', {
+		ordered: false,
+		maxRetransmits: 0
+	});
 	dataChannel.binaryType = 'arraybuffer';
 	const channelPromise = new Promise<RTCDataChannel>((resolve) => {
 		dataChannel.onopen = () => resolve(dataChannel);
@@ -427,7 +434,7 @@ export async function createServerConnection(
 		onDataChannelClose: onError
 			? (_channel) => {
 					onError(new Error('Data channel closed'));
-			  }
+				}
 			: undefined
 	});
 
