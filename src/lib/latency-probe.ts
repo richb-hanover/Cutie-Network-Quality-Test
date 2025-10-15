@@ -1,4 +1,4 @@
-export const LATENCY_INTERVAL_MS = 100;
+export const LATENCY_INTERVAL_MS = 5000;
 export const LOSS_TIMEOUT_MS = 2000;
 export const LOSS_CHECK_INTERVAL_MS = 250;
 export const MAX_LATENCY_HISTORY = 25;
@@ -165,6 +165,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 			});
 
 			try {
+				console.log(`Sent: ********** ${payload}`);
 				activeChannel.send(payload);
 				pendingPings.set(seq, sentAt);
 				latencyStats = {
@@ -187,6 +188,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 
 		try {
 			parsed = JSON.parse(payload);
+			console.log(`****** Received: ${payload}`);
 		} catch {
 			return false;
 		}
