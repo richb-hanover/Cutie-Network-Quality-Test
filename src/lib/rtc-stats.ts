@@ -1,5 +1,16 @@
-function summarize(report) {
-	const summary = {
+export type StatsSummary = {
+	timestamp: number;
+	bytesSent: number;
+	bytesReceived: number;
+	packetsSent: number;
+	packetsReceived: number;
+	messagesSent: number;
+	messagesReceived: number;
+	currentRoundTripTime: number | null;
+};
+
+function summarize(report: RTCStatsReport): StatsSummary {
+	const summary: StatsSummary = {
 		timestamp: Date.now(),
 		bytesSent: 0,
 		bytesReceived: 0,
@@ -28,14 +39,11 @@ function summarize(report) {
 	return summary;
 }
 
-/**
- * Polls getStats on an interval and invokes the callback with a summary.
- * @param {RTCPeerConnection} peer
- * @param {(summary: ReturnType<typeof summarize>, report: RTCStatsReport) => void} callback
- * @param {number} intervalMs
- * @returns {() => void} stop function
- */
-function startStatsReporter(peer, callback, intervalMs = 1_000) {
+export function startStatsReporter(
+	peer: RTCPeerConnection,
+	callback: (summary: StatsSummary, report: RTCStatsReport) => void,
+	intervalMs = 1_000
+): () => void {
 	let stopped = false;
 
 	async function poll() {
@@ -60,10 +68,4 @@ function startStatsReporter(peer, callback, intervalMs = 1_000) {
 	return () => {
 		stopped = true;
 	};
-}
-
-if (typeof window !== 'undefined') {
-	window.RtcStats = Object.freeze({
-		startStatsReporter
-	});
 }

@@ -1,7 +1,7 @@
 const DEFAULT_SIGNAL_URL = '/api/webrtc';
 const ICE_GATHER_TIMEOUT_MS = 15_000;
 
-function shouldNormaliseAddress(address) {
+function shouldNormaliseAddress(address: string | null | undefined): boolean {
 	if (!address) {
 		return false;
 	}
@@ -10,7 +10,10 @@ function shouldNormaliseAddress(address) {
 	return value.endsWith('.local') || value === 'localhost' || value === '::1' || value === '[::1]';
 }
 
-function normaliseCandidateString(candidateString) {
+function normaliseCandidateString(candidateString: string | undefined | null): {
+	candidate: string | undefined | null;
+	replaced: boolean;
+} {
 	if (!candidateString) {
 		return { candidate: candidateString, replaced: false };
 	}
@@ -43,7 +46,10 @@ function normaliseCandidateString(candidateString) {
 	};
 }
 
-function normaliseSdpCandidates(sdp) {
+function normaliseSdpCandidates(sdp: string | null | undefined): {
+	sdp: string | null | undefined;
+	replacements: number;
+} {
 	if (!sdp) {
 		return { sdp, replacements: 0 };
 	}
@@ -62,13 +68,13 @@ function normaliseSdpCandidates(sdp) {
 	return { sdp: normalised, replacements };
 }
 
-function extractCandidatesFromSdp(sdp) {
+function extractCandidatesFromSdp(sdp: string | null | undefined): RTCIceCandidateInit[] {
 	if (!sdp) {
 		return [];
 	}
 
-	const candidates = [];
-	let currentMid = null;
+	const candidates: RTCIceCandidateInit[] = [];
+	let currentMid: string | null = null;
 	let currentMLineIndex = -1;
 
 	for (const line of sdp.split(/\r?\n/)) {
@@ -90,7 +96,15 @@ function extractCandidatesFromSdp(sdp) {
 	return candidates;
 }
 
-function extractCandidateInfo(candidateInit) {
+type CandidateInfo = {
+	type: string;
+	address: string;
+	port: string;
+	protocol: string;
+	raw: string;
+};
+
+function extractCandidateInfo(candidateInit: RTCIceCandidateInit | null | undefined): CandidateInfo | null {
 	if (!candidateInit?.candidate) {
 		return null;
 	}
@@ -113,14 +127,14 @@ function extractCandidateInfo(candidateInit) {
 	};
 }
 
-function logCandidate(stage, candidateInit) {
+function logCandidate(stage: 'Local' | 'Remote', candidateInit: RTCIceCandidateInit): void {
 	const info = extractCandidateInfo(candidateInit);
 	if (!info) {
 		console.info(`[RTC] ${stage} ICE candidate`, candidateInit);
 		return;
 	}
 
-	if (info.type === 'host' && (stage === 'Remote' || stage === 'Local')) {
+	if (info.type === 'host') {
 		// console.info(`[RTC] ${stage} ICE candidate (${info.type})`, {
 		// 	address: info.address,
 		// 	port: info.port,
@@ -138,8 +152,8 @@ function logCandidate(stage, candidateInit) {
 	});
 }
 
-function logGatheringSummary(stage, candidates) {
-	const counts = candidates.reduce((acc, candidateInit) => {
+function logGatheringSummary(stage: 'Local' | 'Remote', candidates: RTCIceCandidateInit[]): void {
+	const counts = candidates.reduce<Record<string, number>>((acc, candidateInit) => {
 		const info = extractCandidateInfo(candidateInit);
 		if (!info) {
 			acc.unknown = (acc.unknown ?? 0) + 1;
@@ -155,7 +169,7 @@ function logGatheringSummary(stage, candidates) {
 	});
 }
 
-function normaliseLocalCandidate(candidateInit) {
+function normaliseLocalCandidate(candidateInit: RTCIceCandidateInit): RTCIceCandidateInit {
 	if (!candidateInit?.candidate) {
 		return candidateInit;
 	}
@@ -167,11 +181,11 @@ function normaliseLocalCandidate(candidateInit) {
 
 	return {
 		...candidateInit,
-		candidate
+		candidate: candidate ?? undefined
 	};
 }
 
-function waitForIceGatheringComplete(peer) {
+function waitForIceGatheringComplete(peer: RTCPeerConnection): Promise<void> {
 	if (peer.iceGatheringState === 'complete') {
 		return Promise.resolve();
 	}
@@ -191,13 +205,11 @@ function waitForIceGatheringComplete(peer) {
 			}
 		};
 
-		// const timeout = setTimeout(finish, ICE_GATHER_TIMEOUT_MS);
-		
 		const timeout = setTimeout(() => {
-      console.log('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
-      finish();
-    }, ICE_GATHER_TIMEOUT_MS);
-		
+			console.log('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
+			finish();
+		}, ICE_GATHER_TIMEOUT_MS);
+
 		if (peer.addEventListener) {
 			peer.addEventListener('icegatheringstatechange', handleStateChange);
 		} else {
@@ -210,9 +222,20 @@ function waitForIceGatheringComplete(peer) {
 	});
 }
 
-async function negotiate(peer, signalUrl, connectionInit) {
-	const gatheredCandidates = [];
-	const candidateListener = (event) => {
+type NegotiationHandlers = {
+	label?: string;
+	onDataChannelMessage?: (event: MessageEvent, dataChannel: RTCDataChannel) => void;
+	onDataChannelOpen?: ((dataChannel: RTCDataChannel) => void) | null;
+	onDataChannelClose?: (dataChannel: RTCDataChannel) => void;
+};
+
+async function negotiate(
+	peer: RTCPeerConnection,
+	signalUrl: string,
+	connectionInit: NegotiationHandlers = {}
+): Promise<{ connectionId: string; dataChannel: RTCDataChannel }> {
+	const gatheredCandidates: RTCIceCandidateInit[] = [];
+	const candidateListener = (event: RTCPeerConnectionIceEvent) => {
 		if (event.candidate) {
 			const candidateInit =
 				typeof event.candidate.toJSON === 'function'
@@ -231,15 +254,16 @@ async function negotiate(peer, signalUrl, connectionInit) {
 		}
 	};
 
-	let originalCandidateHandler = null;
+	let originalCandidateHandler: ((this: RTCPeerConnection, ev: RTCPeerConnectionIceEvent) => any) | null = null;
 
 	if (peer.addEventListener) {
 		peer.addEventListener('icecandidate', candidateListener);
 	} else {
 		originalCandidateHandler = peer.onicecandidate;
-		peer.onicecandidate = (...args) => {
-			if (args[0]?.candidate) {
-				const candidate = args[0].candidate;
+		peer.onicecandidate = (...args: Parameters<NonNullable<typeof peer.onicecandidate>>) => {
+			const [event] = args;
+			if (event?.candidate) {
+				const candidate = event.candidate;
 				const candidateInit =
 					typeof candidate.toJSON === 'function'
 						? candidate.toJSON()
@@ -260,12 +284,12 @@ async function negotiate(peer, signalUrl, connectionInit) {
 	}
 
 	const dataChannel = peer.createDataChannel(connectionInit?.label ?? 'client-data');
-	const channelPromise = new Promise((resolve) => {
+	const channelPromise = new Promise<RTCDataChannel>((resolve) => {
 		dataChannel.onopen = () => resolve(dataChannel);
 	});
 
 	if (connectionInit?.onDataChannelMessage) {
-		dataChannel.onmessage = (event) => connectionInit.onDataChannelMessage(event, dataChannel);
+		dataChannel.onmessage = (event) => connectionInit.onDataChannelMessage?.(event, dataChannel);
 	}
 
 	if (connectionInit?.onDataChannelOpen) {
@@ -322,7 +346,7 @@ async function negotiate(peer, signalUrl, connectionInit) {
 	const { answer, connectionId, candidates: remoteCandidates = [] } = await response.json();
 	await peer.setRemoteDescription(answer);
 
-	for (const candidate of remoteCandidates) {
+	for (const candidate of remoteCandidates as RTCIceCandidateInit[]) {
 		if (!candidate?.candidate) {
 			continue;
 		}
@@ -354,24 +378,26 @@ async function negotiate(peer, signalUrl, connectionInit) {
 	};
 }
 
-/**
- * Creates a WebRTC connection to the server.
- * @param {Object} options
- * @param {RTCConfiguration} [options.rtcConfig]
- * @param {string} [options.signalUrl]
- * @param {function} [options.onMessage]
- * @param {function} [options.onOpen]
- * @param {function} [options.onError]
- * @returns {Promise<{ peerConnection: RTCPeerConnection, dataChannel: RTCDataChannel, connectionId: string, close: () => Promise<void> }>}
- */
-async function createServerConnection(options = {}) {
-	const {
-		rtcConfig,
-		signalUrl = DEFAULT_SIGNAL_URL,
-		onMessage,
-		onOpen,
-		onError
-	} = options;
+export type CreateServerConnectionOptions = {
+	rtcConfig?: RTCConfiguration;
+	signalUrl?: string;
+	label?: string;
+	onMessage?: (event: MessageEvent, dataChannel?: RTCDataChannel) => void;
+	onOpen?: (dataChannel: RTCDataChannel) => void;
+	onError?: (error: unknown) => void;
+};
+
+export type ServerConnection = {
+	peerConnection: RTCPeerConnection;
+	dataChannel: RTCDataChannel;
+	connectionId: string;
+	close: () => Promise<void>;
+};
+
+export async function createServerConnection(
+	options: CreateServerConnectionOptions = {}
+): Promise<ServerConnection> {
+	const { rtcConfig, signalUrl = DEFAULT_SIGNAL_URL, onMessage, onOpen, onError, label } = options;
 
 	const peer = new RTCPeerConnection(
 		rtcConfig ?? {
@@ -390,15 +416,20 @@ async function createServerConnection(options = {}) {
 	};
 
 	const { connectionId, dataChannel } = await negotiate(peer, signalUrl, {
+		label,
 		onDataChannelMessage: onMessage,
 		onDataChannelOpen: onOpen,
-		onDataChannelClose: () => onError?.(new Error('Data channel closed'))
+		onDataChannelClose: onError
+			? (_channel) => {
+					onError(new Error('Data channel closed'));
+			  }
+			: undefined
 	});
 
 	async function close() {
 		try {
 			dataChannel.close();
-		} catch (_) {
+		} catch {
 			// ignore channel close errors
 		}
 		peer.close();
@@ -406,7 +437,7 @@ async function createServerConnection(options = {}) {
 			await fetch(`${signalUrl}?id=${encodeURIComponent(connectionId)}`, {
 				method: 'DELETE'
 			});
-		} catch (_) {
+		} catch {
 			// ignore network errors on cleanup
 		}
 	}
@@ -417,10 +448,4 @@ async function createServerConnection(options = {}) {
 		connectionId,
 		close
 	};
-}
-
-if (typeof window !== 'undefined') {
-	window.RtcClient = Object.freeze({
-		createServerConnection
-	});
 }

@@ -1,70 +1,15 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import {
+		createLatencyProbe,
+		createEmptyLatencyStats,
+		LATENCY_INTERVAL_MS,
+		type LatencyStats
+	} from '$lib/latency-probe';
+	import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
+	import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
 
-	type StatsSummary = {
-		timestamp: number;
-		bytesSent: number;
-		bytesReceived: number;
-		packetsSent: number;
-		packetsReceived: number;
-		messagesSent: number;
-		messagesReceived: number;
-		currentRoundTripTime: number | null;
-	};
-
-	type ConnectionResult = {
-		peerConnection: RTCPeerConnection;
-		dataChannel: RTCDataChannel;
-		connectionId: string;
-		close: () => Promise<void>;
-	};
-
-	type ClientModule = {
-		createServerConnection: (options?: {
-			rtcConfig?: RTCConfiguration;
-			signalUrl?: string;
-			onMessage?: (event: MessageEvent) => void;
-			onOpen?: () => void;
-			onError?: (error: unknown) => void;
-		}) => Promise<ConnectionResult>;
-	};
-
-	type StatsModule = {
-		startStatsReporter: (
-			peer: RTCPeerConnection,
-			callback: (summary: StatsSummary, report: RTCStatsReport) => void,
-			intervalMs?: number
-		) => () => void;
-	};
-
-	type HelperModules = {
-		client: ClientModule;
-		stats: StatsModule;
-	};
-
-	const LATENCY_INTERVAL_MS = 100;
-	const LOSS_TIMEOUT_MS = 2000;
-	const LOSS_CHECK_INTERVAL_MS = 250;
-	const MAX_LATENCY_HISTORY = 25;
-
-	type LatencySample = {
-		seq: number;
-		status: 'received' | 'lost';
-		latencyMs: number | null;
-		at: string;
-	};
-
-	type LatencyStats = {
-		lastLatencyMs: number | null;
-		averageLatencyMs: number | null;
-		totalSent: number;
-		totalReceived: number;
-		totalLost: number;
-		history: LatencySample[];
-	};
-
-	let helpersPromise: Promise<HelperModules> | null = null;
-	let connection: ConnectionResult | null = null;
+	let connection: ServerConnection | null = null;
 	let connectionId: string | null = null;
 	let connectionState: RTCPeerConnectionState = 'disconnected';
 	let iceConnectionState: RTCIceConnectionState = 'new';
@@ -78,192 +23,13 @@
 	let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
 
 	let stopStats: (() => void) | null = null;
+	let latencyStats: LatencyStats = createEmptyLatencyStats();
 
-	const pendingPings = new Map<number, number>();
-	let activeProbeChannel: RTCDataChannel | null = null;
-	let pingInterval: ReturnType<typeof setInterval> | null = null;
-	let lossCheckInterval: ReturnType<typeof setInterval> | null = null;
-	let nextPingSeq = 0;
-	let latencySumMs = 0;
-	let latencyStats: LatencyStats = {
-		lastLatencyMs: null,
-		averageLatencyMs: null,
-		totalSent: 0,
-		totalReceived: 0,
-		totalLost: 0,
-		history: []
-	};
-
-	function loadScript(src: string): Promise<void> {
-		if (typeof document === 'undefined') {
-			return Promise.reject(new Error('Cannot load helper scripts on the server.'));
+	const latencyProbe = createLatencyProbe({
+		onStats: (stats) => {
+			latencyStats = { ...stats, history: [...stats.history] };
 		}
-
-		const existing = document.querySelector<HTMLScriptElement>(`script[data-rtc-src="${src}"]`);
-		if (existing) {
-			if (existing.dataset.ready === 'true') {
-				return Promise.resolve();
-			}
-
-			return new Promise((resolve, reject) => {
-				existing.addEventListener('load', () => resolve(), { once: true });
-				existing.addEventListener(
-					'error',
-					() => reject(new Error(`Failed to load helper script ${src}`)),
-					{ once: true }
-				);
-			});
-		}
-
-		return new Promise((resolve, reject) => {
-			const script = document.createElement('script');
-			script.type = 'module';
-			script.src = src;
-			script.dataset.rtcSrc = src;
-			script.addEventListener(
-				'load',
-				() => {
-					script.dataset.ready = 'true';
-					resolve();
-				},
-				{ once: true }
-			);
-			script.addEventListener(
-				'error',
-				() => reject(new Error(`Failed to load helper script ${src}`)),
-				{ once: true }
-			);
-			document.head.appendChild(script);
-		});
-	}
-
-	function ensureHelpers(): Promise<HelperModules> {
-		if (typeof window === 'undefined') {
-			return Promise.reject(new Error('RTC helpers are only available in the browser.'));
-		}
-
-		if (!helpersPromise) {
-			helpersPromise = Promise.all([
-				loadScript('/js/rtc-client.js'),
-				loadScript('/js/rtc-stats.js')
-			]).then(() => {
-				if (!window.RtcClient || !window.RtcStats) {
-					throw new Error('RTC helper scripts failed to initialise.');
-				}
-
-				return {
-					client: window.RtcClient!,
-					stats: window.RtcStats!
-				};
-			});
-		}
-
-		return helpersPromise;
-	}
-
-	function trimHistory(history: LatencySample[]): LatencySample[] {
-		return history.length > MAX_LATENCY_HISTORY ? history.slice(-MAX_LATENCY_HISTORY) : history;
-	}
-
-	function resetLatencyStats() {
-		latencyStats = {
-			lastLatencyMs: null,
-			averageLatencyMs: null,
-			totalSent: 0,
-			totalReceived: 0,
-			totalLost: 0,
-			history: []
-		};
-		latencySumMs = 0;
-		nextPingSeq = 0;
-		pendingPings.clear();
-	}
-
-	function stopLatencyProbe() {
-		if (pingInterval) {
-			clearInterval(pingInterval);
-			pingInterval = null;
-		}
-		if (lossCheckInterval) {
-			clearInterval(lossCheckInterval);
-			lossCheckInterval = null;
-		}
-		pendingPings.clear();
-		activeProbeChannel = null;
-	}
-
-	function startLatencyProbe(dataChannel: RTCDataChannel) {
-		if (activeProbeChannel === dataChannel && pingInterval) {
-			return;
-		}
-
-		stopLatencyProbe();
-		activeProbeChannel = dataChannel;
-		resetLatencyStats();
-
-		const sendProbe = () => {
-			if (dataChannel.readyState !== 'open') {
-				return;
-			}
-
-			const seq = nextPingSeq++;
-			const sentAt = performance.now();
-			const payload = JSON.stringify({
-				type: 'latency-probe',
-				seq,
-				t0: sentAt,
-				sentAt: Date.now()
-			});
-
-			try {
-				dataChannel.send(payload);
-				pendingPings.set(seq, sentAt);
-				latencyStats = {
-					...latencyStats,
-					totalSent: latencyStats.totalSent + 1
-				};
-			} catch (err) {
-				console.error('Failed to send latency probe', err);
-			}
-		};
-
-		sendProbe();
-		pingInterval = setInterval(sendProbe, LATENCY_INTERVAL_MS);
-
-		lossCheckInterval = setInterval(() => {
-			const now = performance.now();
-			const expired: number[] = [];
-
-			for (const [seq, t0] of pendingPings) {
-				if (now - t0 > LOSS_TIMEOUT_MS) {
-					expired.push(seq);
-				}
-			}
-
-			if (expired.length === 0) {
-				return;
-			}
-
-			for (const seq of expired) {
-				pendingPings.delete(seq);
-			}
-
-			const lostSamples = expired.map((seq) => ({
-				seq,
-				status: 'lost' as const,
-				latencyMs: null,
-				at: new Date().toLocaleTimeString()
-			}));
-
-			const history = trimHistory([...latencyStats.history, ...lostSamples]);
-
-			latencyStats = {
-				...latencyStats,
-				totalLost: latencyStats.totalLost + expired.length,
-				history
-			};
-		}, LOSS_CHECK_INTERVAL_MS);
-	}
+	});
 
 	async function connectToServer() {
 		if (isConnecting) return;
@@ -276,54 +42,10 @@
 				await disconnect();
 			}
 
-			const { client, stats } = await ensureHelpers();
-
-			connection = await client.createServerConnection({
+			connection = await createServerConnection({
 				onMessage: (event: MessageEvent) => {
 					const payload = String(event.data);
-					let parsedProbe: { type?: string; seq?: number } | null = null;
-
-					try {
-						const candidate = JSON.parse(payload);
-						if (
-							candidate &&
-							typeof candidate === 'object' &&
-							'type' in candidate &&
-							(candidate as { type: unknown }).type === 'latency-probe'
-						) {
-							parsedProbe = candidate as { type?: string; seq?: number };
-						}
-					} catch {
-						// Non-JSON payloads are handled below.
-					}
-
-					if (parsedProbe?.seq !== undefined) {
-						const seq = Number(parsedProbe.seq);
-						const startedAt = pendingPings.get(seq);
-
-						if (Number.isFinite(seq) && startedAt !== undefined) {
-							pendingPings.delete(seq);
-
-							const latencyMs = performance.now() - startedAt;
-							latencySumMs += latencyMs;
-							const totalReceived = latencyStats.totalReceived + 1;
-							const sample: LatencySample = {
-								seq,
-								status: 'received',
-								latencyMs,
-								at: new Date().toLocaleTimeString()
-							};
-							const history = trimHistory([...latencyStats.history, sample]);
-
-							latencyStats = {
-								...latencyStats,
-								lastLatencyMs: latencyMs,
-								totalReceived,
-								averageLatencyMs: latencySumMs / totalReceived,
-								history
-							};
-						}
-
+					if (latencyProbe.handleMessage(payload)) {
 						return;
 					}
 
@@ -342,7 +64,7 @@
 				},
 				onError: (err: unknown) => {
 					errorMessage = err instanceof Error ? err.message : String(err);
-					stopLatencyProbe();
+					latencyProbe.stop();
 				}
 			});
 
@@ -363,37 +85,37 @@
 
 			dataChannel.addEventListener('open', () => {
 				dataChannelState = dataChannel.readyState;
-				startLatencyProbe(dataChannel);
+				latencyProbe.start(dataChannel);
 			});
 
 			dataChannel.addEventListener('close', () => {
 				dataChannelState = dataChannel.readyState;
-				stopLatencyProbe();
+				latencyProbe.stop();
 			});
 
 			dataChannel.addEventListener('error', () => {
-				stopLatencyProbe();
+				latencyProbe.stop();
 			});
 
 			if (dataChannel.readyState === 'open') {
-				startLatencyProbe(dataChannel);
+				latencyProbe.start(dataChannel);
 			}
 
 			stopStats?.();
-			stopStats = stats.startStatsReporter(peerConnection, (summary: StatsSummary) => {
+			stopStats = startStatsReporter(peerConnection, (summary: StatsSummary) => {
 				statsSummary = summary;
 			});
 		} catch (err) {
 			errorMessage = err instanceof Error ? err.message : String(err);
 			connectionState = 'failed';
-			stopLatencyProbe();
+			latencyProbe.stop();
 		} finally {
 			isConnecting = false;
 		}
 	}
 
 	async function disconnect() {
-		stopLatencyProbe();
+		latencyProbe.stop();
 		stopStats?.();
 		stopStats = null;
 
@@ -430,11 +152,6 @@
 		disconnect();
 	});
 </script>
-
-<svelte:head>
-	<link rel="modulepreload" href="/js/rtc-client.js" />
-	<link rel="modulepreload" href="/js/rtc-stats.js" />
-</svelte:head>
 
 <main class="container">
 	<section class="panel">
