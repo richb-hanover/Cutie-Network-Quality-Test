@@ -58,7 +58,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 		onStats,
 		now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
 		formatTimestamp = () => new Date().toLocaleTimeString(),
-		logger = (error: unknown) => console.error('Failed to send latency probe', error)
+		logger = (error: unknown) => console.error('latency probe: ', error)
 	} = options;
 
 	const pendingPings = new Map<number, number>();
@@ -142,6 +142,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 
 	const start = (channel: RTCDataChannel) => {
 		if (activeChannel === channel && sendInterval) {
+			console.log(`start: returned because active && sendInterval`);
 			return;
 		}
 
@@ -151,6 +152,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 
 		const sendProbe = () => {
 			if (!activeChannel || activeChannel.readyState !== 'open') {
+				console.log(`sendProbe: returned because no channel or not open`);
 				return;
 			}
 
@@ -161,7 +163,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 				type: 'latency-probe',
 				seq,
 				t0: sentAt,
-				sentAt: Date.now()
+				sentAt: now()
 			});
 
 			try {
@@ -188,7 +190,7 @@ export function createLatencyProbe(options: LatencyProbeOptions = {}): LatencyPr
 
 		try {
 			parsed = JSON.parse(payload);
-			console.log(`****** Received: ${payload}`);
+			console.log(`****** Received: ${payload} at ${now()}`);
 		} catch {
 			return false;
 		}

@@ -18,39 +18,39 @@
 	let isConnecting = false;
 	let errorMessage = '';
 	let outgoingMessage = 'ping';
-let messageId = 0;
+	let messageId = 0;
 
-let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
+	let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
 
-let stopStats: (() => void) | null = null;
-let latencyStats: LatencyStats = createEmptyLatencyStats();
-const textDecoder = new TextDecoder();
+	let stopStats: (() => void) | null = null;
+	let latencyStats: LatencyStats = createEmptyLatencyStats();
+	const textDecoder = new TextDecoder();
 
-const latencyProbe = createLatencyProbe({
-	onStats: (stats) => {
-		latencyStats = { ...stats, history: [...stats.history] };
-	}
-});
+	const latencyProbe = createLatencyProbe({
+		onStats: (stats) => {
+			latencyStats = { ...stats, history: [...stats.history] };
+		}
+	});
 
-async function normaliseDataMessage(data: unknown): Promise<string> {
-	if (typeof data === 'string') {
-		return data;
+	async function normaliseDataMessage(data: unknown): Promise<string> {
+		if (typeof data === 'string') {
+			return data;
+		}
+		if (data instanceof ArrayBuffer) {
+			return textDecoder.decode(data);
+		}
+		if (ArrayBuffer.isView(data)) {
+			return textDecoder.decode(data as ArrayBufferView);
+		}
+		if (typeof Blob !== 'undefined' && data instanceof Blob) {
+			const buffer = await data.arrayBuffer();
+			return textDecoder.decode(buffer);
+		}
+		if (data === null || data === undefined) {
+			return '';
+		}
+		return String(data);
 	}
-	if (data instanceof ArrayBuffer) {
-		return textDecoder.decode(data);
-	}
-	if (ArrayBuffer.isView(data)) {
-		return textDecoder.decode(data as ArrayBufferView);
-	}
-	if (typeof Blob !== 'undefined' && data instanceof Blob) {
-		const buffer = await data.arrayBuffer();
-		return textDecoder.decode(buffer);
-	}
-	if (data === null || data === undefined) {
-		return '';
-	}
-	return String(data);
-}
 
 	async function connectToServer() {
 		if (isConnecting) return;
@@ -105,16 +105,19 @@ async function normaliseDataMessage(data: unknown): Promise<string> {
 			});
 
 			dataChannel.addEventListener('open', () => {
+				console.log(`dataChannel opened`);
 				dataChannelState = dataChannel.readyState;
 				latencyProbe.start(dataChannel);
 			});
 
 			dataChannel.addEventListener('close', () => {
+				console.log(`dataChannel closed`);
 				dataChannelState = dataChannel.readyState;
 				latencyProbe.stop();
 			});
 
-			dataChannel.addEventListener('error', () => {
+			dataChannel.addEventListener('error', (e) => {
+				console.log(`dataChannel error: ${e}`);
 				latencyProbe.stop();
 			});
 
@@ -127,6 +130,7 @@ async function normaliseDataMessage(data: unknown): Promise<string> {
 				statsSummary = summary;
 			});
 		} catch (err) {
+			console.log(`dataChannel caught error: ${err}`);
 			errorMessage = err instanceof Error ? err.message : String(err);
 			connectionState = 'failed';
 			latencyProbe.stop();
