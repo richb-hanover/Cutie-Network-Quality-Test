@@ -64,7 +64,7 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		logger = (error: unknown) => console.error('latency probe: ', error)
 	} = options;
 
-	const pendingPings = new Map<number, number>();
+	const pendingProbes = new Map<number, number>();
 
 	let latencyStats = createEmptyLatencyStats();
 	let totalLatencyMs = 0;
@@ -99,24 +99,24 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		totalLatencyMs = 0;
 		jitterEstimateMs = 0;
 		nextSeq = 0;
-		pendingPings.clear();
+		pendingProbes.clear();
 		latencyStats = { ...latencyStats };
 		emitStats();
 	};
 
 	const stop = () => {
 		clearTimers();
-		pendingPings.clear();
+		pendingProbes.clear();
 		activeChannel = null;
 		latencyStats = { ...latencyStats, history: [...latencyStats.history] };
 		emitStats();
 	};
 
-	const recordLostPings = () => {
+	const recordLostProbes = () => {
 		const currentTime = now();
 		const lost: number[] = [];
 
-		for (const [seq, sentAt] of pendingPings) {
+		for (const [seq, sentAt] of pendingProbes) {
 			if (currentTime - sentAt > lossTimeoutMs) {
 				lost.push(seq);
 			}
@@ -127,7 +127,7 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		}
 
 		for (const seq of lost) {
-			pendingPings.delete(seq);
+			pendingProbes.delete(seq);
 		}
 
 		const lostSamples: LatencySample[] = lost.map((seq) => ({
@@ -175,7 +175,7 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			try {
 				console.log(`Sent: ********** ${payload}`);
 				activeChannel.send(payload);
-				pendingPings.set(seq, sentAt);
+				pendingProbes.set(seq, sentAt);
 				latencyStats = {
 					...latencyStats,
 					totalSent: latencyStats.totalSent + 1
@@ -188,7 +188,7 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 
 		sendProbe();
 		sendInterval = setInterval(sendProbe, intervalMs);
-		lossInterval = setInterval(recordLostPings, lossCheckIntervalMs);
+		lossInterval = setInterval(recordLostProbes, lossCheckIntervalMs);
 	};
 
 	const handleMessage = (payload: string): boolean => {
@@ -212,13 +212,13 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		}
 
 		const seq = (parsed as { seq: number }).seq;
-		const startedAt = pendingPings.get(seq);
+		const startedAt = pendingProbes.get(seq);
 
 		if (startedAt === undefined) {
 			return true;
 		}
 
-		pendingPings.delete(seq);
+		pendingProbes.delete(seq);
 
 		const latencyMs = now() - startedAt;
 		totalLatencyMs += latencyMs;

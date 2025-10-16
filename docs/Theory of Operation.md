@@ -41,13 +41,13 @@ This is the heart of the measurement process:
   their handles so the monitor stops scheduling work.
 - `reset` (src/lib/latency-probe.ts:97):
   Reinitializes counters, jitter estimate, sequence number, and
-  pending ping map to their defaults, then emits the fresh stats—
+  pending probe map to their defaults, then emits the fresh stats—
   used both on startup and when reusing the monitor.
 - `stop` (src/lib/latency-probe.ts:107):
   Calls clearTimers, drops the active channel, preserves the
   existing history array contents, and emits stats so the UI can
   reflect the idle state.
-- `recordLostPings` (src/lib/latency-probe.ts:115):
+- `recordLostProbes` (src/lib/latency-probe.ts:115):
   Scans outstanding probes for ones older than the loss timeout,
   marks them as lost samples, updates totals/history, and emits
   stats; keeps the pending map pruned.
@@ -62,7 +62,7 @@ This is the heart of the measurement process:
   errors if transmission fails.
 - `handleMessage` (src/lib/latency-probe.ts:194):
   Parses inbound JSON, validates that it’s a latency-probe
-  response, resolves the matching pending ping, updates latency/
+  response, resolves the matching pending probe, updates latency/
   jitter aggregates and history, and emits refreshed stats;
   returns whether the payload was recognized.
 - `getStats` (src/lib/latency-probe.ts:262):

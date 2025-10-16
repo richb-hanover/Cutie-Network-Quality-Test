@@ -17,7 +17,7 @@
 	let statsSummary: StatsSummary | null = null;
 	let isConnecting = false;
 	let errorMessage = '';
-	let outgoingMessage = 'ping';
+	let outgoingMessage = 'probe';
 	let messageId = 0;
 
 	let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
@@ -289,15 +289,15 @@
 					<td>{LATENCY_INTERVAL_MS} ms</td>
 				</tr>
 				<tr>
-					<th>Pings Sent</th>
+					<th>Probes Sent</th>
 					<td>{latencyStats.totalSent}</td>
 				</tr>
 				<tr>
-					<th>Pings Received</th>
+					<th>Probes Received</th>
 					<td>{latencyStats.totalReceived}</td>
 				</tr>
 				<tr>
-					<th>Pings Lost</th>
+					<th>Probes Lost</th>
 					<td>{latencyStats.totalLost}</td>
 				</tr>
 				<tr>
