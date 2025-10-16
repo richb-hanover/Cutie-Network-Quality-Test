@@ -5,11 +5,8 @@
 
 	Chart.register(...registerables);
 
-	const SLOTS_PER_MINUTE = 6;
-	const INITIAL_SLOTS = 60; // 10 minutes of 10-second samples
-	const MIN_POINTS_FOR_FULL_WIDTH = INITIAL_SLOTS;
-	const DEFAULT_WIDTH = INITIAL_SLOTS * 10; // assume 10px per slot as baseline
-	// const DEFAULT_WIDTH = MIN_POINTS_FOR_FULL_WIDTH * 10;
+	const STEP_SECONDS = 60;
+	const INITIAL_RANGE_SECONDS = STEP_SECONDS * 10; // 10 minutes
 
 	const formatLabel = (timestamp: number): string => {
 		const date = new Date(timestamp);
@@ -29,32 +26,40 @@
 	let canvas: HTMLCanvasElement | null = null;
 	let chart: Chart<'line'> | null = null;
 	let unsubscribe: (() => void) | null = null;
-	let currentPoints: MosPoint[] = [];
+	let baseTimestamp =
+		Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 
 	const updateChart = (points: MosPoint[]) => {
 		if (!chart) return;
 
-		currentPoints = points;
-		const chartWidth = chart?.width ?? canvas?.clientWidth ?? DEFAULT_WIDTH;
-		const baseSpacing = chartWidth / MIN_POINTS_FOR_FULL_WIDTH;
-		const spacing =
-			points.length < MIN_POINTS_FOR_FULL_WIDTH
-				? baseSpacing
-				: chartWidth / Math.max(points.length - 1, 1);
-		const minuteSpacing =
-			spacing * SLOTS_PER_MINUTE > 0 ? spacing * SLOTS_PER_MINUTE : chartWidth / SLOTS_PER_MINUTE;
+		if (points.length === 0) {
+			baseTimestamp =
+				Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+			chart.data.datasets[0].data = [];
+			chart.options.scales!.x!.max = INITIAL_RANGE_SECONDS;
+			chart.options.scales!.x!.ticks.stepSize = STEP_SECONDS;
+			chart.update('none');
+			return;
+		}
 
-		const data =
-			points.length === 0
-				? []
-				: points.map((point, index) => ({
-						x: index * spacing,
-						y: point.value
-					}));
+		if (points[0].at < baseTimestamp) {
+			baseTimestamp =
+				Math.floor(points[0].at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+		}
+
+		const data = points.map((point) => ({
+			x: Math.max(0, (point.at - baseTimestamp) / 1000),
+			y: point.value
+		}));
 
 		chart.data.datasets[0].data = data;
-		chart.options.scales!.x!.max = chartWidth;
-		chart.options.scales!.x!.ticks.stepSize = minuteSpacing;
+
+		const lastDeltaSeconds = data[data.length - 1]?.x ?? 0;
+		const minutesCovered = Math.max(10, Math.ceil(lastDeltaSeconds / STEP_SECONDS) + 1);
+		const maxRangeSeconds = minutesCovered * STEP_SECONDS;
+
+		chart.options.scales!.x!.max = maxRangeSeconds;
+		chart.options.scales!.x!.ticks.stepSize = STEP_SECONDS;
 		chart.update('none');
 	};
 
@@ -113,36 +118,22 @@
 							color: '#d1d5db'
 						},
 						min: 0,
-						max: 1,
+						max: INITIAL_RANGE_SECONDS,
 						ticks: {
 							color: '#6b7280',
 							maxRotation: 0,
 							minRotation: 0,
 							autoSkip: false,
+							stepSize: STEP_SECONDS,
 							callback(value) {
-								const numericValue = typeof value === 'string' ? Number(value) : (value as number);
-								if (!currentPoints.length || Number.isNaN(numericValue)) {
+								const numericValue =
+									typeof value === 'string' ? Number(value) : (value as number);
+								if (Number.isNaN(numericValue)) {
 									return '';
 								}
 
-								const chartWidth = this.chart?.width ?? canvas?.clientWidth ?? DEFAULT_WIDTH;
-								const baseSpacing = chartWidth / MIN_POINTS_FOR_FULL_WIDTH;
-								const spacing =
-									currentPoints.length < MIN_POINTS_FOR_FULL_WIDTH
-										? baseSpacing
-										: chartWidth / Math.max(currentPoints.length - 1, 1);
-
-								const approxIndex = Math.round(numericValue / spacing);
-								const boundedIndex = Math.min(currentPoints.length - 1, Math.max(0, approxIndex));
-
-								if (
-									boundedIndex % SLOTS_PER_MINUTE !== 0 &&
-									boundedIndex !== currentPoints.length - 1
-								) {
-									return '';
-								}
-
-								return formatLabel(currentPoints[boundedIndex].at);
+								const timestamp = baseTimestamp + numericValue * 1000;
+								return formatLabel(timestamp);
 							}
 						}
 					},
