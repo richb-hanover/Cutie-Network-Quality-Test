@@ -92,3 +92,104 @@ using this file layout that would:
   facility, factoring it into _latency-probes.ts_
 
 After that, it's just general fussing with the features/GUI.
+
+## MOS (Mean Opinion Score) calculations
+
+The Netbeez article
+[Impact of Packet Loss, Jitter, and Latency on VoIP](https://netbeez.net/blog/impact-of-packet-loss-jitter-and-latency-on-voip/)
+describes "Mean Opinion Score" (MOS) quality calculations.
+Here is an excerpt from their article:
+
+---
+
+The industry has adopted the Mean Opinion Score (MOS)
+as the universal metric to measure and classify
+the conversation quality that happens over a network.
+As the name suggests, it is based on the opinion of the
+user and ranges from 1.0 to 5.0
+with the following classifications:
+
+MOS Quality Impairment
+
+- 5 Excellent Imperceptible
+- 4 Good Perceptible but not annoying
+- 3 Fair Slightly annoying
+- 2 Poor Annoying
+- 1 Bad >Very annoying
+
+Typically, the highest MOS score that can be achieved is 4.5
+for the G.711 codec.
+The cutoff MOS score for calls that can be tolerated
+is around 2.5.
+Ideally, the MOS score is calculated by asking the
+participants to put a score to the conversation.
+However, this is not practical, and there are ways
+to estimate the call quality based on the
+network’s latency,jitter, and packet loss.
+
+The most popular method is based on the E-model,
+which calculates the rating factor, R,
+which then is used to derive the MOS score.
+
+For an R-value larger than 93.2, we get the maximum MOS score.
+Depending on latency, jitter, and packet loss we need to deduct from 93.2.
+This may sound like a magic number,
+but if you want to learn more about how it’s derived
+and the E-model you can take a look
+[here](https://web.archive.org/web/20240401042449/https://scholarworks.gsu.edu/cgi/viewcontent.cgi?article=1043&context=cs_theses)
+_(Original is no longer available.
+Link above is to Wayback Machine at archive.org)._
+
+###Effective Latency
+
+Latency and jitter are related and get combined into a
+metric called effective latency,
+which is measured in milliseconds.
+The calculation is as follows:
+
+`effective_latency = latency + 2*jitter + 10.0`
+
+We double the effect of jitter because its impact is high
+on the voice quality and we add a constant of 10.0 ms
+to account for the delay from the codecs.
+
+### Calculating R
+
+As noted above, R starts with a max value of 93.2.
+We reduce R based on effective latency as follows:
+
+For effective_latency < 160.0 ms:
+
+`R = 93.2 - (effective_latency)/40.0`
+
+For effective_latency >= 160.0 ms:
+
+`R = 93.2 - (effective_latency - 120.0)/10.0`
+
+If the effective latency is less than 160.0 ms,
+the overall impact to the voice quality is moderate.
+For larger values, the voice quality drops more significantly,
+which is why R is penalized more.
+
+### Packet loss
+
+We take into consideration packet loss
+(in percentage points) as follows:
+
+`R = R - 2.5 * packet_loss`
+
+### Final MOS calculation
+
+Finally, we calculate the MOS score using with the following formula:
+
+For R < 0:
+
+`MOS = 1.0`
+
+For 0 < R < 100.0:
+
+`MOS = 1 + 0.035*R + 0.000007*R*(R-60)*(100-R)`
+
+For R >= 100.0:
+
+`MOS = 4.5`

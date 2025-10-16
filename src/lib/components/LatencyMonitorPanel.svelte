@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { onDestroy, onMount } from 'svelte';
 	import { type LatencySample, type LatencyStats } from '$lib/latency-probe';
 
-	const FIVE_SECONDS_MS = 5000;
+	const TEN_SECONDS_MS = 10000;
+	const REFRESH_INTERVAL_MS = TEN_SECONDS_MS;
 
 	export let latencyStats: LatencyStats;
 	const getNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -28,7 +30,7 @@
 			};
 		}
 
-		const cutoff = getNow() - FIVE_SECONDS_MS;
+		const cutoff = getNow() - TEN_SECONDS_MS;
 
 		let lost = 0;
 		let total = 0;
@@ -69,19 +71,42 @@
 
 	const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-	const calculateMos = (
+	/**
+	 * calculateMOS() - uses the "netbeez" formula expressed at:
+	 * https://netbeez.net/blog/impact-of-packet-loss-jitter-and-latency-on-voip/
+	 * See also the Theory of Operation which links to the original paper
+	 * @param latencyMs
+	 * @param jitterMs
+	 * @param packetLossPercent
+	 */
+	const calculateMOS = (
 		latencyMs: number | null,
 		jitterMs: number | null,
 		packetLossPercent: number | null
 	): number | null => {
-		if (latencyMs === null || jitterMs === null || packetLossPercent === null) {
-			return null;
-		}
+		let rFactor = 93.2;
+		try {
+			if (latencyMs === null || jitterMs === null || packetLossPercent === null) {
+				// return null;
+				const err = `latency: ${latencyMs} jitter: ${jitterMs} packetloss: ${packetLossPercent}`;
+				throw `Missing values for MOS: ${err}`;
+			}
+			// compute effective latency
+			const effectiveLatency = latencyMs + jitterMs * 2 + 10;
+			// factor in effective latency
+			if (effectiveLatency < 160.0) {
+				rFactor -= effectiveLatency / 40.0;
+			} else {
+				rFactor -= (effectiveLatency - 120.0) / 10.0;
+			}
+			// factor in packet loss
+			rFactor -= 2.5 * packetLossPercent;
+		} catch {}
 
-		const effectiveLatency = latencyMs + jitterMs * 2;
-		const rFactor = 94.2 - (effectiveLatency / 2) - packetLossPercent * 2.5;
-		const r = clamp(rFactor, 0, 100);
-		const mos = 1 + 0.035 * r + (r * (r - 60) * (100 - r)) * 7.0e-6;
+		// finally, compute and return MOS
+		if (rFactor < 0) return 1.0;
+		if (rFactor > 100.0) return 4.5;
+		const mos = 1 + 0.035 * rFactor + 7.0e-6 * rFactor * (rFactor - 60) * (100 - rFactor);
 		return Math.round(mos * 100) / 100;
 	};
 
@@ -100,18 +125,44 @@
 		return value.toFixed(2);
 	};
 
+	let recentAverages: RecentAverages = {
+		packetLossPercent: null,
+		averageLatencyMs: null,
+		averageJitterMs: null
+	};
+
+	let averagesTimer: ReturnType<typeof setInterval> | null = null;
+
+	const updateRecentAverages = () => {
+		recentAverages = computeRecentAverages(latencyStats.history);
+	};
+
+	onMount(() => {
+		updateRecentAverages();
+		averagesTimer = setInterval(updateRecentAverages, REFRESH_INTERVAL_MS);
+	});
+
+	onDestroy(() => {
+		if (averagesTimer) {
+			clearInterval(averagesTimer);
+			averagesTimer = null;
+		}
+	});
+
 	$: totalPacketLossPercent = calculatePacketLossPercent(
 		latencyStats.totalLost,
 		latencyStats.totalSent
 	);
 
-	$: recent = computeRecentAverages(latencyStats.history);
-
-	$: mosInstant = calculateMos(latencyStats.lastLatencyMs, latencyStats.jitterMs, totalPacketLossPercent);
-	$: mosAverage = calculateMos(
-		recent.averageLatencyMs,
-		recent.averageJitterMs,
-		recent.packetLossPercent
+	$: mosInstant = calculateMOS(
+		latencyStats.lastLatencyMs,
+		latencyStats.jitterMs,
+		totalPacketLossPercent
+	);
+	$: mosAverage = calculateMOS(
+		recentAverages.averageLatencyMs,
+		recentAverages.averageJitterMs,
+		recentAverages.packetLossPercent
 	);
 </script>
 
@@ -122,24 +173,24 @@
 			<tr>
 				<th>Metric</th>
 				<th>Instant</th>
-				<th>5s Avg</th>
+				<th>10s Avg</th>
 			</tr>
 		</thead>
 		<tbody>
 			<tr>
 				<th>Packet Loss %</th>
 				<td>{formatPercent(totalPacketLossPercent)}</td>
-				<td>{formatPercent(recent.packetLossPercent)}</td>
+				<td>{formatPercent(recentAverages.packetLossPercent)}</td>
 			</tr>
 			<tr>
 				<th>Last RTT</th>
 				<td>{formatMs(latencyStats.lastLatencyMs)}</td>
-				<td>{formatMs(recent.averageLatencyMs)}</td>
+				<td>{formatMs(recentAverages.averageLatencyMs)}</td>
 			</tr>
 			<tr>
 				<th>Jitter</th>
 				<td>{formatMs(latencyStats.jitterMs)}</td>
-				<td>{formatMs(recent.averageJitterMs)}</td>
+				<td>{formatMs(recentAverages.averageJitterMs)}</td>
 			</tr>
 			<tr>
 				<th>MOS Quality</th>
