@@ -5,7 +5,11 @@
 
 	Chart.register(...registerables);
 
-	const MIN_POINTS_FOR_FULL_WIDTH = 120;
+	const SLOTS_PER_MINUTE = 6;
+	const INITIAL_SLOTS = 60; // 10 minutes of 10-second samples
+	const MIN_POINTS_FOR_FULL_WIDTH = INITIAL_SLOTS;
+	const DEFAULT_WIDTH = INITIAL_SLOTS * 10; // assume 10px per slot as baseline
+	// const DEFAULT_WIDTH = MIN_POINTS_FOR_FULL_WIDTH * 10;
 
 	const formatLabel = (timestamp: number): string => {
 		const date = new Date(timestamp);
@@ -27,26 +31,30 @@
 	let unsubscribe: (() => void) | null = null;
 	let currentPoints: MosPoint[] = [];
 
-	const computeXCoordinate = (index: number, total: number): number => {
-		if (total <= 1) return 0;
-		const denominator = Math.max(total - 1, MIN_POINTS_FOR_FULL_WIDTH - 1);
-		return index / denominator;
-	};
-
 	const updateChart = (points: MosPoint[]) => {
 		if (!chart) return;
 
 		currentPoints = points;
-		const labels = points.map((point) => formatLabel(point.at));
-		const data = points.map((point, index) => ({
-			x: computeXCoordinate(index, points.length),
-			y: point.value
-		}));
+		const chartWidth = chart?.width ?? canvas?.clientWidth ?? DEFAULT_WIDTH;
+		const baseSpacing = chartWidth / MIN_POINTS_FOR_FULL_WIDTH;
+		const spacing =
+			points.length < MIN_POINTS_FOR_FULL_WIDTH
+				? baseSpacing
+				: chartWidth / Math.max(points.length - 1, 1);
+		const minuteSpacing =
+			spacing * SLOTS_PER_MINUTE > 0 ? spacing * SLOTS_PER_MINUTE : chartWidth / SLOTS_PER_MINUTE;
 
-		chart.data.labels = labels;
+		const data =
+			points.length === 0
+				? []
+				: points.map((point, index) => ({
+						x: index * spacing,
+						y: point.value
+					}));
+
 		chart.data.datasets[0].data = data;
-		chart.options.scales!.x!.max =
-			points.length > 1 ? computeXCoordinate(points.length - 1, points.length) : 1;
+		chart.options.scales!.x!.max = chartWidth;
+		chart.options.scales!.x!.ticks.stepSize = minuteSpacing;
 		chart.update('none');
 	};
 
@@ -102,36 +110,35 @@
 					x: {
 						type: 'linear',
 						grid: {
-							display: false
+							color: '#d1d5db'
 						},
 						min: 0,
 						max: 1,
 						ticks: {
-							autoSkip: false,
 							color: '#6b7280',
 							maxRotation: 0,
 							minRotation: 0,
+							autoSkip: false,
 							callback(value) {
-								const numericValue =
-									typeof value === 'string' ? Number(value) : (value as number);
+								const numericValue = typeof value === 'string' ? Number(value) : (value as number);
 								if (!currentPoints.length || Number.isNaN(numericValue)) {
 									return '';
 								}
 
-								const denominator = Math.max(
-									currentPoints.length - 1,
-									MIN_POINTS_FOR_FULL_WIDTH - 1
-								);
-								const approxIndex = Math.round(numericValue * denominator);
-								const boundedIndex = Math.min(
-									currentPoints.length - 1,
-									Math.max(0, approxIndex)
-								);
-								if (boundedIndex < 0 || boundedIndex >= currentPoints.length) {
-									return '';
-								}
+								const chartWidth = this.chart?.width ?? canvas?.clientWidth ?? DEFAULT_WIDTH;
+								const baseSpacing = chartWidth / MIN_POINTS_FOR_FULL_WIDTH;
+								const spacing =
+									currentPoints.length < MIN_POINTS_FOR_FULL_WIDTH
+										? baseSpacing
+										: chartWidth / Math.max(currentPoints.length - 1, 1);
 
-								if (boundedIndex % 6 !== 0 && boundedIndex !== currentPoints.length - 1) {
+								const approxIndex = Math.round(numericValue / spacing);
+								const boundedIndex = Math.min(currentPoints.length - 1, Math.max(0, approxIndex));
+
+								if (
+									boundedIndex % SLOTS_PER_MINUTE !== 0 &&
+									boundedIndex !== currentPoints.length - 1
+								) {
 									return '';
 								}
 
@@ -188,10 +195,6 @@
 </section>
 
 <style>
-	.mos-chart {
-		width: 100%;
-	}
-
 	.chart-container {
 		position: relative;
 		width: 100%;

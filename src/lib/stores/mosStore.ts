@@ -126,7 +126,10 @@ const tick = () => {
 
 	const at = Date.now();
 
-	mosHistoryStore.update((history) => [...history, { at, value: mosValue }]);
+	mosHistoryStore.update((history) => {
+		const next = [...history, { at, value: mosValue }];
+		return next.slice(-300);
+	});
 };
 
 const ensureInterval = () => {
