@@ -175,7 +175,7 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			});
 
 			try {
-				console.log(`Sent: ********** ${payload}`);
+				// console.log(`Sent: ********** ${payload}`);
 				activeChannel.send(payload);
 				pendingProbes.set(seq, sentAt);
 				latencyStats = {
@@ -198,7 +198,7 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 
 		try {
 			parsed = JSON.parse(payload);
-			console.log(`****** Received: ${payload} at ${now()}`);
+			// console.log(`****** Received: ${payload} at ${now()}`);
 		} catch {
 			return false;
 		}

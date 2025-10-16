@@ -45,6 +45,7 @@
 		"vitest-browser-svelte": "^1.1.0"
 	},
 	"dependencies": {
-		"@roamhq/wrtc": "^0.9.1"
+		"@roamhq/wrtc": "^0.9.1",
+		"chart.js": "^4.4.6"
 	}
 }

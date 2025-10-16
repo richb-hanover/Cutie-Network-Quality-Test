@@ -7,7 +7,9 @@
 	} from '$lib/latency-probe';
 	import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
 	import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
-	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
+import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
+import MosChart from '$lib/components/MosChart.svelte';
+import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 
 	let connection: ServerConnection | null = null;
 	let connectionId: string | null = null;
@@ -30,7 +32,9 @@
 
 	const latencyProbe = createLatencyMonitor({
 		onStats: (stats) => {
-			latencyStats = { ...stats, history: [...stats.history] };
+			const snapshot = { ...stats, history: [...stats.history] };
+			latencyStats = snapshot;
+			updateMosLatencyStats(snapshot);
 		}
 	});
 
@@ -161,6 +165,7 @@
 		if (reason === 'timeout') {
 			disconnectNotice = 'timeout';
 		}
+		resetMosData({ clearHistory: reason === 'timeout' });
 	}
 
 	function sendMessage() {
@@ -217,7 +222,8 @@
 	}
 
 	onDestroy(() => {
-		disconnect();
+		void disconnect();
+		resetMosData();
 	});
 </script>
 
@@ -252,6 +258,8 @@
 			<div class="error">{errorMessage}</div>
 		{/if}
 	</section>
+
+	<MosChart />
 
 	<section class="panel status-grid">
 		<div>
