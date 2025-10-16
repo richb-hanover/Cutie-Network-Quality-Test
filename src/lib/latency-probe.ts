@@ -1,7 +1,7 @@
 export const LATENCY_INTERVAL_MS = 100; // msec
 export const LOSS_TIMEOUT_MS = 2000; // msec
 export const LOSS_CHECK_INTERVAL_MS = 250; // msec
-export const MAX_LATENCY_HISTORY = 25; // depth of history
+export const MAX_LATENCY_HISTORY = 100; // depth of history
 
 export type LatencySample = {
 	seq: number;
@@ -9,6 +9,7 @@ export type LatencySample = {
 	latencyMs: number | null;
 	jitterMs: number | null;
 	at: string;
+	timestampMs: number;
 };
 
 export type LatencyStats = {
@@ -135,7 +136,8 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			status: 'lost',
 			latencyMs: null,
 			jitterMs: null,
-			at: formatTimestamp()
+			at: formatTimestamp(),
+			timestampMs: currentTime
 		}));
 
 		latencyStats = {
@@ -220,7 +222,8 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 
 		pendingProbes.delete(seq);
 
-		const latencyMs = now() - startedAt;
+		const receivedAt = now();
+		const latencyMs = receivedAt - startedAt;
 		totalLatencyMs += latencyMs;
 		const totalReceived = latencyStats.totalReceived + 1;
 		const previousLatency = latencyStats.lastLatencyMs;
@@ -239,7 +242,8 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			status: 'received',
 			latencyMs,
 			jitterMs,
-			at: formatTimestamp()
+			at: formatTimestamp(),
+			timestampMs: receivedAt
 		};
 
 		latencyStats = {

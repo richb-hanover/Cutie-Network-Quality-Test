@@ -3,11 +3,11 @@
 	import {
 		createLatencyMonitor,
 		createEmptyLatencyStats,
-		LATENCY_INTERVAL_MS,
 		type LatencyStats
 	} from '$lib/latency-probe';
 	import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
 	import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
+	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 
 	let connection: ServerConnection | null = null;
 	let connectionId: string | null = null;
@@ -25,6 +25,8 @@
 	let stopStats: (() => void) | null = null;
 	let latencyStats: LatencyStats = createEmptyLatencyStats();
 	const textDecoder = new TextDecoder();
+	const textInputTags = new Set(['INPUT', 'TEXTAREA']);
+	let disconnectNotice: 'timeout' | null = null;
 
 	const latencyProbe = createLatencyMonitor({
 		onStats: (stats) => {
@@ -57,10 +59,11 @@
 
 		isConnecting = true;
 		errorMessage = '';
+		disconnectNotice = null;
 
 		try {
 			if (connection) {
-				await disconnect();
+				await disconnect('manual');
 			}
 
 			connection = await createServerConnection({
@@ -114,6 +117,7 @@
 				console.log(`dataChannel closed`);
 				dataChannelState = dataChannel.readyState;
 				latencyProbe.stop();
+				void disconnect('timeout');
 			});
 
 			dataChannel.addEventListener('error', (e) => {
@@ -139,7 +143,7 @@
 		}
 	}
 
-	async function disconnect() {
+	async function disconnect(reason: 'manual' | 'timeout' = 'timeout') {
 		latencyProbe.stop();
 		stopStats?.();
 		stopStats = null;
@@ -153,6 +157,10 @@
 		connectionState = 'disconnected';
 		iceConnectionState = 'new';
 		dataChannelState = 'closed';
+
+		if (reason === 'timeout') {
+			disconnectNotice = 'timeout';
+		}
 	}
 
 	function sendMessage() {
@@ -173,10 +181,47 @@
 		outgoingMessage = '';
 	}
 
+	function handleKeydown(event: KeyboardEvent) {
+		if (
+			event.key === 'Enter' &&
+			!event.ctrlKey &&
+			!event.metaKey &&
+			!event.altKey &&
+			!event.shiftKey
+		) {
+			const target = event.target as HTMLElement | null;
+			const tag = target?.tagName ?? '';
+			if (target?.isContentEditable || textInputTags.has(tag)) {
+				return;
+			}
+
+			if (!isConnecting && connectionState !== 'connected') {
+				event.preventDefault();
+				void connectToServer();
+			}
+			return;
+		}
+
+		if (
+			(event.key === 'c' || event.key === 'C') &&
+			event.ctrlKey &&
+			!event.metaKey &&
+			!event.altKey &&
+			!event.shiftKey
+		) {
+			if (connection) {
+				event.preventDefault();
+				void disconnect('manual');
+			}
+		}
+	}
+
 	onDestroy(() => {
 		disconnect();
 	});
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <main class="container">
 	<section class="panel">
@@ -196,8 +241,12 @@
 					Connect
 				{/if}
 			</button>
-			<button on:click={disconnect} disabled={!connection}>Disconnect</button>
+			<button on:click={() => disconnect('manual')} disabled={!connection}>Disconnect</button>
 		</div>
+
+		<!-- {#if disconnectNotice}
+			<div class="error">Data channel closed</div>
+		{/if} -->
 
 		{#if errorMessage}
 			<div class="error">{errorMessage}</div>
@@ -280,78 +329,7 @@
 		{/if}
 	</section>
 
-	<section class="panel">
-		<h2>Latency Monitor</h2>
-		<table>
-			<tbody>
-				<tr>
-					<th>Probe Interval</th>
-					<td>{LATENCY_INTERVAL_MS} ms</td>
-				</tr>
-				<tr>
-					<th>Probes Sent</th>
-					<td>{latencyStats.totalSent}</td>
-				</tr>
-				<tr>
-					<th>Probes Received</th>
-					<td>{latencyStats.totalReceived}</td>
-				</tr>
-				<tr>
-					<th>Probes Lost</th>
-					<td>{latencyStats.totalLost}</td>
-				</tr>
-				<tr>
-					<th>Last RTT</th>
-					<td>
-						{latencyStats.lastLatencyMs !== null
-							? `${latencyStats.lastLatencyMs.toFixed(2)} ms`
-							: '—'}
-					</td>
-				</tr>
-				<tr>
-					<th>Average RTT</th>
-					<td>
-						{latencyStats.averageLatencyMs !== null
-							? `${latencyStats.averageLatencyMs.toFixed(2)} ms`
-							: '—'}
-					</td>
-				</tr>
-				<tr>
-					<th>Jitter</th>
-					<td>
-						{latencyStats.jitterMs !== null ? `${latencyStats.jitterMs.toFixed(2)} ms` : '—'}
-					</td>
-				</tr>
-			</tbody>
-		</table>
-		{#if latencyStats.history.length > 0}
-			<h3>Recent Probes</h3>
-			<table class="latency-history">
-				<thead>
-					<tr>
-						<th>Seq</th>
-						<th>Status</th>
-						<th>Latency</th>
-						<th>Jitter</th>
-						<th>Time</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each latencyStats.history.slice().reverse() as sample (sample.seq + '-' + sample.at)}
-						<tr class={sample.status}>
-							<td>{sample.seq}</td>
-							<td>{sample.status}</td>
-							<td>{sample.latencyMs !== null ? `${sample.latencyMs.toFixed(2)} ms` : '—'}</td>
-							<td>{sample.jitterMs !== null ? `${sample.jitterMs.toFixed(2)} ms` : '—'}</td>
-							<td>{sample.at}</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		{:else}
-			<p>No latency samples yet.</p>
-		{/if}
-	</section>
+	<LatencyMonitorPanel {latencyStats} />
 
 	<section class="panel">
 		<h2>Message Log</h2>
@@ -383,7 +361,7 @@
 		padding: 2rem 1rem 4rem;
 	}
 
-	.panel {
+	:global(.panel) {
 		background: #fafafa;
 		border: 1px solid #e5e5e5;
 		border-radius: 0.75rem;
@@ -508,14 +486,6 @@
 	.messages li.out .bubble {
 		background: #10b981;
 		box-shadow: 0 8px 18px rgba(16, 185, 129, 0.2);
-	}
-
-	.latency-history {
-		margin-top: 0.75rem;
-	}
-
-	.latency-history tr.lost td {
-		color: #b91c1c;
 	}
 
 	@media (max-width: 640px) {
