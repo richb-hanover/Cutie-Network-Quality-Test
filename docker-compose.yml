@@ -1,0 +1,7 @@
+services:
+  webrtc-stability-test:
+    build: .
+    ports:
+      - "4173:4173"
+    environment:
+      NODE_ENV: production

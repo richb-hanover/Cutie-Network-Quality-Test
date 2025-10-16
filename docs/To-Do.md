@@ -5,6 +5,18 @@
 - Display package.json `version` and the git hash somewhere in the GUI
 - Add Ctl-C to click the Disconnect button
 - Consider WebRTC Leak Shield or uBlock’s “Prevent WebRTC IP leak” for testing
+- Add elapsed time & Bytes/second or /minute
+- Create a Docker container with docker-compose.yml for ease of remote installation
+- Install on atl.richb-hanover.com (nodejs version,
+  or Docker container)
+- Why do I get this when connecting to atl.richb-hanover.com:5173?
+
+  ```text
+  Blocked request. This host ("atl.richb-hanover.com") is not allowed.
+  To allow this host, add "atl.richb-hanover.com" to `server.allowedHosts` in vite.config.js.
+  ```
+
+- Devise tests to make sure arriving RTCProbes are sorted properly
 
 ## Done
 
