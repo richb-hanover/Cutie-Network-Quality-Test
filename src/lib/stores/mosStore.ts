@@ -152,11 +152,6 @@ export const tenSecondMosHistory = {
 
 export const updateMosLatencyStats = (stats: LatencyStats) => {
 	latestStats = stats;
-	if (stats.totalSent === 0 && stats.totalReceived === 0 && stats.totalLost === 0) {
-		mosHistoryStore.set([]);
-		recentAveragesStore.set(createEmptyAverages());
-		mosAverageStore.set(null);
-	}
 	ensureInterval();
 };
 

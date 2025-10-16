@@ -7,9 +7,9 @@
 	} from '$lib/latency-probe';
 	import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
 	import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
-import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
-import MosChart from '$lib/components/MosChart.svelte';
-import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
+	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
+	import MosChart from '$lib/components/MosChart.svelte';
+	import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 
 	let connection: ServerConnection | null = null;
 	let connectionId: string | null = null;
@@ -28,7 +28,10 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 	let latencyStats: LatencyStats = createEmptyLatencyStats();
 	const textDecoder = new TextDecoder();
 	const textInputTags = new Set(['INPUT', 'TEXTAREA']);
-	let disconnectNotice: 'timeout' | null = null;
+	let collectionStatusMessage: string | null = null;
+	let collectionStartAt: number | null = null;
+	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | null = null;
+	let isDisconnecting = false;
 
 	const latencyProbe = createLatencyMonitor({
 		onStats: (stats) => {
@@ -63,11 +66,15 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 
 		isConnecting = true;
 		errorMessage = '';
-		disconnectNotice = null;
+		collectionStatusMessage = null;
+		collectionStartAt = null;
+		activeDisconnectReason = null;
+		resetMosData();
 
 		try {
 			if (connection) {
-				await disconnect('manual');
+				await disconnect('manual', { suppressMessage: true });
+				activeDisconnectReason = null;
 			}
 
 			connection = await createServerConnection({
@@ -91,8 +98,12 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 					dataChannelState = connection?.dataChannel.readyState ?? 'open';
 				},
 				onError: (err: unknown) => {
-					errorMessage = err instanceof Error ? err.message : String(err);
+					const message = err instanceof Error ? err.message : String(err);
+					errorMessage = message;
 					latencyProbe.stop();
+					if (activeDisconnectReason !== 'manual' && activeDisconnectReason !== 'error') {
+						void disconnect('error', { message });
+					}
 				}
 			});
 
@@ -114,6 +125,9 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 			dataChannel.addEventListener('open', () => {
 				console.log(`dataChannel opened`);
 				dataChannelState = dataChannel.readyState;
+				collectionStartAt = Date.now();
+				activeDisconnectReason = null;
+				collectionStatusMessage = null;
 				latencyProbe.start(dataChannel);
 			});
 
@@ -121,15 +135,28 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 				console.log(`dataChannel closed`);
 				dataChannelState = dataChannel.readyState;
 				latencyProbe.stop();
-				void disconnect('timeout');
+				if (activeDisconnectReason !== 'manual' && activeDisconnectReason !== 'error') {
+					void disconnect('timeout');
+				}
 			});
 
 			dataChannel.addEventListener('error', (e) => {
 				console.log(`dataChannel error: ${e}`);
 				latencyProbe.stop();
+				const message = e instanceof Error ? e.message : String(e);
+				if (
+					activeDisconnectReason !== 'manual' &&
+					activeDisconnectReason !== 'timeout' &&
+					activeDisconnectReason !== 'error'
+				) {
+					void disconnect('error', { message });
+				}
 			});
 
 			if (dataChannel.readyState === 'open') {
+				collectionStartAt = Date.now();
+				activeDisconnectReason = null;
+				collectionStatusMessage = null;
 				latencyProbe.start(dataChannel);
 			}
 
@@ -139,21 +166,38 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 			});
 		} catch (err) {
 			console.log(`dataChannel caught error: ${err}`);
-			errorMessage = err instanceof Error ? err.message : String(err);
+			const message = err instanceof Error ? err.message : String(err);
+			errorMessage = message;
 			connectionState = 'failed';
 			latencyProbe.stop();
+			if (activeDisconnectReason !== 'manual' && activeDisconnectReason !== 'error') {
+				await disconnect('error', { message });
+			}
 		} finally {
 			isConnecting = false;
 		}
 	}
 
-	async function disconnect(reason: 'manual' | 'timeout' = 'timeout') {
+	async function disconnect(
+		reason: 'manual' | 'timeout' | 'error' = 'timeout',
+		options: { message?: string; suppressMessage?: boolean } = {}
+	) {
+		if (isDisconnecting) {
+			return;
+		}
+		isDisconnecting = true;
+		activeDisconnectReason = reason;
+
 		latencyProbe.stop();
 		stopStats?.();
 		stopStats = null;
 
 		if (connection) {
-			await connection.close();
+			try {
+				await connection.close();
+			} catch (closeError) {
+				console.error('Failed to close connection', closeError);
+			}
 			connection = null;
 		}
 
@@ -162,10 +206,29 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 		iceConnectionState = 'new';
 		dataChannelState = 'closed';
 
-		if (reason === 'timeout') {
-			disconnectNotice = 'timeout';
+		if (!options.suppressMessage) {
+			if (reason === 'manual') {
+				collectionStatusMessage = 'Collection stopped manually';
+			} else if (reason === 'timeout') {
+				const referenceStart = collectionStartAt ?? Date.now();
+				const elapsedMs = Date.now() - referenceStart;
+				const minutes = Math.max(1, Math.ceil(elapsedMs / 60000));
+				collectionStatusMessage = `Collection stopped after ${minutes} minute${minutes === 1 ? '' : 's'}`;
+			} else if (reason === 'error') {
+				const detail = options.message?.trim();
+				collectionStatusMessage = `Collection stopped: ${detail && detail.length > 0 ? detail : 'Unknown error'}`;
+			}
 		}
-		resetMosData({ clearHistory: reason === 'timeout' });
+
+		if (reason === 'error' && options.message) {
+			errorMessage = options.message;
+		} else if (reason !== 'error') {
+			errorMessage = '';
+		}
+
+		collectionStartAt = null;
+		resetMosData({ clearHistory: false });
+		isDisconnecting = false;
 	}
 
 	function sendMessage() {
@@ -222,7 +285,7 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 	}
 
 	onDestroy(() => {
-		void disconnect();
+		void disconnect('manual', { suppressMessage: true });
 		resetMosData();
 	});
 </script>
@@ -250,11 +313,9 @@ import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 			<button on:click={() => disconnect('manual')} disabled={!connection}>Disconnect</button>
 		</div>
 
-		<!-- {#if disconnectNotice}
-			<div class="error">Data channel closed</div>
-		{/if} -->
-
-		{#if errorMessage}
+		{#if collectionStatusMessage}
+			<div class="error">{collectionStatusMessage}</div>
+		{:else if errorMessage}
 			<div class="error">{errorMessage}</div>
 		{/if}
 	</section>
