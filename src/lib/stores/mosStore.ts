@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import type { LatencySample, LatencyStats } from '$lib/latency-probe';
 
 const TEN_SECONDS_MS = 10_000;
+const MAX_HISTORY_SAMPLES = 1000;
 
 export type RecentAverages = {
 	packetLossPercent: number | null;
@@ -25,6 +26,7 @@ const mosAverageStore = writable<number | null>(null);
 const mosHistoryStore = writable<MosPoint[]>([]);
 
 let latestStats: LatencyStats | null = null;
+let sampleHistory: LatencySample[] = [];
 let interval: ReturnType<typeof setInterval> | null = null;
 
 const performanceNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -109,7 +111,10 @@ const tick = () => {
 		return;
 	}
 
-	const averages = computeRecentAverages(latestStats.history);
+	const cutoff = performanceNow() - TEN_SECONDS_MS;
+	sampleHistory = sampleHistory.filter((sample) => sample.timestampMs >= cutoff);
+
+	const averages = computeRecentAverages(sampleHistory);
 	recentAveragesStore.set(averages);
 
 	const mosValue = calculateMosScore(
@@ -128,7 +133,7 @@ const tick = () => {
 
 	mosHistoryStore.update((history) => {
 		const next = [...history, { at, value: mosValue }];
-		return next.slice(-300);
+		return next.slice(-MAX_HISTORY_SAMPLES);
 	});
 };
 
@@ -157,6 +162,7 @@ export const updateMosLatencyStats = (stats: LatencyStats) => {
 
 export const resetMosData = (options?: { clearHistory?: boolean }) => {
 	latestStats = null;
+	sampleHistory = [];
 	if (options?.clearHistory !== false) {
 		recentAveragesStore.set(createEmptyAverages());
 		mosAverageStore.set(null);
@@ -168,5 +174,15 @@ export const resetMosData = (options?: { clearHistory?: boolean }) => {
 	if (interval) {
 		clearInterval(interval);
 		interval = null;
+	}
+};
+
+export const ingestLatencySamples = (samples: LatencySample[]) => {
+	if (!samples.length) {
+		return;
+	}
+	sampleHistory = [...sampleHistory, ...samples];
+	if (sampleHistory.length > 1000) {
+		sampleHistory = sampleHistory.slice(-1000);
 	}
 };

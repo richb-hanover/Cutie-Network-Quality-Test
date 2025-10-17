@@ -36,6 +36,8 @@ type LatencyMonitorOptions = {
 	lossCheckIntervalMs?: number;
 	historySize?: number;
 	onStats?: (stats: LatencyStats) => void;
+	onSamples?: (samples: LatencySample[]) => void;
+	collectSamples?: boolean;
 	now?: () => number;
 	formatTimestamp?: () => string;
 	logger?: (error: unknown) => void;
@@ -60,6 +62,8 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		lossCheckIntervalMs = LOSS_CHECK_INTERVAL_MS,
 		historySize = MAX_LATENCY_HISTORY,
 		onStats,
+		onSamples,
+		collectSamples = true,
 		now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
 		formatTimestamp = () => new Date().toLocaleTimeString(),
 		logger = (error: unknown) => console.error('latency probe: ', error)
@@ -78,6 +82,20 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 	const appendHistory = (samples: LatencySample[]): LatencySample[] => {
 		const merged = [...latencyStats.history, ...samples];
 		return merged.length > historySize ? merged.slice(-historySize) : merged;
+	};
+
+	const integrateSamples = (
+		samples: LatencySample[],
+		mutate: (previous: LatencyStats, history: LatencySample[]) => LatencyStats
+	) => {
+		if (samples.length === 0) {
+			return;
+		}
+		const previous = latencyStats;
+		const history = collectSamples ? appendHistory(samples) : previous.history;
+		latencyStats = mutate(previous, history);
+		onSamples?.(samples);
+		emitStats();
 	};
 
 	const emitStats = () => {
@@ -140,12 +158,11 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			timestampMs: currentTime
 		}));
 
-		latencyStats = {
-			...latencyStats,
-			totalLost: latencyStats.totalLost + lost.length,
-			history: appendHistory(lostSamples)
-		};
-		emitStats();
+		integrateSamples(lostSamples, (previous, history) => ({
+			...previous,
+			totalLost: previous.totalLost + lost.length,
+			history
+		}));
 	};
 
 	const start = (channel: RTCDataChannel) => {
@@ -246,15 +263,14 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			timestampMs: receivedAt
 		};
 
-		latencyStats = {
-			...latencyStats,
+		integrateSamples([sample], (previous, history) => ({
+			...previous,
 			lastLatencyMs: latencyMs,
 			totalReceived,
 			averageLatencyMs: totalLatencyMs / totalReceived,
 			jitterMs,
-			history: appendHistory([sample])
-		};
-		emitStats();
+			history
+		}));
 		return true;
 	};
 

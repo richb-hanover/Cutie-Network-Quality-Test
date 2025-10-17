@@ -95,10 +95,18 @@
 			return;
 		}
 
+		const firstPoint = points[0];
 		if (chartStartTimestamp === null) {
 			chartStartTimestamp =
-				Math.floor(points[0].at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+				Math.floor(firstPoint.at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 			baseTimestamp = chartStartTimestamp;
+		} else {
+			const candidateStart =
+				Math.floor(firstPoint.at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+			if (candidateStart !== chartStartTimestamp) {
+				chartStartTimestamp = candidateStart;
+				baseTimestamp = chartStartTimestamp;
+			}
 		}
 
 		const data = points.map((point) => ({

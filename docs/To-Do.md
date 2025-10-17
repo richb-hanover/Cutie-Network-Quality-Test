@@ -11,6 +11,8 @@
 - One-out-of-one failure: FF connecting to atl;
   Connect gave near immediate Connecting... but then
   gave "WebRTC error...". Subsequent test worked fine.
+  Happened again when I got the failure; immediately reloaded
+  and retried worked as expected.
 
 ## Done
 
@@ -62,3 +64,4 @@ https://svelte.dev/e/element_invalid_self_closing_tag`
 - Why does it (sometimes) take so long to make a connection?
   Safari seems fast... FF slow, Chrome - ?
   _(FF waits until all ICE candidates arrive or for 15 seconds. Change the code to return a candidate immediately.)_
+- Change label from "Instant" to "Now", add Min, Max columns

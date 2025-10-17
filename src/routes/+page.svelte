@@ -11,17 +11,21 @@
 	import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import MosChart from '$lib/components/MosChart.svelte';
-	import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
+	import {
+		updateMosLatencyStats,
+		resetMosData,
+		ingestLatencySamples
+	} from '$lib/stores/mosStore';
 
-	export let data: PageData;
-	const pageStore = page;
+export let data: PageData;
+const pageStore = page;
 
-	const buildVersion = data.version;
-	const buildCommit = data.gitCommit;
-	const buildInfoLabel =
-		buildCommit && buildCommit.length > 0
-			? `Version ${buildVersion} &mdash; #${buildCommit}`
-			: `Version ${buildVersion}`;
+const buildVersion = data.version;
+const buildCommit = data.gitCommit;
+const buildInfoLabel =
+	buildCommit && buildCommit.length > 0
+		? `Version ${buildVersion} &mdash; #${buildCommit}`
+		: `Version ${buildVersion}`;
 
 	const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
 
@@ -49,11 +53,17 @@
 	let isDisconnecting = false;
 	let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
 
+const SHOW_RECENT_PROBES_HISTORY = false;
+
 	const latencyProbe = createLatencyMonitor({
+		collectSamples: false,
 		onStats: (stats) => {
-			const snapshot = { ...stats, history: [...stats.history] };
+			const snapshot = { ...stats, history: [] };
 			latencyStats = snapshot;
 			updateMosLatencyStats(snapshot);
+		},
+		onSamples: (samples) => {
+			ingestLatencySamples(samples);
 		}
 	});
 
@@ -450,7 +460,7 @@
 		{/if}
 	</section>
 
-	<LatencyMonitorPanel {latencyStats} />
+	<LatencyMonitorPanel {latencyStats} showHistory={SHOW_RECENT_PROBES_HISTORY} />
 
 	<section class="panel">
 		<h2>Message Log</h2>

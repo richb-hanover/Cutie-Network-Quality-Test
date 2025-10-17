@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { type LatencyStats } from '$lib/latency-probe';
+import { type LatencyStats } from '$lib/latency-probe';
 	import {
 		calculateMosScore,
 		tenSecondAverages,
@@ -7,12 +7,28 @@
 	} from '$lib/stores/mosStore';
 	import type { RecentAverages } from '$lib/stores/mosStore';
 
-	export let latencyStats: LatencyStats;
+export let latencyStats: LatencyStats;
+export let showHistory = true;
 
-	const calculatePacketLossPercent = (lost: number, total: number): number | null => {
-		if (total === 0) {
-			return null;
-		}
+type MetricKey = 'packetLossPercent' | 'latencyMs' | 'jitterMs' | 'mos';
+
+type MetricBounds = {
+	[key in MetricKey]: { min: number | null; max: number | null };
+};
+
+const createMetricBounds = (): MetricBounds => ({
+	packetLossPercent: { min: null, max: null },
+	latencyMs: { min: null, max: null },
+	jitterMs: { min: null, max: null },
+	mos: { min: null, max: null }
+});
+
+let bounds = createMetricBounds();
+
+const calculatePacketLossPercent = (lost: number, total: number): number | null => {
+	if (total === 0) {
+		return null;
+	}
 		return (lost / total) * 100;
 	};
 
@@ -28,13 +44,39 @@
 
 	const formatScore = (value: number | null): string => {
 		if (value === null) return '—';
-		return value.toFixed(2);
-	};
+	return value.toFixed(2);
+};
 
-	$: totalPacketLossPercent = calculatePacketLossPercent(
-		latencyStats.totalLost,
-		latencyStats.totalSent
-	);
+const updateBounds = (key: MetricKey, value: number | null) => {
+	if (value === null || Number.isNaN(value)) {
+		return;
+	}
+
+	const current = bounds[key];
+	const nextMin = current.min === null ? value : Math.min(current.min, value);
+	const nextMax = current.max === null ? value : Math.max(current.max, value);
+
+	if (nextMin !== current.min || nextMax !== current.max) {
+		bounds = {
+			...bounds,
+			[key]: {
+				min: nextMin,
+				max: nextMax
+			}
+		};
+	}
+};
+
+const resetBoundsIfCleared = () => {
+	if (latencyStats.totalSent === 0 && latencyStats.totalReceived === 0 && latencyStats.totalLost === 0) {
+		bounds = createMetricBounds();
+	}
+};
+
+$: totalPacketLossPercent = calculatePacketLossPercent(
+	latencyStats.totalLost,
+	latencyStats.totalSent
+);
 
 	$: mosInstant = calculateMosScore(
 		latencyStats.lastLatencyMs,
@@ -45,12 +87,17 @@
 	let recent: RecentAverages = {
 		packetLossPercent: null,
 		averageLatencyMs: null,
-		averageJitterMs: null
-	};
-	let mosAverage: number | null = null;
+	averageJitterMs: null
+};
+let mosAverage: number | null = null;
 
-	$: recent = $tenSecondAverages;
-	$: mosAverage = $tenSecondMos;
+$: recent = $tenSecondAverages;
+$: mosAverage = $tenSecondMos;
+$: resetBoundsIfCleared();
+$: updateBounds('packetLossPercent', totalPacketLossPercent);
+$: updateBounds('latencyMs', latencyStats.lastLatencyMs);
+$: updateBounds('jitterMs', latencyStats.jitterMs);
+$: updateBounds('mos', mosInstant);
 </script>
 
 <section class="panel">
@@ -59,7 +106,9 @@
 		<thead>
 			<tr>
 				<th>Metric</th>
-				<th>Instant</th>
+				<th>Now</th>
+				<th>Min</th>
+				<th>Max</th>
 				<th>10s Avg</th>
 			</tr>
 		</thead>
@@ -67,52 +116,62 @@
 			<tr>
 				<th>Packet Loss %</th>
 				<td>{formatPercent(totalPacketLossPercent)}</td>
+				<td>{formatPercent(bounds.packetLossPercent.min)}</td>
+				<td>{formatPercent(bounds.packetLossPercent.max)}</td>
 				<td>{formatPercent(recent.packetLossPercent)}</td>
 			</tr>
 			<tr>
 				<th>Last RTT</th>
 				<td>{formatMs(latencyStats.lastLatencyMs)}</td>
+				<td>{formatMs(bounds.latencyMs.min)}</td>
+				<td>{formatMs(bounds.latencyMs.max)}</td>
 				<td>{formatMs(recent.averageLatencyMs)}</td>
 			</tr>
 			<tr>
 				<th>Jitter</th>
 				<td>{formatMs(latencyStats.jitterMs)}</td>
+				<td>{formatMs(bounds.jitterMs.min)}</td>
+				<td>{formatMs(bounds.jitterMs.max)}</td>
 				<td>{formatMs(recent.averageJitterMs)}</td>
 			</tr>
 			<tr>
 				<th>MOS Quality</th>
 				<td>{formatScore(mosInstant)}</td>
+				<td>{formatScore(bounds.mos.min)}</td>
+				<td>{formatScore(bounds.mos.max)}</td>
 				<td>{formatScore(mosAverage)}</td>
 			</tr>
 		</tbody>
 	</table>
 
-	{#if latencyStats.history.length > 0}
-		<h3>Recent Probes</h3>
-		<table class="latency-history">
-			<thead>
-				<tr>
-					<th>Seq</th>
-					<th>Status</th>
-					<th>Latency</th>
-					<th>Jitter</th>
-					<th>Time</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each latencyStats.history.slice().reverse() as sample (sample.seq + '-' + sample.at)}
-					<tr class={sample.status}>
-						<td>{sample.seq}</td>
-						<td>{sample.status}</td>
-						<td>{sample.latencyMs !== null ? `${sample.latencyMs.toFixed(2)} ms` : '—'}</td>
-						<td>{sample.jitterMs !== null ? `${sample.jitterMs.toFixed(2)} ms` : '—'}</td>
-						<td>{sample.at}</td>
+	{#if showHistory}
+		{#if latencyStats.history.length > 0}
+			<h3>Recent Probes</h3>
+			<table class="latency-history">
+				<thead>
+					<tr>
+						<th>Seq</th>
+						<th>Status</th>
+						<th>Latency</th>
+						<th>Jitter</th>
+						<th>Time</th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
-	{:else}
-		<p>No latency samples yet.</p>
+				</thead>
+				<tbody>
+					{#each latencyStats.history.slice().reverse() as sample (sample.seq + '-' + sample.at)}
+						<tr class={sample.status}>
+							<td>{sample.seq}</td>
+							<td>{sample.status}</td>
+							<td>{sample.latencyMs !== null ? `${sample.latencyMs.toFixed(2)} ms` : '—'}</td>
+							<td>{sample.jitterMs !== null ? `${sample.jitterMs.toFixed(2)} ms` : '—'}</td>
+							<td>{sample.at}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		{:else}
+			<p>No latency samples yet.</p>
+		{/if}
 	{/if}
 </section>
 
