@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { page } from '$app/stores';
 	import type { PageData } from './$types';
 	import {
 		createLatencyMonitor,
@@ -13,6 +14,7 @@
 	import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
 
 	export let data: PageData;
+	const pageStore = page;
 
 	const buildVersion = data.version;
 	const buildCommit = data.gitCommit;
@@ -33,6 +35,7 @@
 	let errorMessage = '';
 	let outgoingMessage = 'probe';
 	let messageId = 0;
+	let isChartTestMode = false;
 
 	let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
 
@@ -54,6 +57,7 @@
 		}
 	});
 
+	$: isChartTestMode = $pageStore.url.searchParams.get('chartTest') === '1';
 	function clearCollectionAutoStopTimer() {
 		if (collectionAutoStopTimer) {
 			clearTimeout(collectionAutoStopTimer);
@@ -341,34 +345,34 @@
 	<section class="panel main-panel">
 		<h1>WebRTC Network Stability Test</h1>
 		<p>
-			Establish a data-channel connection to the server, exchange messages, and monitor live WebRTC
-			statistics.
+			Measure the quality of the network by sending short packets to the backend server and
+			analyzing packet loss, and latency and jitter to produce the charts below.
 		</p>
 
-	<div class="controls">
-		<button on:click={connectToServer} disabled={isConnecting || connectionState === 'connected'}>
-			{#if isConnecting}
-				Connecting…
-			{:else if connectionState === 'connected'}
-				Connected
-			{:else}
-				Start
-			{/if}
-		</button>
-		<button on:click={() => disconnect('manual')} disabled={!connection}>Stop</button>
-		<span class="build-info">
-			{@html buildInfoLabel}
-		</span>
-	</div>
+		<div class="controls">
+			<button on:click={connectToServer} disabled={isConnecting || connectionState === 'connected'}>
+				{#if isConnecting}
+					Connecting…
+				{:else if connectionState === 'connected'}
+					Connected
+				{:else}
+					Start
+				{/if}
+			</button>
+			<button on:click={() => disconnect('manual')} disabled={!connection}>Stop</button>
+			<span class="build-info">
+				{@html buildInfoLabel}
+			</span>
+		</div>
 
-	{#if collectionStatusMessage}
-		<div class="error">{collectionStatusMessage}</div>
-	{:else if errorMessage}
-		<div class="error">{errorMessage}</div>
-	{/if}
-</section>
+		{#if collectionStatusMessage}
+			<div class="error">{collectionStatusMessage}</div>
+		{:else if errorMessage}
+			<div class="error">{errorMessage}</div>
+		{/if}
+	</section>
 
-	<MosChart />
+	<MosChart testMode={isChartTestMode} />
 
 	<section class="panel status-grid">
 		<div>
@@ -503,7 +507,7 @@
 		font-weight: 600;
 	}
 
-.controls {
+	.controls {
 		display: flex;
 		gap: 0.75rem;
 		margin-top: 1rem;

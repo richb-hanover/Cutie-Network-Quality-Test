@@ -12,8 +12,6 @@ type ManagedConnection = {
 
 const connections = new Map<string, ManagedConnection>();
 
-const ICE_GATHER_TIMEOUT_MS = 15_000;
-
 function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidateInit {
 	if (!candidate?.candidate) {
 		return candidate;
@@ -39,46 +37,6 @@ function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidat
 		...candidate,
 		candidate: candidate.candidate.replace(address, '127.0.0.1')
 	};
-}
-
-function waitForIceGatheringComplete(pc: RTCPeerConnection): Promise<void> {
-	if (pc.iceGatheringState === 'complete') {
-		return Promise.resolve();
-	}
-
-	return new Promise((resolve) => {
-		let originalHandler: typeof pc.onicegatheringstatechange | null | undefined = null;
-
-		const cleanup = () => {
-			clearTimeout(timeout);
-			pc.removeEventListener?.('icegatheringstatechange', handleStateChange);
-			if (!pc.removeEventListener) {
-				pc.onicegatheringstatechange = originalHandler ?? null;
-			}
-			resolve();
-		};
-
-		const handleStateChange = () => {
-			if (pc.iceGatheringState === 'complete') {
-				cleanup();
-			}
-		};
-
-		const timeout = setTimeout(() => {
-			cleanup();
-		}, ICE_GATHER_TIMEOUT_MS);
-
-		if (pc.addEventListener) {
-			pc.addEventListener('icegatheringstatechange', handleStateChange);
-		} else {
-			// Fallback for minimal event target implementations.
-			originalHandler = pc.onicegatheringstatechange;
-			pc.onicegatheringstatechange = (...args) => {
-				handleStateChange();
-				originalHandler?.apply(pc, args); //as unknown as []
-			};
-		}
-	});
 }
 
 function registerConnection(pc: RTCPeerConnection): string {
@@ -207,7 +165,6 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const answer = await pc.createAnswer();
 	await pc.setLocalDescription(answer);
-	await waitForIceGatheringComplete(pc);
 
 	const connectionId = registerConnection(pc);
 

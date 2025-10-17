@@ -4,6 +4,18 @@
 
 ---
 
+## Version 0.0.3 - 2025-10-17
+
+- Better charts: fixed time stamps
+- Chart test routine: add `?chartTest=1` to the URL
+- Runs for max of two hours, then auto-stops
+- Fixed delay of connection for Firefox
+  (returns first ICE instead of waiting for all to arrive
+  or timing out after 15 seconds)
+- Created new README; moved old to DEVELOPMENT.md
+- Created this CHANGELOG
+- Bump version to 0.0.3
+
 ## Version 0.0.2 - 2025-10-16
 
 - Basic functionality:

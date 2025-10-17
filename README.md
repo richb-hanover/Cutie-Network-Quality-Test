@@ -1,38 +1,18 @@
-# sv
+# WebRTC Network Stability Test
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Measure the quality of the network by sending short packets
+to a backend server and analyze the resulting
+packet loss, and latency and jitter values
+to produce charts of the performance of the network.
 
-## Creating a project
+Start this test before beginning a phone or videoconference.
+If there are problems (freezing, distorted sound,
+"unstable network" messages, etc),
+flip to the WebRTC Network Stability Test to see if the
+impairments are on your end, or someone else's.
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+This test creates a WebRTC stream from your computer
+back to the source of the Web GUI.
+It continually sends (10 probes per second) small messages
+to the backend which echoes them back.
+This allows the GUI to compute packet loss, latency, and jitter.

@@ -1,9 +1,6 @@
 # To-Do
 
-- X-axis time-stamps can be slanted;
-  also drop alternate time stamps when they get compressed
-- Why does it (sometimes) take so long to make a connection?
-  Safari seems fast... FF slow, Chrome - ?
+- Add Packet Loss chart (#8c4d15) and Latency / Jitter chart (#5959e6 / #2babab)
 - Consider WebRTC Leak Shield or uBlock’s “Prevent WebRTC IP leak” for testing
 - Add elapsed time & Bytes/second or /minute
 - Create a Docker container with docker-compose.yml for ease of remote installation
@@ -12,6 +9,8 @@
   are sorted properly and MOS scores are correct
 
 ## Done
+
+All these items were in the "to-do" section, but have been completed:
 
 - Re-cast the entire project in SvelteKit.
   Use `npx sv create WebRTC-SvelteKit` to create.
@@ -54,3 +53,8 @@
 - Why do I get: `8:52:46 AM [vite-plugin-svelte] src/lib/components/MosChart.svelte:184:2 Self-closing HTML tags for non-void elements are ambiguous — use `<canvas ...></canvas>`rather than`<canvas ... />`
 https://svelte.dev/e/element_invalid_self_closing_tag`
   _(Fixed several `npm run check` errors)_
+- X-axis time-stamps can be slanted;
+  also drop alternate time stamps when they get compressed
+- Why does it (sometimes) take so long to make a connection?
+  Safari seems fast... FF slow, Chrome - ?
+  _(FF waits until all ICE candidates arrive or for 15 seconds. Change the code to return a candidate immediately.)_
