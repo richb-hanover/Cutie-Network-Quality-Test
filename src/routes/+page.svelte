@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import type { PageData } from './$types';
 	import {
 		createLatencyMonitor,
 		createEmptyLatencyStats,
@@ -10,6 +11,17 @@
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import MosChart from '$lib/components/MosChart.svelte';
 	import { updateMosLatencyStats, resetMosData } from '$lib/stores/mosStore';
+
+	export let data: PageData;
+
+	const buildVersion = data.version;
+	const buildCommit = data.gitCommit;
+	const buildInfoLabel =
+		buildCommit && buildCommit.length > 0
+			? `Version ${buildVersion} &mdash; #${buildCommit}`
+			: `Version ${buildVersion}`;
+
+	const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
 
 	let connection: ServerConnection | null = null;
 	let connectionId: string | null = null;
@@ -30,8 +42,9 @@
 	const textInputTags = new Set(['INPUT', 'TEXTAREA']);
 	let collectionStatusMessage: string | null = null;
 	let collectionStartAt: number | null = null;
-	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | null = null;
+	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | 'auto' | null = null;
 	let isDisconnecting = false;
+	let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const latencyProbe = createLatencyMonitor({
 		onStats: (stats) => {
@@ -40,6 +53,31 @@
 			updateMosLatencyStats(snapshot);
 		}
 	});
+
+	function clearCollectionAutoStopTimer() {
+		if (collectionAutoStopTimer) {
+			clearTimeout(collectionAutoStopTimer);
+			collectionAutoStopTimer = null;
+		}
+	}
+
+	function scheduleCollectionAutoStop() {
+		clearCollectionAutoStopTimer();
+		collectionAutoStopTimer = setTimeout(() => {
+			collectionAutoStopTimer = null;
+			if (connection && !isDisconnecting) {
+				void disconnect('auto');
+			}
+		}, COLLECTION_DURATION_MS);
+	}
+
+	function beginCollectionSession(dataChannel: RTCDataChannel) {
+		collectionStartAt = Date.now();
+		activeDisconnectReason = null;
+		collectionStatusMessage = null;
+		scheduleCollectionAutoStop();
+		latencyProbe.start(dataChannel);
+	}
 
 	async function normaliseDataMessage(data: unknown): Promise<string> {
 		if (typeof data === 'string') {
@@ -69,6 +107,7 @@
 		collectionStatusMessage = null;
 		collectionStartAt = null;
 		activeDisconnectReason = null;
+		clearCollectionAutoStopTimer();
 		resetMosData();
 
 		try {
@@ -101,7 +140,11 @@
 					const message = err instanceof Error ? err.message : String(err);
 					errorMessage = message;
 					latencyProbe.stop();
-					if (activeDisconnectReason !== 'manual' && activeDisconnectReason !== 'error') {
+					if (
+						activeDisconnectReason !== 'manual' &&
+						activeDisconnectReason !== 'error' &&
+						activeDisconnectReason !== 'auto'
+					) {
 						void disconnect('error', { message });
 					}
 				}
@@ -125,17 +168,18 @@
 			dataChannel.addEventListener('open', () => {
 				console.log(`dataChannel opened`);
 				dataChannelState = dataChannel.readyState;
-				collectionStartAt = Date.now();
-				activeDisconnectReason = null;
-				collectionStatusMessage = null;
-				latencyProbe.start(dataChannel);
+				beginCollectionSession(dataChannel);
 			});
 
 			dataChannel.addEventListener('close', () => {
 				console.log(`dataChannel closed`);
 				dataChannelState = dataChannel.readyState;
 				latencyProbe.stop();
-				if (activeDisconnectReason !== 'manual' && activeDisconnectReason !== 'error') {
+				if (
+					activeDisconnectReason !== 'manual' &&
+					activeDisconnectReason !== 'error' &&
+					activeDisconnectReason !== 'auto'
+				) {
 					void disconnect('timeout');
 				}
 			});
@@ -147,17 +191,15 @@
 				if (
 					activeDisconnectReason !== 'manual' &&
 					activeDisconnectReason !== 'timeout' &&
-					activeDisconnectReason !== 'error'
+					activeDisconnectReason !== 'error' &&
+					activeDisconnectReason !== 'auto'
 				) {
 					void disconnect('error', { message });
 				}
 			});
 
 			if (dataChannel.readyState === 'open') {
-				collectionStartAt = Date.now();
-				activeDisconnectReason = null;
-				collectionStatusMessage = null;
-				latencyProbe.start(dataChannel);
+				beginCollectionSession(dataChannel);
 			}
 
 			stopStats?.();
@@ -179,7 +221,7 @@
 	}
 
 	async function disconnect(
-		reason: 'manual' | 'timeout' | 'error' = 'timeout',
+		reason: 'manual' | 'timeout' | 'error' | 'auto' = 'timeout',
 		options: { message?: string; suppressMessage?: boolean } = {}
 	) {
 		if (isDisconnecting) {
@@ -191,6 +233,7 @@
 		latencyProbe.stop();
 		stopStats?.();
 		stopStats = null;
+		clearCollectionAutoStopTimer();
 
 		if (connection) {
 			try {
@@ -214,6 +257,8 @@
 				const elapsedMs = Date.now() - referenceStart;
 				const minutes = Math.max(1, Math.ceil(elapsedMs / 60000));
 				collectionStatusMessage = `Collection stopped after ${minutes} minute${minutes === 1 ? '' : 's'}`;
+			} else if (reason === 'auto') {
+				collectionStatusMessage = 'Collection stopped after two hours.';
 			} else if (reason === 'error') {
 				const detail = options.message?.trim();
 				collectionStatusMessage = `Collection stopped: ${detail && detail.length > 0 ? detail : 'Unknown error'}`;
@@ -293,32 +338,35 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <main class="container">
-	<section class="panel">
+	<section class="panel main-panel">
 		<h1>WebRTC Network Stability Test</h1>
 		<p>
 			Establish a data-channel connection to the server, exchange messages, and monitor live WebRTC
 			statistics.
 		</p>
 
-		<div class="controls">
-			<button on:click={connectToServer} disabled={isConnecting || connectionState === 'connected'}>
-				{#if isConnecting}
-					Connecting…
-				{:else if connectionState === 'connected'}
-					Connected
-				{:else}
-					Connect
-				{/if}
-			</button>
-			<button on:click={() => disconnect('manual')} disabled={!connection}>Disconnect</button>
-		</div>
+	<div class="controls">
+		<button on:click={connectToServer} disabled={isConnecting || connectionState === 'connected'}>
+			{#if isConnecting}
+				Connecting…
+			{:else if connectionState === 'connected'}
+				Connected
+			{:else}
+				Start
+			{/if}
+		</button>
+		<button on:click={() => disconnect('manual')} disabled={!connection}>Stop</button>
+		<span class="build-info">
+			{@html buildInfoLabel}
+		</span>
+	</div>
 
-		{#if collectionStatusMessage}
-			<div class="error">{collectionStatusMessage}</div>
-		{:else if errorMessage}
-			<div class="error">{errorMessage}</div>
-		{/if}
-	</section>
+	{#if collectionStatusMessage}
+		<div class="error">{collectionStatusMessage}</div>
+	{:else if errorMessage}
+		<div class="error">{errorMessage}</div>
+	{/if}
+</section>
 
 	<MosChart />
 
@@ -438,16 +486,28 @@
 		box-shadow: 0 10px 20px rgba(0, 0, 0, 0.03);
 	}
 
+	.main-panel {
+		position: relative;
+	}
+
+	.build-info {
+		margin-left: auto;
+		font-size: 0.8rem;
+		color: #6b7280;
+		align-self: flex-end;
+	}
+
 	h1,
 	h2 {
 		margin: 0 0 0.75rem;
 		font-weight: 600;
 	}
 
-	.controls {
+.controls {
 		display: flex;
 		gap: 0.75rem;
 		margin-top: 1rem;
+		align-items: flex-end;
 	}
 
 	button {

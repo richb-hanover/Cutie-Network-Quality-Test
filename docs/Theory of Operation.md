@@ -78,7 +78,7 @@ The project was inspired by the WebRTC capabilities of
 
 The structure of this SvelteKit project came from creating
 a new SvelteKit project with `npx vs WebRTC-Stability-Test`.
-I then asked ChatGPT (in VSCode) to create an app
+I then asked ChatGPT in VSCode to create an app
 using this file layout that would:
 
 - start a WebRTC listener on the server
@@ -111,21 +111,21 @@ with the following classifications:
 
 MOS Quality Impairment
 
-- 5 Excellent Imperceptible
-- 4 Good Perceptible but not annoying
-- 3 Fair Slightly annoying
-- 2 Poor Annoying
-- 1 Bad >Very annoying
+- 5 Excellent - Imperceptible
+- 4 Good - Perceptible but not annoying
+- 3 Fair - Slightly annoying
+- 2 Poor - Annoying
+- 1 Bad - Very annoying
 
-Typically, the highest MOS score that can be achieved is 4.5
-for the G.711 codec.
+Typically, the highest MOS score that can be achieved
+is 4.5 for the G.711 codec.
 The cutoff MOS score for calls that can be tolerated
 is around 2.5.
 Ideally, the MOS score is calculated by asking the
 participants to put a score to the conversation.
 However, this is not practical, and there are ways
 to estimate the call quality based on the
-network’s latency,jitter, and packet loss.
+network’s latency, jitter, and packet loss.
 
 The most popular method is based on the E-model,
 which calculates the rating factor, R,
@@ -136,9 +136,9 @@ Depending on latency, jitter, and packet loss we need to deduct from 93.2.
 This may sound like a magic number,
 but if you want to learn more about how it’s derived
 and the E-model you can take a look
-[here](https://web.archive.org/web/20240401042449/https://scholarworks.gsu.edu/cgi/viewcontent.cgi?article=1043&context=cs_theses)
+[here](https://web.archive.org/web/20240401042449/https://scholarworks.gsu.edu/cgi/viewcontent.cgi?article=1043&context=cs_theses).
 _(Original is no longer available.
-Link above is to Wayback Machine at archive.org)._
+Link above is to a Wayback Machine copy at archive.org)._
 
 ###Effective Latency
 
@@ -155,7 +155,8 @@ to account for the delay from the codecs.
 
 ### Calculating R
 
-As noted above, R starts with a max value of 93.2.
+As noted above, R (the "rating factor")
+starts with a max value of 93.2.
 We reduce R based on effective latency as follows:
 
 For effective_latency < 160.0 ms:

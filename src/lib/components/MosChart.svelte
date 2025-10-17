@@ -23,11 +23,30 @@
 		1: 'Bad'
 	};
 
+	type LinearTickOptions = Record<string, unknown> & { stepSize?: number };
+
+	type LinearAxisOptions = {
+		max?: number;
+		min?: number;
+		ticks?: LinearTickOptions;
+	};
+
 	let canvas: HTMLCanvasElement | null = null;
 	let chart: Chart<'line'> | null = null;
 	let unsubscribe: (() => void) | null = null;
 	let baseTimestamp =
 		Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+
+	const applyXAxisSettings = (maxSeconds: number) => {
+		const xScale = chart?.options.scales?.x as LinearAxisOptions | undefined;
+		if (!xScale) {
+			return;
+		}
+
+		xScale.max = maxSeconds;
+		const ticks = (xScale.ticks ??= {} as LinearTickOptions);
+		ticks.stepSize = STEP_SECONDS;
+	};
 
 	const updateChart = (points: MosPoint[]) => {
 		if (!chart) return;
@@ -36,8 +55,7 @@
 			baseTimestamp =
 				Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 			chart.data.datasets[0].data = [];
-			chart.options.scales!.x!.max = INITIAL_RANGE_SECONDS;
-			chart.options.scales!.x!.ticks.stepSize = STEP_SECONDS;
+			applyXAxisSettings(INITIAL_RANGE_SECONDS);
 			chart.update('none');
 			return;
 		}
@@ -57,9 +75,7 @@
 		const lastDeltaSeconds = data[data.length - 1]?.x ?? 0;
 		const minutesCovered = Math.max(10, Math.ceil(lastDeltaSeconds / STEP_SECONDS) + 1);
 		const maxRangeSeconds = minutesCovered * STEP_SECONDS;
-
-		chart.options.scales!.x!.max = maxRangeSeconds;
-		chart.options.scales!.x!.ticks.stepSize = STEP_SECONDS;
+		applyXAxisSettings(maxRangeSeconds);
 		chart.update('none');
 	};
 
@@ -181,7 +197,7 @@
 <section class="panel mos-chart">
 	<h2>Network Quality Prediction</h2>
 	<div class="chart-container">
-		<canvas bind:this={canvas} />
+		<canvas bind:this={canvas}></canvas>
 	</div>
 </section>
 
