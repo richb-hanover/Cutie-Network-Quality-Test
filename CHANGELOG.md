@@ -4,6 +4,10 @@
 
 ---
 
+## Version 0.0.4 - 2025-10-17
+
+- Adjust chart to preserve starting time at the origin
+
 ## Version 0.0.3 - 2025-10-17
 
 - Better charts: fixed time stamps

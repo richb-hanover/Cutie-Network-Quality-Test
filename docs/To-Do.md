@@ -7,6 +7,10 @@
 - Install Docker container on atl.richb-hanover.com
 - Devise tests to make sure arriving RTCProbes
   are sorted properly and MOS scores are correct
+- Why does the Start button briefly flash green on page load?
+- One-out-of-one failure: FF connecting to atl;
+  Connect gave near immediate Connecting... but then
+  gave "WebRTC error...". Subsequent test worked fine.
 
 ## Done
 

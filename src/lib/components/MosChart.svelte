@@ -50,6 +50,7 @@
 	let testInterval: ReturnType<typeof setInterval> | null = null;
 	let baseTimestamp =
 		Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+	let chartStartTimestamp: number | null = null;
 	let xLabelModulo = 1;
 
 	const applyXAxisSettings = (maxSeconds: number) => {
@@ -85,6 +86,7 @@
 		if (!chart) return;
 
 		if (points.length === 0) {
+			chartStartTimestamp = null;
 			baseTimestamp =
 				Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 			chart.data.datasets[0].data = [];
@@ -93,8 +95,11 @@
 			return;
 		}
 
-		baseTimestamp =
-			Math.floor(points[0].at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+		if (chartStartTimestamp === null) {
+			chartStartTimestamp =
+				Math.floor(points[0].at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+			baseTimestamp = chartStartTimestamp;
+		}
 
 		const data = points.map((point) => ({
 			x: Math.max(0, (point.at - baseTimestamp) / 1000),
@@ -123,7 +128,7 @@
 		testInterval = setInterval(() => {
 			virtualAt += TEST_POINT_GAP_MS;
 			const elapsedSeconds = (virtualAt - startAt) / 1000;
-			const sineValue = Math.sin(0.1 * elapsedSeconds);
+			const sineValue = Math.sin(0.01 * elapsedSeconds);
 			const value = 3 + 1.5 * sineValue;
 			points.push({ at: virtualAt, value });
 			if (points.length > 1000) {
@@ -147,6 +152,9 @@
 		stopDataSources();
 		updateDatasetStyles();
 		chart.data.datasets[0].data = [];
+		chartStartTimestamp = null;
+		baseTimestamp =
+			Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 		applyXAxisSettings(INITIAL_RANGE_SECONDS);
 		chart.update('none');
 		if (testMode) {
