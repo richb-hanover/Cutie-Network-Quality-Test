@@ -150,7 +150,8 @@
 						borderWidth: 2,
 						fill: false,
 						tension: 0.3,
-						spanGaps: true
+						spanGaps: true,
+						clip: false
 					},
 					{
 						label: 'Average Jitter (ms)',
@@ -164,7 +165,8 @@
 						borderWidth: 2,
 						fill: false,
 						tension: 0.3,
-						spanGaps: true
+						spanGaps: true,
+						clip: false
 					}
 				]
 			},
@@ -227,6 +229,7 @@
 					y: {
 						min: 0,
 						max: 200,
+						grace: '10%',
 						grid: {
 							color: '#d1d5db'
 						},

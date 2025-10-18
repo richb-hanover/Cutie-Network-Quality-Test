@@ -193,7 +193,8 @@
 						pointHoverRadius: 4,
 						borderWidth: 2,
 						fill: false,
-						tension: 0.3
+						tension: 0.3,
+						clip: false
 					}
 				]
 			},

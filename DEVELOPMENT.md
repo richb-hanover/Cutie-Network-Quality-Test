@@ -1,18 +1,14 @@
-# sv
+# Development of WebRTC Network Stability Test
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+## Origin Story
 
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
-```
+I was quite taken by the
+[VSee Network Stability Test]()
+and its use of a WebRTC connection to make fine-grained
+measurements of latency and packet loss.
+This project was first created by using
+`npx vs WebRTC-Stability-Test`.
+I
 
 ## Developing
 

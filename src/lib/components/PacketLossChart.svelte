@@ -144,7 +144,8 @@
 						pointHoverRadius: 4,
 						borderWidth: 2,
 						fill: false,
-						tension: 0.3
+						tension: 0.3,
+						clip: false
 					}
 				]
 			},
@@ -204,6 +205,7 @@
 					y: {
 						min: 0,
 						max: 20,
+						grace: '10%',
 						grid: {
 							color: '#d1d5db'
 						},
