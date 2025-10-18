@@ -1,29 +1,19 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { Chart, registerables, type ScriptableScaleContext } from 'chart.js';
-	import { tenSecondMosHistory, type MosPoint } from '$lib/stores/mosStore';
+	import { tenSecondSummaryHistory, type TenSecondSummary } from '$lib/stores/mosStore';
 
 	Chart.register(...registerables);
 
 	const STEP_SECONDS = 60;
 	const INITIAL_RANGE_SECONDS = STEP_SECONDS * 10; // 10 minutes
 	const MAX_X_AXIS_LABELS = 12;
-	const TEST_INTERVAL_MS = 50;
-	const TEST_POINT_GAP_MS = 10_000;
 
 	const formatLabel = (timestamp: number): string => {
 		const date = new Date(timestamp);
 		const hours = date.getHours().toString().padStart(2, '0');
 		const minutes = date.getMinutes().toString().padStart(2, '0');
 		return `${hours}:${minutes}`;
-	};
-
-	const qualityLabels: Record<number, string> = {
-		5: 'Excellent',
-		4: 'Good',
-		3: 'Fair',
-		2: 'Poor',
-		1: 'Bad'
 	};
 
 	type LinearTickOptions = Record<string, unknown> & {
@@ -42,12 +32,9 @@
 		};
 	};
 
-	export let testMode = false;
-
 	let canvas: HTMLCanvasElement | null = null;
 	let chart: Chart<'line'> | null = null;
 	let unsubscribe: (() => void) | null = null;
-	let testInterval: ReturnType<typeof setInterval> | null = null;
 	let baseTimestamp =
 		Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 	let chartStartTimestamp: number | null = null;
@@ -72,51 +59,45 @@
 		grid.lineWidth = (ctx) => (ctx.index % xLabelModulo === 0 ? 1 : 0);
 	};
 
-	const updateDatasetStyles = () => {
-		if (!chart) return;
-		const dataset = chart.data.datasets[0];
-		const color = testMode ? 'hotpink' : '#ff6384';
-		dataset.borderColor = color;
-		dataset.backgroundColor = color;
-		dataset.pointBackgroundColor = color;
-		dataset.pointBorderColor = color;
-	};
+	const toDatasetPoints = (summaries: TenSecondSummary[], key: 'averageLatencyMs' | 'averageJitterMs') =>
+		summaries.map((summary) => ({
+			x: Math.max(0, (summary.at - baseTimestamp) / 1000),
+			y: summary[key] ?? null
+		}));
 
-	const updateChart = (points: MosPoint[]) => {
+	const updateChart = (summaries: TenSecondSummary[]) => {
 		if (!chart) return;
 
-		if (points.length === 0) {
+		if (summaries.length === 0) {
 			chartStartTimestamp = null;
 			baseTimestamp =
 				Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 			chart.data.datasets[0].data = [];
+			chart.data.datasets[1].data = [];
 			applyXAxisSettings(INITIAL_RANGE_SECONDS);
 			chart.update('none');
 			return;
 		}
 
-		const firstPoint = points[0];
+		const firstEntry = summaries[0];
 		if (chartStartTimestamp === null) {
 			chartStartTimestamp =
-				Math.floor(firstPoint.at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+				Math.floor(firstEntry.at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 			baseTimestamp = chartStartTimestamp;
 		} else {
 			const candidateStart =
-				Math.floor(firstPoint.at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+				Math.floor(firstEntry.at / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 			if (candidateStart !== chartStartTimestamp) {
 				chartStartTimestamp = candidateStart;
 				baseTimestamp = chartStartTimestamp;
 			}
 		}
 
-		const data = points.map((point) => ({
-			x: Math.max(0, (point.at - baseTimestamp) / 1000),
-			y: point.value
-		}));
+		chart.data.datasets[0].data = toDatasetPoints(summaries, 'averageLatencyMs');
+		chart.data.datasets[1].data = toDatasetPoints(summaries, 'averageJitterMs');
 
-		chart.data.datasets[0].data = data;
-
-		const lastDeltaSeconds = data[data.length - 1]?.x ?? 0;
+		const lastEntry = summaries[summaries.length - 1];
+		const lastDeltaSeconds = Math.max(0, (lastEntry.at - baseTimestamp) / 1000);
 		const minutesCovered = Math.max(10, Math.ceil(lastDeltaSeconds / STEP_SECONDS) + 1);
 		const maxRangeSeconds = minutesCovered * STEP_SECONDS;
 		applyXAxisSettings(maxRangeSeconds);
@@ -124,52 +105,27 @@
 	};
 
 	const startStoreSubscription = () => {
-		unsubscribe = tenSecondMosHistory.subscribe((points) => {
-			updateChart(points);
+		unsubscribe = tenSecondSummaryHistory.subscribe((summaries) => {
+			updateChart(summaries);
 		});
-	};
-
-	const startTestMode = () => {
-		const points: MosPoint[] = [];
-		const startAt = Date.now();
-		let virtualAt = startAt;
-		testInterval = setInterval(() => {
-			virtualAt += TEST_POINT_GAP_MS;
-			const elapsedSeconds = (virtualAt - startAt) / 1000;
-			const sineValue = Math.sin(0.01 * elapsedSeconds);
-			const value = 3 + 1.5 * sineValue;
-			points.push({ at: virtualAt, value });
-			if (points.length > 1000) {
-				points.shift();
-			}
-			updateChart([...points]);
-		}, TEST_INTERVAL_MS);
 	};
 
 	const stopDataSources = () => {
 		unsubscribe?.();
 		unsubscribe = null;
-		if (testInterval) {
-			clearInterval(testInterval);
-			testInterval = null;
-		}
 	};
 
 	const refreshDataSource = () => {
 		if (!chart) return;
 		stopDataSources();
-		updateDatasetStyles();
 		chart.data.datasets[0].data = [];
+		chart.data.datasets[1].data = [];
 		chartStartTimestamp = null;
 		baseTimestamp =
 			Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 		applyXAxisSettings(INITIAL_RANGE_SECONDS);
 		chart.update('none');
-		if (testMode) {
-			startTestMode();
-		} else {
-			startStoreSubscription();
-		}
+		startStoreSubscription();
 	};
 
 	onMount(() => {
@@ -183,17 +139,32 @@
 				labels: [],
 				datasets: [
 					{
-						label: '10-second MOS',
+						label: 'Average Delay (ms)',
 						data: [],
-						borderColor: '#ff6384',
-						backgroundColor: '#ff6384',
-						pointBackgroundColor: '#ff6384',
-						pointBorderColor: '#ff6384',
+						borderColor: '#5959e6',
+						backgroundColor: '#5959e6',
+						pointBackgroundColor: '#5959e6',
+						pointBorderColor: '#5959e6',
 						pointRadius: 3,
 						pointHoverRadius: 4,
 						borderWidth: 2,
 						fill: false,
-						tension: 0.3
+						tension: 0.3,
+						spanGaps: true
+					},
+					{
+						label: 'Average Jitter (ms)',
+						data: [],
+						borderColor: '#2babab',
+						backgroundColor: '#2babab',
+						pointBackgroundColor: '#2babab',
+						pointBorderColor: '#2babab',
+						pointRadius: 3,
+						pointHoverRadius: 4,
+						borderWidth: 2,
+						fill: false,
+						tension: 0.3,
+						spanGaps: true
 					}
 				]
 			},
@@ -212,11 +183,14 @@
 					},
 					tooltip: {
 						enabled: true,
-						displayColors: false,
+						displayColors: true,
 						callbacks: {
 							label(context) {
-								const value = context.parsed.y ?? context.raw;
-								return `MOS: ${Number(value).toFixed(2)}`;
+								const value = context.parsed.y;
+								if (value === null || Number.isNaN(value)) {
+									return `${context.dataset.label}: —`;
+								}
+								return `${context.dataset.label}: ${Number(value).toFixed(2)} ms`;
 							}
 						}
 					}
@@ -251,17 +225,20 @@
 						}
 					},
 					y: {
-						min: 1,
-						max: 5,
+						min: 0,
+						max: 200,
 						grid: {
 							color: '#d1d5db'
 						},
 						ticks: {
-							stepSize: 1,
+							stepSize: 20,
 							color: '#6b7280',
 							callback(value) {
 								const numeric = Number(value);
-								return qualityLabels[numeric] ?? '';
+								if (Number.isNaN(numeric)) {
+									return '';
+								}
+								return `${numeric}`;
 							}
 						}
 					}
@@ -287,16 +264,10 @@
 		chart.destroy();
 		chart = null;
 	});
-
-	let lastMode = testMode;
-	$: if (chart && testMode !== lastMode) {
-		lastMode = testMode;
-		refreshDataSource();
-	}
 </script>
 
-<section class="panel mos-chart">
-	<h2>Network Quality Prediction</h2>
+<section class="panel latency-jitter-chart">
+	<h2>Average Delay (ms) and Average Jitter (ms)</h2>
 	<div class="chart-container">
 		<canvas bind:this={canvas}></canvas>
 	</div>

@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { derived, writable } from 'svelte/store';
 import type { LatencySample, LatencyStats } from '$lib/latency-probe';
 
 const TEN_SECONDS_MS = 10_000;
@@ -15,6 +15,14 @@ export type MosPoint = {
 	value: number;
 };
 
+export type TenSecondSummary = {
+	at: number;
+	mos: number | null;
+	packetLossPercent: number | null;
+	averageLatencyMs: number | null;
+	averageJitterMs: number | null;
+};
+
 const createEmptyAverages = (): RecentAverages => ({
 	packetLossPercent: null,
 	averageLatencyMs: null,
@@ -23,7 +31,22 @@ const createEmptyAverages = (): RecentAverages => ({
 
 const recentAveragesStore = writable<RecentAverages>(createEmptyAverages());
 const mosAverageStore = writable<number | null>(null);
-const mosHistoryStore = writable<MosPoint[]>([]);
+const summaryHistoryStore = writable<TenSecondSummary[]>([]);
+
+const createValueHistoryStore = (selector: (summary: TenSecondSummary) => number | null) =>
+	derived(summaryHistoryStore, ($history) =>
+		$history.reduce<MosPoint[]>(
+			(acc, summary) => {
+				const value = selector(summary);
+				if (value === null || Number.isNaN(value)) {
+					return acc;
+				}
+				acc.push({ at: summary.at, value });
+				return acc;
+			},
+			[]
+		)
+	);
 
 let latestStats: LatencyStats | null = null;
 let sampleHistory: LatencySample[] = [];
@@ -125,14 +148,28 @@ const tick = () => {
 
 	mosAverageStore.set(mosValue);
 
-	if (mosValue === null) {
+	const hasData =
+		mosValue !== null ||
+		averages.packetLossPercent !== null ||
+		averages.averageLatencyMs !== null ||
+		averages.averageJitterMs !== null;
+
+	if (!hasData) {
 		return;
 	}
 
 	const at = Date.now();
 
-	mosHistoryStore.update((history) => {
-		const next = [...history, { at, value: mosValue }];
+	const summary: TenSecondSummary = {
+		at,
+		mos: mosValue,
+		packetLossPercent: averages.packetLossPercent,
+		averageLatencyMs: averages.averageLatencyMs,
+		averageJitterMs: averages.averageJitterMs
+	};
+
+	summaryHistoryStore.update((history) => {
+		const next = [...history, summary];
 		return next.slice(-MAX_HISTORY_SAMPLES);
 	});
 };
@@ -151,9 +188,23 @@ export const tenSecondMos = {
 	subscribe: mosAverageStore.subscribe
 };
 
-export const tenSecondMosHistory = {
-	subscribe: mosHistoryStore.subscribe
+export const tenSecondSummaryHistory = {
+	subscribe: summaryHistoryStore.subscribe
 };
+
+export const tenSecondMosHistory = createValueHistoryStore((summary) => summary.mos);
+
+export const tenSecondPacketLossHistory = createValueHistoryStore(
+	(summary) => summary.packetLossPercent
+);
+
+export const tenSecondLatencyHistory = createValueHistoryStore(
+	(summary) => summary.averageLatencyMs
+);
+
+export const tenSecondJitterHistory = createValueHistoryStore(
+	(summary) => summary.averageJitterMs
+);
 
 export const updateMosLatencyStats = (stats: LatencyStats) => {
 	latestStats = stats;
@@ -166,7 +217,7 @@ export const resetMosData = (options?: { clearHistory?: boolean }) => {
 	if (options?.clearHistory !== false) {
 		recentAveragesStore.set(createEmptyAverages());
 		mosAverageStore.set(null);
-		mosHistoryStore.set([]);
+		summaryHistoryStore.set([]);
 	} else {
 		mosAverageStore.set(null);
 		recentAveragesStore.set(createEmptyAverages());
@@ -182,7 +233,7 @@ export const ingestLatencySamples = (samples: LatencySample[]) => {
 		return;
 	}
 	sampleHistory = [...sampleHistory, ...samples];
-	if (sampleHistory.length > 1000) {
-		sampleHistory = sampleHistory.slice(-1000);
+	if (sampleHistory.length > MAX_HISTORY_SAMPLES) {
+		sampleHistory = sampleHistory.slice(-MAX_HISTORY_SAMPLES);
 	}
 };

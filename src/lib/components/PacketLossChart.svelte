@@ -1,29 +1,19 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { Chart, registerables, type ScriptableScaleContext } from 'chart.js';
-	import { tenSecondMosHistory, type MosPoint } from '$lib/stores/mosStore';
+	import { tenSecondPacketLossHistory, type MosPoint } from '$lib/stores/mosStore';
 
 	Chart.register(...registerables);
 
 	const STEP_SECONDS = 60;
 	const INITIAL_RANGE_SECONDS = STEP_SECONDS * 10; // 10 minutes
 	const MAX_X_AXIS_LABELS = 12;
-	const TEST_INTERVAL_MS = 50;
-	const TEST_POINT_GAP_MS = 10_000;
 
 	const formatLabel = (timestamp: number): string => {
 		const date = new Date(timestamp);
 		const hours = date.getHours().toString().padStart(2, '0');
 		const minutes = date.getMinutes().toString().padStart(2, '0');
 		return `${hours}:${minutes}`;
-	};
-
-	const qualityLabels: Record<number, string> = {
-		5: 'Excellent',
-		4: 'Good',
-		3: 'Fair',
-		2: 'Poor',
-		1: 'Bad'
 	};
 
 	type LinearTickOptions = Record<string, unknown> & {
@@ -42,12 +32,9 @@
 		};
 	};
 
-	export let testMode = false;
-
 	let canvas: HTMLCanvasElement | null = null;
 	let chart: Chart<'line'> | null = null;
 	let unsubscribe: (() => void) | null = null;
-	let testInterval: ReturnType<typeof setInterval> | null = null;
 	let baseTimestamp =
 		Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 	let chartStartTimestamp: number | null = null;
@@ -70,16 +57,6 @@
 		const grid = (xScale.grid ??= {});
 		grid.color = (ctx) => (ctx.index % xLabelModulo === 0 ? '#d1d5db' : 'rgba(0,0,0,0)');
 		grid.lineWidth = (ctx) => (ctx.index % xLabelModulo === 0 ? 1 : 0);
-	};
-
-	const updateDatasetStyles = () => {
-		if (!chart) return;
-		const dataset = chart.data.datasets[0];
-		const color = testMode ? 'hotpink' : '#ff6384';
-		dataset.borderColor = color;
-		dataset.backgroundColor = color;
-		dataset.pointBackgroundColor = color;
-		dataset.pointBorderColor = color;
 	};
 
 	const updateChart = (points: MosPoint[]) => {
@@ -124,52 +101,26 @@
 	};
 
 	const startStoreSubscription = () => {
-		unsubscribe = tenSecondMosHistory.subscribe((points) => {
+		unsubscribe = tenSecondPacketLossHistory.subscribe((points) => {
 			updateChart(points);
 		});
-	};
-
-	const startTestMode = () => {
-		const points: MosPoint[] = [];
-		const startAt = Date.now();
-		let virtualAt = startAt;
-		testInterval = setInterval(() => {
-			virtualAt += TEST_POINT_GAP_MS;
-			const elapsedSeconds = (virtualAt - startAt) / 1000;
-			const sineValue = Math.sin(0.01 * elapsedSeconds);
-			const value = 3 + 1.5 * sineValue;
-			points.push({ at: virtualAt, value });
-			if (points.length > 1000) {
-				points.shift();
-			}
-			updateChart([...points]);
-		}, TEST_INTERVAL_MS);
 	};
 
 	const stopDataSources = () => {
 		unsubscribe?.();
 		unsubscribe = null;
-		if (testInterval) {
-			clearInterval(testInterval);
-			testInterval = null;
-		}
 	};
 
 	const refreshDataSource = () => {
 		if (!chart) return;
 		stopDataSources();
-		updateDatasetStyles();
 		chart.data.datasets[0].data = [];
 		chartStartTimestamp = null;
 		baseTimestamp =
 			Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 		applyXAxisSettings(INITIAL_RANGE_SECONDS);
 		chart.update('none');
-		if (testMode) {
-			startTestMode();
-		} else {
-			startStoreSubscription();
-		}
+		startStoreSubscription();
 	};
 
 	onMount(() => {
@@ -183,12 +134,12 @@
 				labels: [],
 				datasets: [
 					{
-						label: '10-second MOS',
+						label: 'Packet Loss (%)',
 						data: [],
-						borderColor: '#ff6384',
-						backgroundColor: '#ff6384',
-						pointBackgroundColor: '#ff6384',
-						pointBorderColor: '#ff6384',
+						borderColor: '#8c4d15',
+						backgroundColor: '#8c4d15',
+						pointBackgroundColor: '#8c4d15',
+						pointBorderColor: '#8c4d15',
 						pointRadius: 3,
 						pointHoverRadius: 4,
 						borderWidth: 2,
@@ -216,7 +167,7 @@
 						callbacks: {
 							label(context) {
 								const value = context.parsed.y ?? context.raw;
-								return `MOS: ${Number(value).toFixed(2)}`;
+								return `Packet Loss: ${Number(value).toFixed(2)} %`;
 							}
 						}
 					}
@@ -251,17 +202,20 @@
 						}
 					},
 					y: {
-						min: 1,
-						max: 5,
+						min: 0,
+						max: 20,
 						grid: {
 							color: '#d1d5db'
 						},
 						ticks: {
-							stepSize: 1,
+							stepSize: 2,
 							color: '#6b7280',
 							callback(value) {
 								const numeric = Number(value);
-								return qualityLabels[numeric] ?? '';
+								if (Number.isNaN(numeric)) {
+									return '';
+								}
+								return `${numeric}`;
 							}
 						}
 					}
@@ -287,16 +241,10 @@
 		chart.destroy();
 		chart = null;
 	});
-
-	let lastMode = testMode;
-	$: if (chart && testMode !== lastMode) {
-		lastMode = testMode;
-		refreshDataSource();
-	}
 </script>
 
-<section class="panel mos-chart">
-	<h2>Network Quality Prediction</h2>
+<section class="panel packet-loss-chart">
+	<h2>Packet Loss (%)</h2>
 	<div class="chart-container">
 		<canvas bind:this={canvas}></canvas>
 	</div>

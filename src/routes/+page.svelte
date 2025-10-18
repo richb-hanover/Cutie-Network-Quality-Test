@@ -11,6 +11,8 @@
 	import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import MosChart from '$lib/components/MosChart.svelte';
+	import PacketLossChart from '$lib/components/PacketLossChart.svelte';
+	import LatencyJitterChart from '$lib/components/LatencyJitterChart.svelte';
 	import {
 		updateMosLatencyStats,
 		resetMosData,
@@ -383,6 +385,8 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 	</section>
 
 	<MosChart testMode={isChartTestMode} />
+	<PacketLossChart />
+	<LatencyJitterChart />
 
 	<section class="panel status-grid">
 		<div>
