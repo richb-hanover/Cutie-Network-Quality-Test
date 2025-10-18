@@ -4,6 +4,20 @@
 
 ---
 
+## Version 0.1.0 - 2025-10-17
+
+- Created charts for all variables:
+  MOS, Packet Loss, and Latency&Jitter
+- mosStore.ts saves all four statistics in
+  one time-stamped object
+- Moved all charts into a single panel
+- Fixed the MOS chart to run from
+  1.0 (Bad) to 4.5 (Excellent)
+- Fixed all the `npm run check` and
+  `npm run lint` errors
+- _Dockerfile still does not work_
+- This is good enough to criticize...
+
 ## Version 0.0.4 - 2025-10-17
 
 - Adjust chart to preserve starting time at the origin

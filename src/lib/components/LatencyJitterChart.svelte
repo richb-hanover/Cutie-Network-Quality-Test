@@ -35,8 +35,7 @@
 	let canvas: HTMLCanvasElement | null = null;
 	let chart: Chart<'line'> | null = null;
 	let unsubscribe: (() => void) | null = null;
-	let baseTimestamp =
-		Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+	let baseTimestamp = Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 	let chartStartTimestamp: number | null = null;
 	let xLabelModulo = 1;
 
@@ -59,7 +58,10 @@
 		grid.lineWidth = (ctx) => (ctx.index % xLabelModulo === 0 ? 1 : 0);
 	};
 
-	const toDatasetPoints = (summaries: TenSecondSummary[], key: 'averageLatencyMs' | 'averageJitterMs') =>
+	const toDatasetPoints = (
+		summaries: TenSecondSummary[],
+		key: 'averageLatencyMs' | 'averageJitterMs'
+	) =>
 		summaries.map((summary) => ({
 			x: Math.max(0, (summary.at - baseTimestamp) / 1000),
 			y: summary[key] ?? null
@@ -70,8 +72,7 @@
 
 		if (summaries.length === 0) {
 			chartStartTimestamp = null;
-			baseTimestamp =
-				Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+			baseTimestamp = Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 			chart.data.datasets[0].data = [];
 			chart.data.datasets[1].data = [];
 			applyXAxisSettings(INITIAL_RANGE_SECONDS);
@@ -121,8 +122,7 @@
 		chart.data.datasets[0].data = [];
 		chart.data.datasets[1].data = [];
 		chartStartTimestamp = null;
-		baseTimestamp =
-			Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+		baseTimestamp = Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 		applyXAxisSettings(INITIAL_RANGE_SECONDS);
 		chart.update('none');
 		startStoreSubscription();
@@ -173,6 +173,12 @@
 			options: {
 				responsive: true,
 				maintainAspectRatio: false,
+				layout: {
+					padding: {
+						top: 15,
+						bottom: 15
+					}
+				},
 				animation: false,
 				interaction: {
 					mode: 'index',
@@ -181,7 +187,13 @@
 				plugins: {
 					legend: {
 						display: true,
-						position: 'top'
+						position: 'top',
+						labels: {
+							font: {
+								size: 14,
+								weight: 'bold'
+							}
+						}
 					},
 					tooltip: {
 						enabled: true,
@@ -215,8 +227,7 @@
 								if (index % xLabelModulo !== 0) {
 									return '';
 								}
-								const numericValue =
-									typeof value === 'string' ? Number(value) : (value as number);
+								const numericValue = typeof value === 'string' ? Number(value) : (value as number);
 								if (Number.isNaN(numericValue)) {
 									return '';
 								}
@@ -269,12 +280,11 @@
 	});
 </script>
 
-<section class="panel latency-jitter-chart">
-	<h2>Average Delay (ms) and Average Jitter (ms)</h2>
+<div class="chart-card latency-jitter-chart">
 	<div class="chart-container">
 		<canvas bind:this={canvas}></canvas>
 	</div>
-</section>
+</div>
 
 <style>
 	.chart-container {

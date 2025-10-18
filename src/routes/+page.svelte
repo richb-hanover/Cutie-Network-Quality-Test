@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import type { PageData } from './$types';
 	import {
@@ -13,21 +13,17 @@
 	import MosChart from '$lib/components/MosChart.svelte';
 	import PacketLossChart from '$lib/components/PacketLossChart.svelte';
 	import LatencyJitterChart from '$lib/components/LatencyJitterChart.svelte';
-	import {
-		updateMosLatencyStats,
-		resetMosData,
-		ingestLatencySamples
-	} from '$lib/stores/mosStore';
+	import { updateMosLatencyStats, resetMosData, ingestLatencySamples } from '$lib/stores/mosStore';
 
-export let data: PageData;
-const pageStore = page;
+	export let data: PageData;
+	const pageStore = page;
 
-const buildVersion = data.version;
-const buildCommit = data.gitCommit;
-const buildInfoLabel =
-	buildCommit && buildCommit.length > 0
-		? `Version ${buildVersion} &mdash; #${buildCommit}`
-		: `Version ${buildVersion}`;
+	const buildVersion = data.version;
+	const buildCommit = data.gitCommit;
+	const buildInfoLabel =
+		buildCommit && buildCommit.length > 0
+			? `Version ${buildVersion} - #${buildCommit}`
+			: `Version ${buildVersion}`;
 
 	const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
 
@@ -55,7 +51,7 @@ const buildInfoLabel =
 	let isDisconnecting = false;
 	let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
 
-const SHOW_RECENT_PROBES_HISTORY = false;
+	const SHOW_RECENT_PROBES_HISTORY = false;
 
 	const latencyProbe = createLatencyMonitor({
 		collectSamples: false,
@@ -345,6 +341,12 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 		}
 	}
 
+	onMount(() => {
+		if (!isConnecting && connectionState !== 'connected') {
+			void connectToServer();
+		}
+	});
+
 	onDestroy(() => {
 		void disconnect('manual', { suppressMessage: true });
 		resetMosData();
@@ -373,7 +375,7 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 			</button>
 			<button on:click={() => disconnect('manual')} disabled={!connection}>Stop</button>
 			<span class="build-info">
-				{@html buildInfoLabel}
+				{buildInfoLabel}
 			</span>
 		</div>
 
@@ -384,9 +386,14 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 		{/if}
 	</section>
 
-	<MosChart testMode={isChartTestMode} />
-	<PacketLossChart />
-	<LatencyJitterChart />
+	<section class="panel charts-panel">
+		<div class="charts-grid">
+			<MosChart testMode={isChartTestMode} />
+			<PacketLossChart />
+			<LatencyJitterChart />
+		</div>
+	</section>
+	<LatencyMonitorPanel {latencyStats} showHistory={SHOW_RECENT_PROBES_HISTORY} />
 
 	<section class="panel status-grid">
 		<div>
@@ -463,8 +470,6 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 			<p>No stats collected yet.</p>
 		{/if}
 	</section>
-
-	<LatencyMonitorPanel {latencyStats} showHistory={SHOW_RECENT_PROBES_HISTORY} />
 
 	<section class="panel">
 		<h2>Message Log</h2>
@@ -581,6 +586,22 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 		border-radius: 0.5rem;
 		border: 1px solid #d1d5db;
 		font-size: 1rem;
+	}
+
+	.charts-panel {
+		padding: 1rem 1rem;
+	}
+
+	.charts-grid {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.charts-grid :global(.chart-card) {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	table {

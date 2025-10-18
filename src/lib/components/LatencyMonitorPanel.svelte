@@ -1,34 +1,30 @@
 <script lang="ts">
-import { type LatencyStats } from '$lib/latency-probe';
-	import {
-		calculateMosScore,
-		tenSecondAverages,
-		tenSecondMos
-	} from '$lib/stores/mosStore';
+	import { type LatencyStats } from '$lib/latency-probe';
+	import { calculateMosScore, tenSecondAverages, tenSecondMos } from '$lib/stores/mosStore';
 	import type { RecentAverages } from '$lib/stores/mosStore';
 
-export let latencyStats: LatencyStats;
-export let showHistory = true;
+	export let latencyStats: LatencyStats;
+	export let showHistory = true;
 
-type MetricKey = 'packetLossPercent' | 'latencyMs' | 'jitterMs' | 'mos';
+	type MetricKey = 'packetLossPercent' | 'latencyMs' | 'jitterMs' | 'mos';
 
-type MetricBounds = {
-	[key in MetricKey]: { min: number | null; max: number | null };
-};
+	type MetricBounds = {
+		[key in MetricKey]: { min: number | null; max: number | null };
+	};
 
-const createMetricBounds = (): MetricBounds => ({
-	packetLossPercent: { min: null, max: null },
-	latencyMs: { min: null, max: null },
-	jitterMs: { min: null, max: null },
-	mos: { min: null, max: null }
-});
+	const createMetricBounds = (): MetricBounds => ({
+		packetLossPercent: { min: null, max: null },
+		latencyMs: { min: null, max: null },
+		jitterMs: { min: null, max: null },
+		mos: { min: null, max: null }
+	});
 
-let bounds = createMetricBounds();
+	let bounds = createMetricBounds();
 
-const calculatePacketLossPercent = (lost: number, total: number): number | null => {
-	if (total === 0) {
-		return null;
-	}
+	const calculatePacketLossPercent = (lost: number, total: number): number | null => {
+		if (total === 0) {
+			return null;
+		}
 		return (lost / total) * 100;
 	};
 
@@ -44,39 +40,39 @@ const calculatePacketLossPercent = (lost: number, total: number): number | null 
 
 	const formatScore = (value: number | null): string => {
 		if (value === null) return '—';
-	return value.toFixed(2);
-};
+		return value.toFixed(2);
+	};
 
-const updateBounds = (key: MetricKey, value: number | null) => {
-	if (value === null || Number.isNaN(value)) {
-		return;
-	}
+	const updateBounds = (key: MetricKey, value: number | null) => {
+		if (value === null || Number.isNaN(value)) {
+			return;
+		}
 
-	const current = bounds[key];
-	const nextMin = current.min === null ? value : Math.min(current.min, value);
-	const nextMax = current.max === null ? value : Math.max(current.max, value);
+		const current = bounds[key];
+		const nextMin = current.min === null ? value : Math.min(current.min, value);
+		const nextMax = current.max === null ? value : Math.max(current.max, value);
 
-	if (nextMin !== current.min || nextMax !== current.max) {
-		bounds = {
-			...bounds,
-			[key]: {
-				min: nextMin,
-				max: nextMax
-			}
-		};
-	}
-};
+		if (nextMin !== current.min || nextMax !== current.max) {
+			bounds = {
+				...bounds,
+				[key]: {
+					min: nextMin,
+					max: nextMax
+				}
+			};
+		}
+	};
 
-const resetBoundsIfCleared = () => {
-	if (latencyStats.totalSent === 0 && latencyStats.totalReceived === 0 && latencyStats.totalLost === 0) {
-		bounds = createMetricBounds();
-	}
-};
+	const resetBoundsIfCleared = (stats: LatencyStats) => {
+		if (stats.totalSent === 0 && stats.totalReceived === 0 && stats.totalLost === 0) {
+			bounds = createMetricBounds();
+		}
+	};
 
-$: totalPacketLossPercent = calculatePacketLossPercent(
-	latencyStats.totalLost,
-	latencyStats.totalSent
-);
+	$: totalPacketLossPercent = calculatePacketLossPercent(
+		latencyStats.totalLost,
+		latencyStats.totalSent
+	);
 
 	$: mosInstant = calculateMosScore(
 		latencyStats.lastLatencyMs,
@@ -87,17 +83,17 @@ $: totalPacketLossPercent = calculatePacketLossPercent(
 	let recent: RecentAverages = {
 		packetLossPercent: null,
 		averageLatencyMs: null,
-	averageJitterMs: null
-};
-let mosAverage: number | null = null;
+		averageJitterMs: null
+	};
+	let mosAverage: number | null = null;
 
-$: recent = $tenSecondAverages;
-$: mosAverage = $tenSecondMos;
-$: resetBoundsIfCleared();
-$: updateBounds('packetLossPercent', totalPacketLossPercent);
-$: updateBounds('latencyMs', latencyStats.lastLatencyMs);
-$: updateBounds('jitterMs', latencyStats.jitterMs);
-$: updateBounds('mos', mosInstant);
+	$: recent = $tenSecondAverages;
+	$: mosAverage = $tenSecondMos;
+	$: resetBoundsIfCleared(latencyStats);
+	$: updateBounds('packetLossPercent', totalPacketLossPercent);
+	$: updateBounds('latencyMs', latencyStats.lastLatencyMs);
+	$: updateBounds('jitterMs', latencyStats.jitterMs);
+	$: updateBounds('mos', mosInstant);
 </script>
 
 <section class="panel">

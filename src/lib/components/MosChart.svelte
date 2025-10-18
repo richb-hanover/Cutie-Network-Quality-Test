@@ -18,12 +18,12 @@
 		return `${hours}:${minutes}`;
 	};
 
-	const qualityLabels: Record<number, string> = {
-		5: 'Excellent',
-		4: 'Good',
-		3: 'Fair',
-		2: 'Poor',
-		1: 'Bad'
+	const yAxisLabels: Record<string, string> = {
+		'1': 'Bad',
+		'2': 'Poor',
+		'3': 'Acceptable',
+		'4': 'Good',
+		'4.5': 'Excellent'
 	};
 
 	type LinearTickOptions = Record<string, unknown> & {
@@ -48,8 +48,7 @@
 	let chart: Chart<'line'> | null = null;
 	let unsubscribe: (() => void) | null = null;
 	let testInterval: ReturnType<typeof setInterval> | null = null;
-	let baseTimestamp =
-		Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+	let baseTimestamp = Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 	let chartStartTimestamp: number | null = null;
 	let xLabelModulo = 1;
 
@@ -87,8 +86,7 @@
 
 		if (points.length === 0) {
 			chartStartTimestamp = null;
-			baseTimestamp =
-				Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+			baseTimestamp = Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 			chart.data.datasets[0].data = [];
 			applyXAxisSettings(INITIAL_RANGE_SECONDS);
 			chart.update('none');
@@ -161,8 +159,7 @@
 		updateDatasetStyles();
 		chart.data.datasets[0].data = [];
 		chartStartTimestamp = null;
-		baseTimestamp =
-			Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
+		baseTimestamp = Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 		applyXAxisSettings(INITIAL_RANGE_SECONDS);
 		chart.update('none');
 		if (testMode) {
@@ -183,7 +180,7 @@
 				labels: [],
 				datasets: [
 					{
-						label: '10-second MOS',
+						label: 'Network Quality (MOS)',
 						data: [],
 						borderColor: '#ff6384',
 						backgroundColor: '#ff6384',
@@ -201,6 +198,12 @@
 			options: {
 				responsive: true,
 				maintainAspectRatio: false,
+				layout: {
+					padding: {
+						top: 15,
+						bottom: 15
+					}
+				},
 				animation: false,
 				interaction: {
 					mode: 'index',
@@ -209,7 +212,13 @@
 				plugins: {
 					legend: {
 						display: true,
-						position: 'top'
+						position: 'top',
+						labels: {
+							font: {
+								size: 14,
+								weight: 'bold'
+							}
+						}
 					},
 					tooltip: {
 						enabled: true,
@@ -240,8 +249,7 @@
 								if (index % xLabelModulo !== 0) {
 									return '';
 								}
-								const numericValue =
-									typeof value === 'string' ? Number(value) : (value as number);
+								const numericValue = typeof value === 'string' ? Number(value) : (value as number);
 								if (Number.isNaN(numericValue)) {
 									return '';
 								}
@@ -253,16 +261,16 @@
 					},
 					y: {
 						min: 1,
-						max: 5,
+						max: 4.5,
 						grid: {
 							color: '#d1d5db'
 						},
 						ticks: {
-							stepSize: 1,
+							stepSize: 0.5,
 							color: '#6b7280',
 							callback(value) {
-								const numeric = Number(value);
-								return qualityLabels[numeric] ?? '';
+								const key = typeof value === 'number' ? value.toString() : String(value);
+								return yAxisLabels[key] ?? '';
 							}
 						}
 					}
@@ -296,12 +304,11 @@
 	}
 </script>
 
-<section class="panel mos-chart">
-	<h2>Network Quality Prediction</h2>
+<div class="chart-card mos-chart">
 	<div class="chart-container">
 		<canvas bind:this={canvas}></canvas>
 	</div>
-</section>
+</div>
 
 <style>
 	.chart-container {

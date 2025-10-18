@@ -35,17 +35,14 @@ const summaryHistoryStore = writable<TenSecondSummary[]>([]);
 
 const createValueHistoryStore = (selector: (summary: TenSecondSummary) => number | null) =>
 	derived(summaryHistoryStore, ($history) =>
-		$history.reduce<MosPoint[]>(
-			(acc, summary) => {
-				const value = selector(summary);
-				if (value === null || Number.isNaN(value)) {
-					return acc;
-				}
-				acc.push({ at: summary.at, value });
+		$history.reduce<MosPoint[]>((acc, summary) => {
+			const value = selector(summary);
+			if (value === null || Number.isNaN(value)) {
 				return acc;
-			},
-			[]
-		)
+			}
+			acc.push({ at: summary.at, value });
+			return acc;
+		}, [])
 	);
 
 let latestStats: LatencyStats | null = null;
@@ -202,9 +199,7 @@ export const tenSecondLatencyHistory = createValueHistoryStore(
 	(summary) => summary.averageLatencyMs
 );
 
-export const tenSecondJitterHistory = createValueHistoryStore(
-	(summary) => summary.averageJitterMs
-);
+export const tenSecondJitterHistory = createValueHistoryStore((summary) => summary.averageJitterMs);
 
 export const updateMosLatencyStats = (stats: LatencyStats) => {
 	latestStats = stats;

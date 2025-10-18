@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 
 WORKDIR /usr/src/app
 
