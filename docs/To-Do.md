@@ -1,22 +1,34 @@
 # To-Do
 
-- Add Packet Loss chart (#8c4d15) and Latency / Jitter chart (#5959e6 / #2babab)
-- Consider WebRTC Leak Shield or uBlock’s “Prevent WebRTC IP leak” for testing
-- Add elapsed time & Bytes/second or /minute
+- Move charts closer (vertically) so they all can be seen on one screen
+- Make the legend font even bigger
+- Figure out how to left-justify the legends
+- (Maybe) make the chart grids the same width (inset the numbers to match the MOS chart)
+- Display a spinner centered above the entire page from the time of the Start until it's connected
+- (Maybe not) Add elapsed time & Bytes/second or /minute
 - Create a Docker container with docker-compose.yml for ease of remote installation
+- Also add to the Docker container netperf, iperf, iperf3, Crusader (client and server) WebRTC NeST
 - Install Docker container on atl.richb-hanover.com
-- Devise tests to make sure arriving RTCProbes
-  are sorted properly and MOS scores are correct
 - Why does the Start button briefly flash green on page load?
-- One-out-of-one failure: FF connecting to atl;
-  Connect gave near immediate Connecting... but then
-  gave "WebRTC error...". Subsequent test worked fine.
-  Happened again when I got the failure; immediately reloaded
+- FF fails to connect to atl.richb-hanover.com after `git pull; npm run dev`
+  (Connect gave immediate Connecting... but then
+  gave "WebRTC error...".) Subsequent test worked fine.
+  Happened again after git pull; immediately reloaded
   and retried worked as expected.
+- Move the CSS out of the end of +page.svelte
+
+## Testing ideas
+
+- READ THE CODE!
+- Feed in fake data greater than the max on the chart, and see that it's clipped to the top
+- Seriously analyze packet loss, latency, and jitter code
+- Devise test cases to make sure arriving RTCProbes
+  are sorted properly and MOS scores are correct
+- Consider testing with WebRTC Leak Shield or uBlock’s “Prevent WebRTC IP leak”
 
 ## Done
 
-All these items were in the "to-do" section, but have been completed:
+All these items had been in the "to-do" section, but have been completed:
 
 - Re-cast the entire project in SvelteKit.
   Use `npx sv create WebRTC-SvelteKit` to create.
@@ -29,7 +41,6 @@ All these items were in the "to-do" section, but have been completed:
   connecting to 192.168.253.6:5173?
   Chrome and Safari (Edge, Brave, FF Developer edition) seem to work fine.
   _I found a workaround for the original problem (no probe packets returning). I had been changing some of the media.peerconnection.ice... settings. I used Restore Defaults, and the client app started working. (Now to restore all my extensions...)_
-
 - Add Ctl-C to click the Disconnect button; Return starts collection.
 - Why do I get this when connecting to atl.richb-hanover.com:5173?
 
@@ -52,7 +63,7 @@ All these items were in the "to-do" section, but have been completed:
 - Display package.json `version` and the git hash somewhere in the GUI.
   Use `execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();`
 - Change buttons to Start/Stop
-- Stop collecting at 2 hours
+- Stop collecting after 2 hours
 - Why don't dots show up with FF or Safari but do with Chrome?
   Why does it only affect files served from ...142?
   _(Seems to be fixed in #112b3b3)_
@@ -65,3 +76,6 @@ https://svelte.dev/e/element_invalid_self_closing_tag`
   Safari seems fast... FF slow, Chrome - ?
   _(FF waits until all ICE candidates arrive or for 15 seconds. Change the code to return a candidate immediately.)_
 - Change label from "Instant" to "Now", add Min, Max columns
+- Add Packet Loss chart (#8c4d15) and Latency / Jitter chart (#5959e6 / #2babab)
+- Tooltips - point out top or bottom; what is the top number?
+- Tint the two-hour timeout and manual stop with green

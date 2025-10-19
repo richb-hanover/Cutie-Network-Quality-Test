@@ -359,8 +359,10 @@
 	<section class="panel main-panel">
 		<h1>WebRTC Network Stability Test</h1>
 		<p>
-			Measure the quality of the network by sending short packets to the backend server and
-			analyzing packet loss, and latency and jitter to produce the charts below.
+			Open this page before beginning a call or videoconference and let it run in the background. It
+			detects periods of high packet loss, latency and jitter that impair the quality of the
+			network. The test runs for at most two hours, and consumes only a bit of bandwidth, about 2-3
+			kilobytes per second.
 		</p>
 
 		<div class="controls">
@@ -380,7 +382,7 @@
 		</div>
 
 		{#if collectionStatusMessage}
-			<div class="error">{collectionStatusMessage}</div>
+			<div class="status">{collectionStatusMessage}</div>
 		{:else if errorMessage}
 			<div class="error">{errorMessage}</div>
 		{/if}
@@ -394,38 +396,6 @@
 		</div>
 	</section>
 	<LatencyMonitorPanel {latencyStats} showHistory={SHOW_RECENT_PROBES_HISTORY} />
-
-	<section class="panel status-grid">
-		<div>
-			<h2>Connection</h2>
-			<p><strong>ID:</strong> {connectionId ?? '—'}</p>
-			<p><strong>State:</strong> {connectionState}</p>
-			<p><strong>ICE:</strong> {iceConnectionState}</p>
-			<p><strong>Data channel:</strong> {dataChannelState}</p>
-		</div>
-		<div>
-			<h2>Send Message</h2>
-			<div class="message-form">
-				<input
-					placeholder="Type a message"
-					bind:value={outgoingMessage}
-					disabled={!connection || dataChannelState !== 'open'}
-					on:keydown={(event) => {
-						if (event.key === 'Enter') {
-							event.preventDefault();
-							sendMessage();
-						}
-					}}
-				/>
-				<button
-					on:click={sendMessage}
-					disabled={!connection || dataChannelState !== 'open' || !outgoingMessage.trim()}
-				>
-					Send
-				</button>
-			</div>
-		</div>
-	</section>
 
 	<section class="panel">
 		<h2>Statistics</h2>
@@ -469,6 +439,38 @@
 		{:else}
 			<p>No stats collected yet.</p>
 		{/if}
+	</section>
+
+	<section class="panel status-grid">
+		<div>
+			<h2>Connection</h2>
+			<p><strong>ID:</strong> {connectionId ?? '—'}</p>
+			<p><strong>State:</strong> {connectionState}</p>
+			<p><strong>ICE:</strong> {iceConnectionState}</p>
+			<p><strong>Data channel:</strong> {dataChannelState}</p>
+		</div>
+		<div>
+			<h2>Send Message</h2>
+			<div class="message-form">
+				<input
+					placeholder="Type a message"
+					bind:value={outgoingMessage}
+					disabled={!connection || dataChannelState !== 'open'}
+					on:keydown={(event) => {
+						if (event.key === 'Enter') {
+							event.preventDefault();
+							sendMessage();
+						}
+					}}
+				/>
+				<button
+					on:click={sendMessage}
+					disabled={!connection || dataChannelState !== 'open' || !outgoingMessage.trim()}
+				>
+					Send
+				</button>
+			</div>
+		</div>
 	</section>
 
 	<section class="panel">
@@ -559,13 +561,22 @@
 		opacity: 0.7;
 	}
 
+	.status,
 	.error {
 		margin-top: 1rem;
 		border-radius: 0.5rem;
-		background: #fee2e2;
-		color: #991b1b;
 		padding: 0.75rem;
 		font-size: 0.95rem;
+	}
+
+	.status {
+		background: #dcfce7;
+		color: #166534;
+	}
+
+	.error {
+		background: #fee2e2;
+		color: #991b1b;
 	}
 
 	.status-grid {

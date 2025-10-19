@@ -110,6 +110,14 @@
 		</thead>
 		<tbody>
 			<tr>
+				<th>MOS Quality</th>
+				<td>{formatScore(mosInstant)}</td>
+				<td>{formatScore(bounds.mos.min)}</td>
+				<td>{formatScore(bounds.mos.max)}</td>
+				<td>{formatScore(mosAverage)}</td>
+			</tr>
+
+			<tr>
 				<th>Packet Loss %</th>
 				<td>{formatPercent(totalPacketLossPercent)}</td>
 				<td>{formatPercent(bounds.packetLossPercent.min)}</td>
@@ -117,7 +125,7 @@
 				<td>{formatPercent(recent.packetLossPercent)}</td>
 			</tr>
 			<tr>
-				<th>Last RTT</th>
+				<th>Latency</th>
 				<td>{formatMs(latencyStats.lastLatencyMs)}</td>
 				<td>{formatMs(bounds.latencyMs.min)}</td>
 				<td>{formatMs(bounds.latencyMs.max)}</td>
@@ -129,13 +137,6 @@
 				<td>{formatMs(bounds.jitterMs.min)}</td>
 				<td>{formatMs(bounds.jitterMs.max)}</td>
 				<td>{formatMs(recent.averageJitterMs)}</td>
-			</tr>
-			<tr>
-				<th>MOS Quality</th>
-				<td>{formatScore(mosInstant)}</td>
-				<td>{formatScore(bounds.mos.min)}</td>
-				<td>{formatScore(bounds.mos.max)}</td>
-				<td>{formatScore(mosAverage)}</td>
 			</tr>
 		</tbody>
 	</table>

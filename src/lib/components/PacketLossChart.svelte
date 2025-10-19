@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Chart, registerables, type ScriptableScaleContext } from 'chart.js';
+	import { Chart, registerables, type ScriptableScaleContext, type TooltipItem } from 'chart.js';
 	import { tenSecondPacketLossHistory, type MosPoint } from '$lib/stores/mosStore';
+	import { buildTimeTooltipTitle, ensureVerticalAlignTooltipPositioner } from '$lib/chartTooltip';
 
 	Chart.register(...registerables);
 
@@ -38,6 +39,9 @@
 	let baseTimestamp = Math.floor(Date.now() / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 	let chartStartTimestamp: number | null = null;
 	let xLabelModulo = 1;
+
+	const formatTooltipTitle = (items: TooltipItem<'line'>[]): string =>
+		buildTimeTooltipTitle(formatLabel, () => baseTimestamp, items);
 
 	const applyXAxisSettings = (maxSeconds: number) => {
 		const xScale = chart?.options.scales?.x as LinearAxisOptions | undefined;
@@ -121,6 +125,8 @@
 	};
 
 	onMount(() => {
+		ensureVerticalAlignTooltipPositioner();
+
 		if (!canvas) {
 			return;
 		}
@@ -174,7 +180,9 @@
 					tooltip: {
 						enabled: true,
 						displayColors: false,
+						position: 'verticalAlign',
 						callbacks: {
+							title: formatTooltipTitle,
 							label(context) {
 								const value = context.parsed.y ?? context.raw;
 								return `Packet Loss: ${Number(value).toFixed(2)} %`;
