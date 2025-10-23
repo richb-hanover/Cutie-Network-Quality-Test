@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import type { PageData } from './$types';
 	import {
-		createLatencyMonitor,
+		initializeLatencyMonitor,
 		createEmptyLatencyStats,
 		type LatencyStats
 	} from '$lib/latency-probe';
@@ -53,7 +53,7 @@
 
 	const SHOW_RECENT_PROBES_HISTORY = false;
 
-	const latencyProbe = createLatencyMonitor({
+	const latencyProbe = initializeLatencyMonitor({
 		collectSamples: false,
 		onStats: (stats) => {
 			const snapshot = { ...stats, history: [] };

@@ -20,6 +20,10 @@
 ## Testing ideas
 
 - READ THE CODE!
+  - Why does sendProbe() use setInterval() not setTimeout()?
+  - Why is "page" deprecated? (+page.svelte, line 3)
+  - In sendprobe(), why not latencyStats.totalSent += 1
+  - Does integrateSamples() move samples into mosStore?
 - Feed in fake data greater than the max on the chart, and see that it's clipped to the top
 - Seriously analyze packet loss, latency, and jitter code
 - Devise test cases to make sure arriving RTCProbes

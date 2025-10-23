@@ -3,6 +3,12 @@ export const LOSS_TIMEOUT_MS = 2000; // msec
 export const LOSS_CHECK_INTERVAL_MS = 250; // msec
 export const MAX_LATENCY_HISTORY = 1000; // depth of history
 
+// the wire format for the probes sent/received
+export type LatencyProbe = {
+	type: string; // always "latency-probe"
+	seq: number; // sequence number, starts at zero
+	sentAt: number; // time actually sent
+};
 export type LatencySample = {
 	seq: number;
 	status: 'received' | 'lost';
@@ -22,6 +28,9 @@ export type LatencyStats = {
 	history: LatencySample[];
 };
 
+/**
+ * Interesting functions regarding collection of stats
+ */
 export type LatencyMonitor = {
 	start: (channel: RTCDataChannel) => void;
 	stop: () => void;
@@ -55,7 +64,16 @@ export function createEmptyLatencyStats(): LatencyStats {
 	};
 }
 
-export function createLatencyMonitor(options: LatencyMonitorOptions = {}): LatencyMonitor {
+/**
+ * createLatencyMonitor - initialize a WebRTC test.
+ * 	Accept any passed-in options
+ *  Set up the stuff ?????
+ *  Return a LatencyMonitor with the interesting internal functions
+ *
+ * @param options - default is {}
+ * @returns LatencyMonitor
+ */
+export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): LatencyMonitor {
 	const {
 		intervalMs = LATENCY_INTERVAL_MS,
 		lossTimeoutMs = LOSS_TIMEOUT_MS,
@@ -79,11 +97,24 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 	let sendInterval: ReturnType<typeof setInterval> | null = null;
 	let lossInterval: ReturnType<typeof setInterval> | null = null;
 
+	/**
+	 * appendHistory() - add new samples into the latencyStats.history
+	 *   trim to historySize if too many to fit
+	 * @param samples LatencySample() - new samples to add to the
+	 * @returns LatencySample[] - up to historySize samples
+	 */
 	const appendHistory = (samples: LatencySample[]): LatencySample[] => {
 		const merged = [...latencyStats.history, ...samples];
 		return merged.length > historySize ? merged.slice(-historySize) : merged;
 	};
 
+	/**
+	 * integrateSamples() - take a fresh batch of samples (0, 1, or more)
+	 *   and integrate them properly into mosStore ?????
+	 * @param samples - the samples to process
+	 * @param mutate - function to call on mosStore to add new info ?????
+	 * @returns
+	 */
 	const integrateSamples = (
 		samples: LatencySample[],
 		mutate: (previous: LatencyStats, history: LatencySample[]) => LatencyStats
@@ -98,10 +129,16 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		emitStats();
 	};
 
+	/**
+	 * emitStats() - send the current LatencyStats to whoever wants to see them
+	 */
 	const emitStats = () => {
 		onStats?.(latencyStats);
 	};
 
+	/**
+	 * clearTimers() - turn off all the timers
+	 */
 	const clearTimers = () => {
 		if (sendInterval) {
 			clearInterval(sendInterval);
@@ -113,7 +150,11 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		}
 	};
 
-	const reset = () => {
+	/**
+	 * resetCollection() - clean out all the stats
+	 *    to be ready to re-start collection
+	 */
+	const resetCollection = () => {
 		latencyStats = createEmptyLatencyStats();
 		totalLatencyMs = 0;
 		jitterEstimateMs = 0;
@@ -123,7 +164,11 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		emitStats();
 	};
 
-	const stop = () => {
+	/**
+	 * stopCollection() - stop the collection process
+	 *    preserving all the data in the charts
+	 */
+	const stopCollection = () => {
 		clearTimers();
 		pendingProbes.clear();
 		activeChannel = null;
@@ -131,10 +176,16 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		emitStats();
 	};
 
+	/**
+	 * recordLostProbes() - periodically scan pendingProbes
+	 *    Look for probes that have timed out
+	 * @returns void
+	 */
 	const recordLostProbes = () => {
 		const currentTime = now();
 		const lost: number[] = [];
 
+		// push probes that been timed out into lost array
 		for (const [seq, sentAt] of pendingProbes) {
 			if (currentTime - sentAt > lossTimeoutMs) {
 				lost.push(seq);
@@ -145,10 +196,12 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			return;
 		}
 
+		// delete the lost probes from pendingProbes Map
 		for (const seq of lost) {
 			pendingProbes.delete(seq);
 		}
 
+		// lostSamples array contains info about those lost samples
 		const lostSamples: LatencySample[] = lost.map((seq) => ({
 			seq,
 			status: 'lost',
@@ -158,6 +211,7 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			timestampMs: currentTime
 		}));
 
+		// and integrate them into the mosStore
 		integrateSamples(lostSamples, (previous, history) => ({
 			...previous,
 			totalLost: previous.totalLost + lost.length,
@@ -165,16 +219,31 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		}));
 	};
 
-	const start = (channel: RTCDataChannel) => {
+	/**
+	 * startCollection() - begin data collection.
+	 * - Stop any current collection
+	 * - Set the activeChannel to the passed-in channel
+	 * - Reset (something????)
+	 * - Send a LatencyProbe and set an interval to send another probe after intervalMs
+	 * - Set a timer interval to check timeouts (after lossCheckIntervalMs)
+	 * @param channel
+	 * @returns
+	 */
+	const startCollection = (channel: RTCDataChannel) => {
 		if (activeChannel === channel && sendInterval) {
 			console.log(`start: returned because active && sendInterval`);
 			return;
 		}
 
-		stop();
+		stopCollection();
 		activeChannel = channel;
-		reset();
+		resetCollection();
 
+		/**
+		 * sendProbe() - initialize a new LatencyProbe
+		 *   send it into activeChannel
+		 * @returns void
+		 */
 		const sendProbe = () => {
 			if (!activeChannel || activeChannel.readyState !== 'open') {
 				console.log(`sendProbe: returned because no channel or not open`);
@@ -182,19 +251,20 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			}
 
 			const seq = nextSeq++;
-			const sentAt = now();
+			const sentAt = now(); // uses performance.now() in preference to Date.now()
 
+			// stringify a new LatencyProbe
 			const payload = JSON.stringify({
 				type: 'latency-probe',
 				seq,
-				t0: sentAt,
-				sentAt: now()
+				sentAt: sentAt
 			});
 
+			// send the probe, add it to pendingProbes, update and emit latencyStats
 			try {
-				// console.log(`Sent: ********** ${payload}`);
 				activeChannel.send(payload);
 				pendingProbes.set(seq, sentAt);
+				// why not latencyStats.totalSent += 1 ??????
 				latencyStats = {
 					...latencyStats,
 					totalSent: latencyStats.totalSent + 1
@@ -205,19 +275,26 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			}
 		};
 
-		sendProbe();
+		// actually send the LatencyProbe and schedule the time to re-send
+		sendProbe(); // why not setTimeout() ??????
 		sendInterval = setInterval(sendProbe, intervalMs);
 		lossInterval = setInterval(recordLostProbes, lossCheckIntervalMs);
 	};
 
-	const handleMessage = (payload: string): boolean => {
+	/**
+	 * receiveProbe() - process a LatencyProbe when it arrives
+	 * @param payload - the returned LatencyProbe
+	 * @returns true if we handled it; false otherwise
+	 */
+	const receiveProbe = (payload: string): boolean => {
 		let parsed: unknown;
 
 		try {
 			parsed = JSON.parse(payload);
 			// console.log(`****** Received: ${payload} at ${now()}`);
 		} catch {
-			return false;
+			logger(`receiveProbe received non-JSON: ${payload}`);
+			return false; // and tell the world that we didn't handle it
 		}
 
 		if (
@@ -227,24 +304,34 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 			(parsed as { type: unknown }).type !== 'latency-probe' ||
 			typeof (parsed as { seq?: unknown }).seq !== 'number'
 		) {
+			logger(`receiveProbe received bad payload: ${payload}`);
 			return false;
 		}
 
+		// get the sequence number of the received probe
+		// and look to see if it's in the pendingProbes MAP
 		const seq = (parsed as { seq: number }).seq;
 		const startedAt = pendingProbes.get(seq);
 
+		// if not, (where did it come from?) say we handled it
 		if (startedAt === undefined) {
+			logger(`receiveProbe received non-existent sequence: ${seq}`);
 			return true;
 		}
 
-		pendingProbes.delete(seq);
+		pendingProbes.delete(seq); // remove it from pendingProbes
 
+		/**
+		 * this is where the actual measurements occur
+		 */
 		const receivedAt = now();
 		const latencyMs = receivedAt - startedAt;
 		totalLatencyMs += latencyMs;
 		const totalReceived = latencyStats.totalReceived + 1;
 		const previousLatency = latencyStats.lastLatencyMs;
 
+		// compute the jitter (difference from last latency reading)
+		// smooth it a bit
 		if (previousLatency !== null) {
 			const delta = Math.abs(latencyMs - previousLatency);
 			jitterEstimateMs += (delta - jitterEstimateMs) / 16;
@@ -254,6 +341,7 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 
 		const jitterMs = previousLatency !== null ? jitterEstimateMs : 0;
 
+		// create a LatencySample with the newly-arrived values
 		const sample: LatencySample = {
 			seq,
 			status: 'received',
@@ -274,11 +362,14 @@ export function createLatencyMonitor(options: LatencyMonitorOptions = {}): Laten
 		return true;
 	};
 
+	/**
+	 * return from LatencyMonitor - hand back the interesting functions
+	 */
 	return {
-		start,
-		stop,
-		reset,
-		handleMessage,
+		start: startCollection,
+		stop: stopCollection,
+		reset: resetCollection,
+		handleMessage: receiveProbe,
 		getStats: () => latencyStats
 	};
 }
