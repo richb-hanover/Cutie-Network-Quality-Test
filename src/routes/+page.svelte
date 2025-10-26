@@ -10,9 +10,7 @@
 	import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
 	import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
-	import MosChart from '$lib/components/MosChart.svelte';
-	import PacketLossChart from '$lib/components/PacketLossChart.svelte';
-	import LatencyJitterChart from '$lib/components/LatencyJitterChart.svelte';
+	import NetworkHistoryChart from '$lib/components/NetworkHistoryChart.svelte';
 	import { updateMosLatencyStats, resetMosData, ingestLatencySamples } from '$lib/stores/mosStore';
 
 	export let data: PageData;
@@ -438,9 +436,9 @@
 
 	<section class="panel charts-panel">
 		<div class="charts-grid">
-			<MosChart testMode={isChartTestMode} />
-			<PacketLossChart />
-			<LatencyJitterChart />
+			<NetworkHistoryChart variant="mos" testMode={isChartTestMode} />
+			<NetworkHistoryChart variant="packetLoss" />
+			<NetworkHistoryChart variant="latencyJitter" />
 		</div>
 	</section>
 	<LatencyMonitorPanel {latencyStats} showHistory={SHOW_RECENT_PROBES_HISTORY} />
