@@ -276,7 +276,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		};
 
 		// actually send the LatencyProbe and schedule the time to re-send
-		sendProbe(); // why not setTimeout() ??????
+		sendProbe();
 		sendInterval = setInterval(sendProbe, intervalMs);
 		lossInterval = setInterval(recordLostProbes, lossCheckIntervalMs);
 	};
@@ -285,6 +285,8 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 	 * receiveProbe() - process a LatencyProbe when it arrives
 	 * @param payload - the returned LatencyProbe
 	 * @returns true if we handled it; false otherwise
+	 *     Why would we ever return false ?????
+	 * 		 Who cares if we return false ?????
 	 */
 	const receiveProbe = (payload: string): boolean => {
 		let parsed: unknown;
@@ -310,10 +312,11 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 
 		// get the sequence number of the received probe
 		// and look to see if it's in the pendingProbes MAP
+		// set seq = parsed.seq (forcing it to be treated as {seq: number})
 		const seq = (parsed as { seq: number }).seq;
 		const startedAt = pendingProbes.get(seq);
 
-		// if not, (where did it come from?) say we handled it
+		// if not, (where did it come from?????) say we handled it
 		if (startedAt === undefined) {
 			logger(`receiveProbe received non-existent sequence: ${seq}`);
 			return true;

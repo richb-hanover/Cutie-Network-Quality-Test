@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Changed name to Cutie Network Quality Test ("QT" - get it?)
+- Change Statistics panel to show:
+  Start time, Elapsed Time, Bytes Transferred, Bytes/second, Round Trip Time
+
 ---
 
 ## Version 0.1.0 - 2025-10-17

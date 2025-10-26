@@ -50,6 +50,8 @@
 	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | 'auto' | null = null;
 	let isDisconnecting = false;
 	let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
+	let elapsedMs: number | null = null;
+	let bytesPerSecond: number | null = null;
 
 	const SHOW_RECENT_PROBES_HISTORY = false;
 
@@ -64,6 +66,52 @@
 			ingestLatencySamples(samples);
 		}
 	});
+
+	function formatNumber(value: number | null | undefined, fractionDigits = 0): string {
+		if (value === null || value === undefined || !Number.isFinite(value)) {
+			return '—';
+		}
+		return value.toLocaleString(undefined, {
+			minimumFractionDigits: fractionDigits,
+			maximumFractionDigits: fractionDigits
+		});
+	}
+
+	function formatElapsed(value: number | null): string {
+		if (value === null || value < 0 || !Number.isFinite(value)) {
+			return '—';
+		}
+		const totalSeconds = Math.floor(value / 1000);
+		const hours = Math.floor(totalSeconds / 3600);
+		const minutes = Math.floor((totalSeconds % 3600) / 60);
+		const seconds = totalSeconds % 60;
+		const parts: string[] = [];
+		if (hours > 0) {
+			parts.push(`${hours}h`);
+		}
+		if (minutes > 0 || hours > 0) {
+			parts.push(`${minutes}m`);
+		}
+		parts.push(`${seconds}s`);
+		return parts.join(' ');
+	}
+
+	function formatRoundTripTime(value: number | null): string {
+		if (value === null || value === undefined || !Number.isFinite(value)) {
+			return '—';
+		}
+		return `${Math.round(value * 1000)} ms`;
+	}
+
+	$: elapsedMs =
+		statsSummary && collectionStartAt !== null
+			? Math.max(0, statsSummary.timestamp - collectionStartAt)
+			: null;
+
+	$: bytesPerSecond =
+		statsSummary && elapsedMs !== null && elapsedMs > 0
+			? statsSummary.bytesSent / (elapsedMs / 1000)
+			: null;
 
 	$: isChartTestMode = $pageStore.url.searchParams.get('chartTest') === '1';
 	function clearCollectionAutoStopTimer() {
@@ -357,12 +405,12 @@
 
 <main class="container">
 	<section class="panel main-panel">
-		<h1>WebRTC Network Stability Test</h1>
+		<h1>Cutie &mdash; Network Quality Test <i>("QT")</i></h1>
 		<p>
 			Open this page before beginning a call or videoconference and let it run in the background. It
-			detects periods of high packet loss, latency and jitter that impair the quality of the
-			network. The test runs for at most two hours, and consumes only a bit of bandwidth, about 2-3
-			kilobytes per second.
+			detects periods of high packet loss, latency and jitter that impair the quality and stability
+			of the network. The test runs for at most two hours, and consumes a bit of bandwidth, under
+			two kilobytes per second.
 		</p>
 
 		<div class="controls">
@@ -403,36 +451,24 @@
 			<table>
 				<tbody>
 					<tr>
-						<th>Timestamp</th>
-						<td>{new Date(statsSummary.timestamp).toLocaleTimeString()}</td>
+						<th>Start Time</th>
+						<td>{collectionStartAt ? new Date(collectionStartAt).toLocaleTimeString() : '—'}</td>
 					</tr>
 					<tr>
-						<th>Bytes Sent</th>
-						<td>{statsSummary.bytesSent}</td>
+						<th>Elapsed Time</th>
+						<td>{formatElapsed(elapsedMs)}</td>
 					</tr>
 					<tr>
-						<th>Bytes Received</th>
-						<td>{statsSummary.bytesReceived}</td>
+						<th>Bytes Transferred</th>
+						<td>{formatNumber(statsSummary.bytesSent)}</td>
 					</tr>
 					<tr>
-						<th>Packets Sent</th>
-						<td>{statsSummary.packetsSent}</td>
-					</tr>
-					<tr>
-						<th>Packets Received</th>
-						<td>{statsSummary.packetsReceived}</td>
-					</tr>
-					<tr>
-						<th>Messages Sent</th>
-						<td>{statsSummary.messagesSent}</td>
-					</tr>
-					<tr>
-						<th>Messages Received</th>
-						<td>{statsSummary.messagesReceived}</td>
+						<th>Bytes/second</th>
+						<td>{formatNumber(bytesPerSecond)}</td>
 					</tr>
 					<tr>
 						<th>Round Trip Time</th>
-						<td>{statsSummary.currentRoundTripTime ?? '—'}</td>
+						<td>{formatRoundTripTime(statsSummary.currentRoundTripTime)}</td>
 					</tr>
 				</tbody>
 			</table>

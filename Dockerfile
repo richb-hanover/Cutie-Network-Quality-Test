@@ -14,5 +14,5 @@ ENV HOST=0.0.0.0
 ENV PORT=4173
 EXPOSE 4173
 
-# Launch the pre-built app using Vite preview
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "4173"]
+# Launch the pre-built Node server
+CMD ["node", "build"]
