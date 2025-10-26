@@ -2,9 +2,19 @@
 
 ## Unreleased
 
+---
+
+## Version 0.2.0 - 2025-10-26
+
 - Changed name to Cutie Network Quality Test ("QT" - get it?)
+- Factored out the "chart code" so that it lives in one file
+- Pin chart points to the max of the chart;
+  tooltip shows the correct value
 - Change Statistics panel to show:
   Start time, Elapsed Time, Bytes Transferred, Bytes/second, Round Trip Time
+- Display the ConnectionID in the
+  Server object message at the bottom
+- Bump version to 0.2.0
 
 ---
 

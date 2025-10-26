@@ -37,7 +37,13 @@
 	let messageId = 0;
 	let isChartTestMode = false;
 
-	let messages: Array<{ id: number; direction: 'in' | 'out'; payload: string; at: string }> = [];
+	let messages: Array<{
+		id: number;
+		direction: 'in' | 'out';
+		payload: string;
+		at: string;
+		connectionId?: string | null;
+	}> = [];
 
 	let stopStats: (() => void) | null = null;
 	let latencyStats: LatencyStats = createEmptyLatencyStats();
@@ -65,14 +71,39 @@
 		}
 	});
 
-	function formatNumber(value: number | null | undefined, fractionDigits = 0): string {
+	const DATA_UNITS = ['bytes', 'Kbytes', 'Mbytes', 'Gbytes', 'Tbytes'];
+
+	function formatDataAmount(
+		value: number | null | undefined,
+		options: { suffix?: string } = {}
+	): string {
 		if (value === null || value === undefined || !Number.isFinite(value)) {
 			return '—';
 		}
-		return value.toLocaleString(undefined, {
-			minimumFractionDigits: fractionDigits,
+
+		let adjusted = value;
+		let unitIndex = 0;
+		while (Math.abs(adjusted) >= 1024 && unitIndex < DATA_UNITS.length - 1) {
+			adjusted /= 1024;
+			unitIndex += 1;
+		}
+
+		const magnitude = Math.abs(adjusted);
+		const fractionDigits = magnitude >= 100 ? 0 : magnitude >= 10 ? 1 : 2;
+		const formatted = adjusted.toLocaleString(undefined, {
+			minimumFractionDigits: 0,
 			maximumFractionDigits: fractionDigits
 		});
+
+		const suffix = options.suffix ?? '';
+		return `${formatted} ${DATA_UNITS[unitIndex]}${suffix ? `/${suffix}` : ''}`;
+	}
+
+	function formatBytesPerSecond(value: number | null | undefined): string {
+		if (value === null || value === undefined || !Number.isFinite(value)) {
+			return '—';
+		}
+		return formatDataAmount(value, { suffix: 'sec' });
 	}
 
 	function formatElapsed(value: number | null): string {
@@ -164,6 +195,7 @@
 		errorMessage = '';
 		collectionStatusMessage = null;
 		collectionStartAt = null;
+		statsSummary = null;
 		activeDisconnectReason = null;
 		clearCollectionAutoStopTimer();
 		resetMosData();
@@ -187,7 +219,8 @@
 							id: ++messageId,
 							direction: 'in',
 							payload,
-							at: new Date().toLocaleTimeString()
+							at: new Date().toLocaleTimeString(),
+							connectionId
 						}
 					];
 				},
@@ -329,7 +362,6 @@
 			errorMessage = '';
 		}
 
-		collectionStartAt = null;
 		resetMosData({ clearHistory: false });
 		isDisconnecting = false;
 	}
@@ -403,7 +435,7 @@
 
 <main class="container">
 	<section class="panel main-panel">
-		<h1>Cutie &mdash; Network Quality Test <i>("QT")</i></h1>
+		<h1>Cutie &mdash; Network Quality Test</h1>
 		<p>
 			Open this page before beginning a call or videoconference and let it run in the background. It
 			detects periods of high packet loss, latency and jitter that impair the quality and stability
@@ -458,11 +490,11 @@
 					</tr>
 					<tr>
 						<th>Bytes Transferred</th>
-						<td>{formatNumber(statsSummary.bytesSent)}</td>
+						<td>{formatDataAmount(statsSummary.bytesSent)}</td>
 					</tr>
 					<tr>
 						<th>Bytes/second</th>
-						<td>{formatNumber(bytesPerSecond)}</td>
+						<td>{formatBytesPerSecond(bytesPerSecond)}</td>
 					</tr>
 					<tr>
 						<th>Round Trip Time</th>
@@ -518,7 +550,9 @@
 						<span class="meta">{entry.at}</span>
 						<span class="bubble">
 							<strong>{entry.direction === 'in' ? 'Server' : 'Client'}:</strong>
-							{entry.payload}
+							{entry.direction === 'in' && entry.connectionId
+								? entry.payload.replace(/}$/, `, "connectionId": "${entry.connectionId}" }`)
+								: entry.payload}
 						</span>
 					</li>
 				{/each}
@@ -634,19 +668,20 @@
 	}
 
 	.charts-panel {
-		padding: 1rem 1rem;
+		padding: 0.5rem 0.75rem;
 	}
 
 	.charts-grid {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: 0.15rem;
 	}
 
 	.charts-grid :global(.chart-card) {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.15rem;
+		padding: 0.1rem 0;
 	}
 
 	table {
@@ -701,7 +736,7 @@
 		box-shadow: 0 8px 18px rgba(16, 185, 129, 0.2);
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 800px) {
 		.controls {
 			flex-direction: column;
 			align-items: stretch;

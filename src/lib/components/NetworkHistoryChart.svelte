@@ -266,6 +266,18 @@
 		chart.update('none');
 	}
 
+	function getYAxisMax(): number | null {
+		const max = currentConfig.yAxis?.max;
+		if (typeof max === 'number' && Number.isFinite(max)) {
+			return max;
+		}
+		if (typeof max === 'string') {
+			const parsed = Number(max);
+			return Number.isFinite(parsed) ? parsed : null;
+		}
+		return null;
+	}
+
 	function updateChart(samples: TimedSample[]) {
 		if (!chart) return;
 
@@ -282,12 +294,28 @@
 			baseTimestamp = chartStartTimestamp;
 		}
 
+		const yAxisMax = getYAxisMax();
+
 		chart.data.datasets.forEach((dataset, index) => {
 			const spec = datasetSpecs[index];
-			dataset.data = samples.map((sample) => ({
-				x: Math.max(0, (sample.at - baseTimestamp) / 1000),
-				y: spec.value(sample)
-			}));
+			dataset.data = samples.map((sample) => {
+				const rawValue = spec.value(sample);
+				if (rawValue === null || Number.isNaN(rawValue)) {
+					return {
+						x: Math.max(0, (sample.at - baseTimestamp) / 1000),
+						y: null
+					};
+				}
+
+				const clamped =
+					yAxisMax !== null && rawValue > yAxisMax ? yAxisMax : rawValue;
+
+				return {
+					x: Math.max(0, (sample.at - baseTimestamp) / 1000),
+					y: clamped,
+					actual: rawValue
+				};
+			});
 		});
 
 		const lastSample = samples[samples.length - 1];
@@ -342,17 +370,25 @@
 	}
 
 	function tooltipLabelFormatter(context: TooltipItem<'line'>): string {
-		const spec = datasetSpecs[context.datasetIndex];
-		const value = context.parsed.y ?? null;
-		if (spec?.formatTooltipLabel) {
-			return spec.formatTooltipLabel(
-				value === null || Number.isNaN(Number(value)) ? null : Number(value)
-			);
+			const spec = datasetSpecs[context.datasetIndex];
+			const raw = context.raw as { actual?: number | null } | number | null;
+			const actualValue =
+				typeof raw === 'object' && raw !== null && 'actual' in raw
+					? raw.actual ?? null
+					: context.parsed.y ?? null;
+			if (spec?.formatTooltipLabel) {
+				return spec.formatTooltipLabel(
+					actualValue === null || Number.isNaN(Number(actualValue))
+						? null
+						: Number(actualValue)
+				);
+			}
+			return `${spec?.label ?? 'Value'}: ${
+				actualValue === null || Number.isNaN(Number(actualValue))
+					? '—'
+					: Number(actualValue).toFixed(2)
+			}`;
 		}
-		return `${spec?.label ?? 'Value'}: ${
-			value === null || Number.isNaN(Number(value)) ? '—' : Number(value).toFixed(2)
-		}`;
-	}
 
 	function createChart() {
 		if (!canvas) return;

@@ -213,9 +213,6 @@ export const resetMosData = (options?: { clearHistory?: boolean }) => {
 		recentAveragesStore.set(createEmptyAverages());
 		mosAverageStore.set(null);
 		summaryHistoryStore.set([]);
-	} else {
-		mosAverageStore.set(null);
-		recentAveragesStore.set(createEmptyAverages());
 	}
 	if (interval) {
 		clearInterval(interval);
