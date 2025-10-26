@@ -194,7 +194,9 @@
 					legend: {
 						display: true,
 						position: 'top',
+						padding: 0,
 						labels: {
+							padding: 0,
 							font: {
 								size: 14,
 								weight: 'bold'
@@ -231,6 +233,7 @@
 							minRotation: 45,
 							autoSkip: false,
 							stepSize: STEP_SECONDS,
+							padding: 0,
 							callback(value, index) {
 								if (index % xLabelModulo !== 0) {
 									return '';

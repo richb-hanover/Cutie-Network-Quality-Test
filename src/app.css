@@ -35,7 +35,7 @@ label > input {
 }
 
 canvas {
-	padding: 30px;
+	padding: 0px;
 }
 
 button:enabled {
