@@ -45,7 +45,7 @@ All these items had been in the "to-do" section, but have been completed:
 - Bind to `0.0.0.0` in development mode for Firefox.
   Chrome and Safari are less strict about addresses:
   Use: `npm run dev --host 0.0.0.0 --port 5173`
-- Why does Firefox fail to get the second and subsequent RPCProbes
+- Why does Firefox fail to get the second and subsequent RTCProbes
   connecting to 192.168.253.6:5173?
   Chrome and Safari (Edge, Brave, FF Developer edition) seem to work fine.
   _I found a workaround for the original problem (no probe packets returning). I had been changing some of the media.peerconnection.ice... settings. I used Restore Defaults in Firefox, and the client app started working. (Now to restore all my extensions...)_

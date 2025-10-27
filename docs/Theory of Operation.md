@@ -40,11 +40,11 @@ This is the heart of the measurement process:
   Cancels the active send and loss-detection intervals and nulls
   their handles so the monitor stops scheduling work.
 - `reset` (src/lib/latency-probe.ts:97):
-  Reinitializes counters, jitter estimate, sequence number, and
+  Re-initializes counters, jitter estimate, sequence number, and
   pending probe map to their defaults, then emits the fresh stats—
   used both on startup and when reusing the monitor.
 - `stop` (src/lib/latency-probe.ts:107):
-  Calls clearTimers, drops the active channel, preserves the
+  Calls clearTimers(), drops the active channel, preserves the
   existing history array contents, and emits stats so the UI can
   reflect the idle state.
 - `recordLostProbes` (src/lib/latency-probe.ts:115):
@@ -68,30 +68,6 @@ This is the heart of the measurement process:
 - `getStats` (src/lib/latency-probe.ts:262):
   Arrow function exposed in the returned monitor that simply
   hands back the latest latencyStats snapshot for consumers.
-
-## Provenance
-
-This is a completely new implementation of the concept above
-using SvelteKit, ChatGPT, and native network knowledge.
-The project was inspired by the WebRTC capabilities of
-[VSee Network Stability Test](https://test.vsee.com/network/index.html).
-
-The structure of this SvelteKit project came from creating
-a new SvelteKit project with `npx vs WebRTC-Stability-Test`.
-I then asked ChatGPT in VSCode to create an app
-using this file layout that would:
-
-- start a WebRTC listener on the server
-- serve out a GUI that would establish a WebRTC connection
-- send messages to the server and display the responses.
-- Someplace along the line, I also asked for some statistics
-  in the GUI.
-- After that was working, I manually tweaked the server
-  code to echo back any received message.
-- I also asked ChatGPT to implement the client "probe message"
-  facility, factoring it into _latency-probes.ts_
-
-After that, it's just general fussing with the features/GUI.
 
 ## MOS (Mean Opinion Score) calculations
 
@@ -135,12 +111,12 @@ For an R-value larger than 93.2, we get the maximum MOS score.
 Depending on latency, jitter, and packet loss we need to deduct from 93.2.
 This may sound like a magic number,
 but if you want to learn more about how it’s derived
-and the E-model you can take a look
-[here](https://web.archive.org/web/20240401042449/https://scholarworks.gsu.edu/cgi/viewcontent.cgi?article=1043&context=cs_theses).
+and the E-model you can take a look at
+[An Analysis of the MOS...](https://web.archive.org/web/20240401042449/https://scholarworks.gsu.edu/cgi/viewcontent.cgi?article=1043&context=cs_theses).
 _(Original is no longer available.
 Link above is to a Wayback Machine copy at archive.org)._
 
-###Effective Latency
+### Effective Latency
 
 Latency and jitter are related and get combined into a
 metric called effective latency,
@@ -194,3 +170,98 @@ For 0 < R < 100.0:
 For R >= 100.0:
 
 `MOS = 4.5`
+
+## Provenance - "Vibe Engineering"
+
+This is a completely new implementation
+using SvelteKit, ChatGPT, and native network knowledge.
+The project was inspired by the WebRTC capabilities of
+[VSee Network Stability Test](https://test.vsee.com/network/index.html).
+
+I am warming to the term
+[Vibe Engineering](https://simonwillison.net/2025/Oct/7/vibe-engineering/)
+as described by Simon Willison to create
+the application "from scratch".
+Specifically, I added the
+[Codex](https://developers.openai.com/codex/ide/)
+extension to VS Code,
+opened the code's folder in the project, and began making requests.
+Codex reviews the current state of the code in the folder,
+and automatically modifies and creates new code
+in response to those requests.
+
+After I used `npx vs WebRTC-Stability-Test` to
+create a new SvelteKit project,
+this is the general flow of the prompts I gave
+to ChatGPT/Codex in VSCode:
+
+- start a WebRTC listener on the server
+- serve out a GUI that would establish a WebRTC connection
+- send messages to the server and display the responses.
+- After that was working, I manually tweaked the server
+  code to echo back each received message.
+- Someplace along the line, I also asked for some statistics
+  in the GUI, including calculating the packet loss,
+  latency, and jitter
+- I also asked ChatGPT to implement the client "probe message"
+  facility, factoring it into _latency-probes.ts_
+
+Once that was working, I asked ChatGPT to
+create a chart for the MOS value.
+(I had to tweak the MOS formula manually.)
+I spent a lot of time tuning up the appearance
+of the chart -
+getting the Y axis labels and
+the time stamps on the X-axis right;
+ensuring proper behavior for stopping the test;
+and its general size and appearance.
+
+After the (single) MOS chart was working well,
+I asked ChatGPT to clone the first chart
+to make one for packet loss
+and another for latency & jitter.
+
+After that, the GUI came together with general
+fussing and nudging, mostly with prompts to ChatGPT.
+
+**The process worked surprisingly well.**
+I am especially impressed by the small amount
+of manual work I needed to do.
+Some thoughts:
+
+- Even though I didn't do it, I probably could have asked
+  ChatGPT to generate the SvelteKit project on its own.
+  I chose SvelteKit because I wanted to experiment with
+  that tool set.
+  (So far, I haven't needed to touch _any_
+  SvelteKit specific code. Alas.)
+- I was astonished that the web GUI code worked as well
+  as it did right out of the box.
+  It displayed all the stats requested,
+  grouped in a logical format.
+  It also looked good both on desktop (wide) and
+  phone (narrow) screens without instructions.
+  (That may be a basic SvelteKit capability,
+  but the ChatGPT code "just fit right in".)
+- As part of the initial prompt, I asked ChatGPT
+  to "compute MOS score".
+  The code it created was close, but not exactly correct.
+  I updated it manually.
+- I also edited the "hero text" at the top of the web GUI.
+  It was far simpler than telling ChatGPT to change the
+  wording there... (And I could iterate much faster.)
+
+- When I asked ChatGPT to add the other two charts,
+  it created two more source files with essentially
+  identical code. They worked fine.
+- But when I asked for further modifications to the charts,
+  it had to modify three files.
+  So I asked ChatGPT to factor out the common charting code and
+  it was very successful, and needed no further fussing.
+
+- ChatGPT "understands" (that is, does the "right thing")
+  with imprecise requests.
+  I asked it to display elapsed time, and it chose a format of
+  `##s`, then `##m ##s` without my instruction.
+
+Will I ever "just start hacking code" again? I don't think so.

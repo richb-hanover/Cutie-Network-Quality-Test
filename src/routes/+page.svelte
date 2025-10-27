@@ -125,13 +125,6 @@
 		return parts.join(' ');
 	}
 
-	function formatRoundTripTime(value: number | null): string {
-		if (value === null || value === undefined || !Number.isFinite(value)) {
-			return '—';
-		}
-		return `${Math.round(value * 1000)} ms`;
-	}
-
 	$: elapsedMs =
 		statsSummary && collectionStartAt !== null
 			? Math.max(0, statsSummary.timestamp - collectionStartAt)
@@ -438,9 +431,9 @@
 		<h1>Cutie &mdash; Network Quality Test</h1>
 		<p>
 			Open this page before beginning a call or videoconference and let it run in the background. It
-			detects periods of high packet loss, latency and jitter that impair the quality and stability
-			of the network. The test runs for at most two hours, and consumes a bit of bandwidth, under
-			two kilobytes per second.
+			detects intervals of high packet loss, latency and jitter that impair the quality and
+			stability of the network. The test runs for at most two hours, and consumes a bit of
+			bandwidth, under two kilobytes per second.
 		</p>
 
 		<div class="controls">
@@ -476,7 +469,7 @@
 	<LatencyMonitorPanel {latencyStats} showHistory={SHOW_RECENT_PROBES_HISTORY} />
 
 	<section class="panel">
-		<h2>Statistics</h2>
+		<h2>Long-term Statistics</h2>
 		{#if statsSummary}
 			<table>
 				<tbody>
@@ -495,10 +488,6 @@
 					<tr>
 						<th>Bytes/second</th>
 						<td>{formatBytesPerSecond(bytesPerSecond)}</td>
-					</tr>
-					<tr>
-						<th>Round Trip Time</th>
-						<td>{formatRoundTripTime(statsSummary.currentRoundTripTime)}</td>
 					</tr>
 				</tbody>
 			</table>

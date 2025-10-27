@@ -1,5 +1,5 @@
 {
-	"name": "webrtc-stability-test",
+	"name": "cutie-network-quality-test",
 	"private": true,
 	"version": "0.2.0",
 	"type": "module",
