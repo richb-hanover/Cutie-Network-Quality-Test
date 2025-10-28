@@ -1,6 +1,24 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import wrtc from '@roamhq/wrtc';
+import { dev } from '$app/environment';
+import { execSync } from 'node:child_process';
+import { getLogger } from '../../../lib/logger';
+const logger = getLogger('server');
+
+import version from '../../../../package.json';
+let gitCommit = '';
+if (dev) {
+	try {
+		gitCommit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+	} catch (error) {
+		console.warn('Unable to determine git commit hash', error);
+	}
+}
+
+logger.info(`=============`);
+logger.info(`Starting Cutie server: Version: ${version.version}; Git commit: #${gitCommit}`);
+logger.info(`=============`);
 
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
 
@@ -80,16 +98,14 @@ export const POST: RequestHandler = async ({ request }) => {
 	} as RTCConfiguration);
 
 	pc.oniceconnectionstatechange = () => {
-		console.info('Server ICE connection state changed', {
+		logger.info('Server ICE connection state changed', {
 			state: pc.iceConnectionState,
 			gathering: pc.iceGatheringState
 		});
 	};
 
 	pc.onconnectionstatechange = () => {
-		console.info('Server connection state changed', {
-			state: pc.connectionState
-		});
+		logger.info(`Server connection state changed: ${pc.connectionState}`);
 	};
 
 	const localCandidates: RTCIceCandidateInit[] = [];
@@ -109,6 +125,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			if (candidateInit?.candidate) {
 				const normalised = normaliseLocalCandidate(candidateInit as RTCIceCandidateInit);
 				// console.debug('Server gathered ICE candidate', normalised);
+				// logger.info('Server gathered ICE candidate', normalised);
 				localCandidates.push(normalised);
 			}
 		}
@@ -116,6 +133,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	pc.onicecandidateerror = (_event: unknown) => {
 		// console.error('Server ICE candidate error', event);
+		// logger.info('Server ICE candidate error', _event);
 	};
 
 	pc.ondatachannel = (event) => {
@@ -124,7 +142,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Send a (wholly unnecessary) welcome message
 
 		channel.onopen = () => {
-			console.log(`Connection established`);
+			logger.info(`Connection established`);
 
 			channel.send(
 				JSON.stringify({
@@ -153,14 +171,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		try {
 			await pc.addIceCandidate(new RTCIceCandidate(candidate));
 		} catch (candidateError) {
-			console.warn('Failed to add remote ICE candidate', { candidate, error: candidateError });
+			logger.info('Failed to add remote ICE candidate', { candidate, error: candidateError });
 		}
 	}
 	try {
 		// Signal that there are no more remote candidates.
 		await pc.addIceCandidate(null);
 	} catch (finalCandidateError) {
-		console.warn('Failed to finalize remote ICE candidates', finalCandidateError);
+		logger.info('Failed to finalize remote ICE candidates', finalCandidateError);
 	}
 
 	const answer = await pc.createAnswer();
@@ -168,7 +186,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const connectionId = registerConnection(pc);
 
-	console.info('WebRTC answer ready', {
+	logger.info('WebRTC answer ready', {
 		connectionId,
 		localCandidateCount: localCandidates.length,
 		iceConnectionState: pc.iceConnectionState,

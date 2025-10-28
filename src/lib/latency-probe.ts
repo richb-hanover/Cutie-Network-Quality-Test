@@ -1,3 +1,6 @@
+// import { getLogger } from './logger';
+// const logger = getLogger('latency-probe');
+
 export const LATENCY_INTERVAL_MS = 100; // msec
 export const LOSS_TIMEOUT_MS = 2000; // msec
 export const LOSS_CHECK_INTERVAL_MS = 250; // msec
@@ -49,7 +52,7 @@ type LatencyMonitorOptions = {
 	collectSamples?: boolean;
 	now?: () => number;
 	formatTimestamp?: () => string;
-	logger?: (error: unknown) => void;
+	// logger?: (error: unknown) => void;
 };
 
 export function createEmptyLatencyStats(): LatencyStats {
@@ -83,8 +86,8 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		onSamples,
 		collectSamples = true,
 		now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
-		formatTimestamp = () => new Date().toLocaleTimeString(),
-		logger = (error: unknown) => console.error('latency probe: ', error)
+		formatTimestamp = () => new Date().toLocaleTimeString()
+		// logger = (error: unknown) => console.error('latency probe: ', error)
 	} = options;
 
 	const pendingProbes = new Map<number, number>();
@@ -231,7 +234,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 	 */
 	const startCollection = (channel: RTCDataChannel) => {
 		if (activeChannel === channel && sendInterval) {
-			console.log(`start: returned because active && sendInterval`);
+			console.debug(`start: returned because active && sendInterval`);
 			return;
 		}
 
@@ -246,7 +249,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		 */
 		const sendProbe = () => {
 			if (!activeChannel || activeChannel.readyState !== 'open') {
-				console.log(`sendProbe: returned because no channel or not open`);
+				console.info(`sendProbe: returned because no channel or not open`);
 				return;
 			}
 
@@ -271,7 +274,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 				};
 				emitStats();
 			} catch (err) {
-				logger(err);
+				console.info(err);
 			}
 		};
 
@@ -295,7 +298,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 			parsed = JSON.parse(payload);
 			// console.log(`****** Received: ${payload} at ${now()}`);
 		} catch {
-			logger(`receiveProbe received non-JSON: ${payload}`);
+			console.info(`receiveProbe received non-JSON: ${payload}`);
 			return false; // and tell the world that we didn't handle it
 		}
 
@@ -306,7 +309,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 			(parsed as { type: unknown }).type !== 'latency-probe' ||
 			typeof (parsed as { seq?: unknown }).seq !== 'number'
 		) {
-			logger(`receiveProbe received bad payload: ${payload}`);
+			console.info(`receiveProbe received bad payload: ${payload}`);
 			return false;
 		}
 
@@ -318,7 +321,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 
 		// if not, (where did it come from?????) say we handled it
 		if (startedAt === undefined) {
-			logger(`receiveProbe received non-existent sequence: ${seq}`);
+			console.info(`receiveProbe received non-existent sequence: ${seq}`);
 			return true;
 		}
 

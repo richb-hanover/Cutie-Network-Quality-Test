@@ -28,7 +28,7 @@ The three charts display the 10-second average of
 the values below:
 
 - **Network Quality (MOS)**. The
-  [Mean Opinion Score](./docs/Theory%20of%20 Operation.md#mos%20%28mean%20opinion%20score%29%20calculations)
+  [Mean Opinion Score](./docs/Theory%20of%20Operation.md#mos-mean-opinion-score-calculations)
   is an industry standard that expresses the quality of a voice call
   (and by extension, of a videoconference call).
   The MOS calculation produces values between
@@ -37,7 +37,7 @@ the values below:
 
 - **Packet Loss (%)** Cutie determines packet loss by detecting
   missing sequence numbers from the stream of echoed messages.
-  
+
 - **Latency & Jitter** Cutie computes the difference between
   time the message was received and the timestamp within the message
   to determine the latency for each message.
@@ -55,7 +55,7 @@ Notes:
   (it's a pretty slow VPS).
   Consequently, Cutie's lowest latency tends to be above 30 ms.
 - You could also install a Cutie server on a local computer
-  to test you local network's abilities. 
+  to test your local network's abilities.
 
 ## Development and Testing
 
@@ -97,6 +97,8 @@ this was developed in VSCode with the Codex LLM plugin.
   (like a Raspberry Pi 4)
   that could be dropped onto a network anywhere
   and used as a test platform.
+- There are occasional surprises (errors) in the reported numbers
+  as compared to values recorded in the charts.
 
 ## What's with the name "Cutie"?
 
@@ -107,9 +109,9 @@ in a quick Google search for "cutie network test".
 
 ## Questions & Feedback
 
-This is early, alpha-quality code.
+This is version 0.2.1, and is early, alpha-quality code.
 Read the
-[Provenance - Vibe Engineering](./docs/Theory%20of%20Operation.md#provenance%20-%20"Vibe%20Engineering")
+[Provenance - Vibe Engineering](.docs/Theory%20of%20Operation.md#provenance---vibe-engineering)
 information to see how this was derived.
 
 I would be pleased to get feedback or bug reports on the

@@ -22,14 +22,19 @@
 - If latency (or other value) is greater than Y-axis, adjust Y-axis. (Or peg it...)
 - Need to understand @sveltejs/adapter-auto, adapter-node, adapter-cloudflare...
 
+## Bugs
+
+- Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
+- Are the Min and Max values displaying the 10s Averages?
+
 ## Testing ideas
 
 - READ THE CODE!
+  - Seriously analyze packet loss, latency, and jitter code
   - Why is "page" deprecated? (+page.svelte, line 3)
   - In sendprobe(), why not latencyStats.totalSent += 1
   - How does integrateSamples() work? Does it move samples into mosStore?
 - Feed in fake data greater than the max on the chart, and see that it's clipped to the top
-- Seriously analyze packet loss, latency, and jitter code
 - Devise test cases to make sure arriving RTCProbes
   are sorted properly and MOS scores are correct
 - Consider testing with WebRTC Leak Shield or uBlock’s “Prevent WebRTC IP leak”
@@ -85,4 +90,4 @@ All these items had been in the "to-do" section, but have been completed:
 - Add Packet Loss chart (#8c4d15) and Latency / Jitter chart (#5959e6 / #2babab)
 - Tooltips - point out top or bottom; what is the top number?
 - Tint the two-hour timeout and manual stop with green
-- (Maybe not) Add elapsed time & Bytes/second or /minute
+- Add elapsed time & Bytes/second

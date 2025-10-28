@@ -36,18 +36,5 @@ there are no errors or warnings when you run:
 ## Debugging tips
 
 - Add `?chartTest=1` to insert test data into the chart
-- Hide the Recent Probes panel;
-  toggle `SHOW_RECENT_PROBES_HISTORY` to make it visible
-
-## Origin Story
-
-I was quite taken by the
-[VSee Network Stability Test](https://test.vsee.com/network/index.html)
-and its use of a WebRTC connection to make fine-grained
-measurements of latency and packet loss.
-This project was first created by using
-`npx vs WebRTC-Stability-Test`.
-I then used
-[vibe engineering](https://simonwillison.net/2025/Oct/7/vibe-engineering/)
-(as described by Simon Willison)
-to iterate the design.
+- Need to devise test cases that inject known data to verify
+  the processing
