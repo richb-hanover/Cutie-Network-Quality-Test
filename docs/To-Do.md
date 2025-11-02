@@ -1,15 +1,13 @@
 # To-Do
 
-- Move charts closer (vertically) so they all can be seen on one screen
-- Make the legend font even bigger
-- Figure out how to left-justify the legends
-- (Maybe) make the chart grids the same width (inset the numbers to match the MOS chart)
+- Make the chart legend font even bigger
+- Align all chart left and right edges (make them the same width) so that it's easier to line up packet loss & MOS drop
 - Display a spinner centered above the entire page from the time of the Start until it's connected
 - Add TURN server capability
 - Create a Docker container with docker-compose.yml for ease of remote installation
-  - Need to bundle coturn along with the WebRTC Nest. Single container?
-  - Also add to the Docker container netperf, iperf, iperf3,
-    Crusader (client and server) WebRTC NeST
+- Need to bundle coturn along with the WebRTC Nest. Single container?
+- Also add to the Docker container netperf, iperf, iperf3,
+  Crusader (client and server) WebRTC NeST
 - Install Docker container on atl.richb-hanover.com
 - Why does the Start button briefly flash green on page load?
 - FF fails to connect to atl.richb-hanover.com after `git pull; npm run dev`
@@ -24,16 +22,17 @@
 
 ## Bugs
 
-- Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
+- In one run, Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
 - Are the Min and Max values displaying the 10s Averages?
+- After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run
 
 ## Testing ideas
 
 - READ THE CODE!
-  - Seriously analyze packet loss, latency, and jitter code
-  - Why is "page" deprecated? (+page.svelte, line 3)
-  - In sendprobe(), why not latencyStats.totalSent += 1
-  - How does integrateSamples() work? Does it move samples into mosStore?
+- Seriously analyze packet loss, latency, and jitter code
+- Why is "page" deprecated? (+page.svelte, line 3)
+- In sendprobe(), why not latencyStats.totalSent += 1
+- How does integrateSamples() work? Does it move samples into mosStore?
 - Feed in fake data greater than the max on the chart, and see that it's clipped to the top
 - Devise test cases to make sure arriving RTCProbes
   are sorted properly and MOS scores are correct
@@ -57,15 +56,15 @@ All these items had been in the "to-do" section, but have been completed:
 - Add Ctl-C to click the Disconnect button; Return starts collection.
 - Why do I get this when connecting to atl.richb-hanover.com:5173?
 
-  ```text
-  Blocked request. This host ("atl.richb-hanover.com") is not allowed.
-  To allow this host, add "atl.richb-hanover.com" to `server.allowedHosts` in vite.config.js.
-  ```
+```text
+Blocked request. This host ("atl.richb-hanover.com") is not allowed.
+To allow this host, add "atl.richb-hanover.com" to `server.allowedHosts` in vite.config.js.
+```
 
-  _(Because the Vite dev server only expects
-  to be running on localhost or 127.0.0.1.
-  The `server.allowedHosts` in vite.config.js
-  solves it.)_
+_(Because the Vite dev server only expects
+to be running on localhost or 127.0.0.1.
+The `server.allowedHosts` in vite.config.js
+solves it.)_
 
 - Add charts
 - **Display** the package.json version number and
@@ -91,3 +90,4 @@ All these items had been in the "to-do" section, but have been completed:
 - Tooltips - point out top or bottom; what is the top number?
 - Tint the two-hour timeout and manual stop with green
 - Add elapsed time & Bytes/second
+- Move charts closer (vertically) so they all can be seen on one screen

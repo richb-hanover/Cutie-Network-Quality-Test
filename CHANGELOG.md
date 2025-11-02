@@ -2,7 +2,15 @@
 
 ## Unreleased
 
+- Bump to version 0.2.2
+- Editorial pass on To-Do.md and home page
+  (add link to Github repo)
+
 ---
+
+## Version 0.2.1 - 2025-10-27
+
+- Added logging on server to detect failing WebRTC
 
 ## Version 0.2.0 - 2025-10-26
 

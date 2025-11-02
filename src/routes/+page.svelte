@@ -430,10 +430,13 @@
 	<section class="panel main-panel">
 		<h1>Cutie &mdash; Network Quality Test</h1>
 		<p>
-			Open this page before beginning a call or videoconference and let it run in the background. It
-			detects intervals of high packet loss, latency and jitter that impair the quality and
-			stability of the network. The test runs for at most two hours, and consumes a bit of
-			bandwidth, under two kilobytes per second.
+			Open this page before beginning a call or videoconference and let it run in the background.
+			Cutie detects intervals of high packet loss, latency or jitter that impair the quality of the
+			network connection. The test runs for at most two hours, and consumes a bit of bandwidth,
+			under two kilobytes per second. <a
+				href="https://github.com/richb-hanover/Cutie-Network-Quality-Test"
+				target="_blank">Github repo...</a
+			>
 		</p>
 
 		<div class="controls">
