@@ -109,7 +109,7 @@ in a quick Google search for "cutie network test".
 
 ## Questions & Feedback
 
-This is version 0.2.1, and is early, alpha-quality code.
+This is version 0.2.2, and is early, alpha-quality code.
 Read the
 [Provenance - Vibe Engineering](.docs/Theory%20of%20Operation.md#provenance---vibe-engineering)
 information to see how this was derived.

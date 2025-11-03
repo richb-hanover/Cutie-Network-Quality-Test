@@ -307,8 +307,7 @@
 					};
 				}
 
-				const clamped =
-					yAxisMax !== null && rawValue > yAxisMax ? yAxisMax : rawValue;
+				const clamped = yAxisMax !== null && rawValue > yAxisMax ? yAxisMax : rawValue;
 
 				return {
 					x: Math.max(0, (sample.at - baseTimestamp) / 1000),
@@ -370,25 +369,23 @@
 	}
 
 	function tooltipLabelFormatter(context: TooltipItem<'line'>): string {
-			const spec = datasetSpecs[context.datasetIndex];
-			const raw = context.raw as { actual?: number | null } | number | null;
-			const actualValue =
-				typeof raw === 'object' && raw !== null && 'actual' in raw
-					? raw.actual ?? null
-					: context.parsed.y ?? null;
-			if (spec?.formatTooltipLabel) {
-				return spec.formatTooltipLabel(
-					actualValue === null || Number.isNaN(Number(actualValue))
-						? null
-						: Number(actualValue)
-				);
-			}
-			return `${spec?.label ?? 'Value'}: ${
-				actualValue === null || Number.isNaN(Number(actualValue))
-					? '—'
-					: Number(actualValue).toFixed(2)
-			}`;
+		const spec = datasetSpecs[context.datasetIndex];
+		const raw = context.raw as { actual?: number | null } | number | null;
+		const actualValue =
+			typeof raw === 'object' && raw !== null && 'actual' in raw
+				? (raw.actual ?? null)
+				: (context.parsed.y ?? null);
+		if (spec?.formatTooltipLabel) {
+			return spec.formatTooltipLabel(
+				actualValue === null || Number.isNaN(Number(actualValue)) ? null : Number(actualValue)
+			);
 		}
+		return `${spec?.label ?? 'Value'}: ${
+			actualValue === null || Number.isNaN(Number(actualValue))
+				? '—'
+				: Number(actualValue).toFixed(2)
+		}`;
+	}
 
 	function createChart() {
 		if (!canvas) return;

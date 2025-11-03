@@ -6,6 +6,9 @@ import { execSync } from 'node:child_process';
 import { getLogger } from '../../../lib/logger';
 const logger = getLogger('server');
 
+/**
+ * Start of the main server process
+ */
 import version from '../../../../package.json';
 let gitCommit = '';
 if (dev) {
@@ -19,6 +22,29 @@ if (dev) {
 logger.info(`=============`);
 logger.info(`Starting Cutie server: Version: ${version.version}; Git commit: #${gitCommit}`);
 logger.info(`=============`);
+
+// handlers for all kinds of error coditions
+process.on('exit', (code) => {
+	logger.info(`Exiting with code: ${code}; connections: ${connections.size}`);
+	process.exit(code);
+});
+process.on('SIGINT', () => {
+	logger.info(`Received SIGINT`);
+	process.exit(1);
+});
+process.on('SIGTERM', () => {
+	logger.info(`Received SIGTERM`);
+});
+process.on('uncaughtException', (err, origin) => {
+	logger.info(`Caught exception: ${err}\nException origin: ${origin}`);
+	// It is crucial to handle uncaught exceptions and potentially exit the process gracefully.
+});
+process.on('unhandledRejection', (reason, promise) => {
+	logger.info(`caught an unhandled Rejection: ${reason}, ${promise}`);
+});
+process.on('warning', (warning) => {
+	logger.info(`Process warning: ${warning.message}`);
+});
 
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
 
@@ -67,6 +93,11 @@ function registerConnection(pc: RTCPeerConnection): string {
 			pc.connectionState === 'failed' ||
 			pc.connectionState === 'disconnected'
 		) {
+			logger.info('Connection state changed', {
+				state: pc.iceConnectionState,
+				gathering: pc.iceGatheringState
+			});
+
 			connections.delete(id);
 		}
 	};
@@ -89,6 +120,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		throw error(400, 'Expected JSON body with valid WebRTC offer');
 	}
 
+	let connectionId: string | null = null;
+
 	const pc = new RTCPeerConnection({
 		iceServers: [
 			{
@@ -98,7 +131,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	} as RTCConfiguration);
 
 	pc.oniceconnectionstatechange = () => {
-		logger.info('Server ICE connection state changed', {
+		logger.info('ICE connection state changed', {
+			id: connectionId,
 			state: pc.iceConnectionState,
 			gathering: pc.iceGatheringState
 		});
@@ -139,10 +173,79 @@ export const POST: RequestHandler = async ({ request }) => {
 	pc.ondatachannel = (event) => {
 		const channel = event.channel;
 
-		// Send a (wholly unnecessary) welcome message
+		type RemoteCandidateStats = {
+			id: string;
+			type: 'remote-candidate';
+			ip?: string;
+			address?: string;
+			port?: number;
+			portNumber?: number;
+			foundation?: string;
+		};
 
+		type CandidatePairStats = {
+			id: string;
+			type: 'candidate-pair';
+			state?: string;
+			nominated?: boolean;
+			remoteCandidateId?: string;
+		};
+
+		const logRemoteAddress = async () => {
+			const stats = await pc.getStats();
+			const remoteCandidates = new Map<string, RemoteCandidateStats>();
+			let selectedPair: CandidatePairStats | null = null;
+
+			stats.forEach((report) => {
+				if (report.type === 'remote-candidate') {
+					remoteCandidates.set(report.id, report as RemoteCandidateStats);
+				} else if (report.type === 'candidate-pair') {
+					const pair = report as CandidatePairStats;
+					if (pair.state === 'succeeded' && (pair.nominated || !selectedPair)) {
+						selectedPair = pair;
+					}
+				}
+			});
+
+			if (!selectedPair) {
+				logger.warn('No succeeded ICE candidate pair yet', { connectionId });
+				return;
+			}
+
+			const pair = selectedPair as CandidatePairStats;
+			const remote = remoteCandidates.get(pair.remoteCandidateId ?? '');
+
+			if (!remote) {
+				logger.warn('Selected pair has no matching remote candidate', {
+					connectionId,
+					pair: pair.id
+				});
+				return;
+			}
+
+			const ip = remote.ip ?? remote.address ?? 'unknown';
+			const port = remote.port ?? remote.portNumber ?? 'unknown';
+
+			// logger.info(`Remote ICE Candidate selected: ${JSON.stringify(remote)}`);
+			// "ip" is frequently "" as some kind of security measure
+			logger.info('Remote ICE candidate selected', {
+				connectionId,
+				ip,
+				port,
+				foundation: remote.foundation
+			});
+		};
+
+		// When the data channel opens, send a welcome message
+		// (The welcome is not necessary for the protocol, but
+		// shows up in the web GUI)
 		channel.onopen = () => {
-			logger.info(`Connection established`);
+			logger.info('Connection established', {
+				connectionId: connectionId ?? 'pending'
+			});
+			logRemoteAddress().catch((error) => {
+				logger.warn('Failed to fetch remote ICE stats', { connectionId, error });
+			});
 
 			channel.send(
 				JSON.stringify({
@@ -153,8 +256,15 @@ export const POST: RequestHandler = async ({ request }) => {
 			);
 		};
 
+		channel.onclose = () => {
+			logger.info(`Connection closed: ${connectionId}`);
+		};
+		channel.onerror = () => {
+			logger.info(`Connection error: ${connectionId}`);
+		};
+
 		// Simply send back any received message
-		// (This is the heart of the server, right here)
+		// (This is it! The heart of the server, right here)
 		channel.onmessage = (msgEvent) => {
 			channel.send(msgEvent.data);
 		};
@@ -184,7 +294,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const answer = await pc.createAnswer();
 	await pc.setLocalDescription(answer);
 
-	const connectionId = registerConnection(pc);
+	connectionId = registerConnection(pc);
 
 	logger.info('WebRTC answer ready', {
 		connectionId,
@@ -216,6 +326,7 @@ export const DELETE: RequestHandler = async ({ url }) => {
 		throw error(404, 'Connection not found or already closed');
 	}
 
+	logger.info(`Deleting connection: ${managed.id}`);
 	managed.pc.close();
 	connections.delete(connectionId);
 
