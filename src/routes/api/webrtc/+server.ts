@@ -25,25 +25,25 @@ logger.info(`=============`);
 
 // handlers for all kinds of error coditions
 process.on('exit', (code) => {
-	logger.info(`Exiting with code: ${code}; connections: ${connections.size}`);
+	logger.fatal(`Exiting with code: ${code}; connections: ${connections.size}`);
 	process.exit(code);
 });
 process.on('SIGINT', () => {
-	logger.info(`Received SIGINT`);
+	logger.fatal(`Received SIGINT`);
 	process.exit(1);
 });
 process.on('SIGTERM', () => {
-	logger.info(`Received SIGTERM`);
+	logger.fatal(`Received SIGTERM`);
 });
 process.on('uncaughtException', (err, origin) => {
-	logger.info(`Caught exception: ${err}\nException origin: ${origin}`);
+	logger.fatal(`Caught exception: ${err}\nException origin: ${origin}`);
 	// It is crucial to handle uncaught exceptions and potentially exit the process gracefully.
 });
 process.on('unhandledRejection', (reason, promise) => {
-	logger.info(`caught an unhandled Rejection: ${reason}, ${promise}`);
+	logger.fatal(`caught an unhandled Rejection: ${reason}, ${promise}`);
 });
 process.on('warning', (warning) => {
-	logger.info(`Process warning: ${warning.message}`);
+	logger.warn(`Process warning: ${warning.message}`);
 });
 
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
@@ -93,7 +93,7 @@ function registerConnection(pc: RTCPeerConnection): string {
 			pc.connectionState === 'failed' ||
 			pc.connectionState === 'disconnected'
 		) {
-			logger.info('Connection state changed', {
+			logger.debug('Connection state changed', {
 				state: pc.iceConnectionState,
 				gathering: pc.iceGatheringState
 			});
@@ -131,7 +131,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} as RTCConfiguration);
 
 	pc.oniceconnectionstatechange = () => {
-		logger.info('ICE connection state changed', {
+		logger.debug('ICE connection state changed', {
 			id: connectionId,
 			state: pc.iceConnectionState,
 			gathering: pc.iceGatheringState
@@ -139,7 +139,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	};
 
 	pc.onconnectionstatechange = () => {
-		logger.info(`Server connection state changed: ${pc.connectionState}`);
+		logger.debug(`Server connection state changed: ${pc.connectionState}`);
 	};
 
 	const localCandidates: RTCIceCandidateInit[] = [];
@@ -208,7 +208,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 
 			if (!selectedPair) {
-				logger.warn('No succeeded ICE candidate pair yet', { connectionId });
+				logger.debug('No succeeded ICE candidate pair yet', { connectionId });
 				return;
 			}
 
@@ -216,7 +216,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const remote = remoteCandidates.get(pair.remoteCandidateId ?? '');
 
 			if (!remote) {
-				logger.warn('Selected pair has no matching remote candidate', {
+				logger.debug('Selected pair has no matching remote candidate', {
 					connectionId,
 					pair: pair.id
 				});
@@ -228,7 +228,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// logger.info(`Remote ICE Candidate selected: ${JSON.stringify(remote)}`);
 			// "ip" is frequently "" as some kind of security measure
-			logger.info('Remote ICE candidate selected', {
+			logger.debug('Remote ICE candidate selected', {
 				connectionId,
 				ip,
 				port,
@@ -244,7 +244,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				connectionId: connectionId ?? 'pending'
 			});
 			logRemoteAddress().catch((error) => {
-				logger.warn('Failed to fetch remote ICE stats', { connectionId, error });
+				logger.info('Failed to fetch remote ICE stats', { connectionId, error });
 			});
 
 			channel.send(
@@ -257,10 +257,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		};
 
 		channel.onclose = () => {
-			logger.info(`Connection closed: ${connectionId}`);
+			logger.debug(`Connection closed: ${connectionId}`);
 		};
 		channel.onerror = () => {
-			logger.info(`Connection error: ${connectionId}`);
+			logger.debug(`Connection error: ${connectionId}`);
 		};
 
 		// Simply send back any received message
@@ -281,14 +281,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		try {
 			await pc.addIceCandidate(new RTCIceCandidate(candidate));
 		} catch (candidateError) {
-			logger.info('Failed to add remote ICE candidate', { candidate, error: candidateError });
+			logger.warn('Failed to add remote ICE candidate', { candidate, error: candidateError });
 		}
 	}
 	try {
 		// Signal that there are no more remote candidates.
 		await pc.addIceCandidate(null);
 	} catch (finalCandidateError) {
-		logger.info('Failed to finalize remote ICE candidates', finalCandidateError);
+		logger.warn('Failed to finalize remote ICE candidates', finalCandidateError);
 	}
 
 	const answer = await pc.createAnswer();
@@ -296,7 +296,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	connectionId = registerConnection(pc);
 
-	logger.info('WebRTC answer ready', {
+	logger.debug('WebRTC answer ready', {
 		connectionId,
 		localCandidateCount: localCandidates.length,
 		iceConnectionState: pc.iceConnectionState,
@@ -326,7 +326,7 @@ export const DELETE: RequestHandler = async ({ url }) => {
 		throw error(404, 'Connection not found or already closed');
 	}
 
-	logger.info(`Deleting connection: ${managed.id}`);
+	logger.debug(`Deleting connection: ${managed.id}`);
 	managed.pc.close();
 	connections.delete(connectionId);
 
