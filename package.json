@@ -1,7 +1,7 @@
 {
 	"name": "cutie-network-quality-test",
 	"private": true,
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev --host 0.0.0.0 --port 5173",
@@ -48,8 +48,10 @@
 	},
 	"dependencies": {
 		"@roamhq/wrtc": "^0.9.1",
+		"@ua-parser-js/pro-personal": "^2.0.6",
 		"chart.js": "^4.5.1",
-		"tslog": "^4.10.2"
+		"tslog": "^4.10.2",
+		"ua-parser-js": "^2.0.6"
 	},
 	"overrides": {
 		"cookie": "1.0.2"

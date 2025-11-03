@@ -2,9 +2,11 @@
 
 ## Unreleased
 
-- Bump to version 0.2.2
-- Editorial pass on To-Do.md and home page
-  (add link to Github repo)
+- Bump to version 0.2.3 (Version 0.2.2 not released)
+- Even more logging to detect interesting HTTP and WebRTC events
+- Editorial pass on To-Do.md and home page (add link to Github repo)
+- Add MIT License, with a note that Cutie also includes
+  a PRO Personal license to UAParser.js
 
 ---
 

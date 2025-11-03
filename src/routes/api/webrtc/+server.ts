@@ -240,9 +240,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		// (The welcome is not necessary for the protocol, but
 		// shows up in the web GUI)
 		channel.onopen = () => {
-			logger.info('Connection established', {
-				connectionId: connectionId ?? 'pending'
-			});
+			const state = connectionId ?? 'pending';
+			logger.info(`Connection established: ${state} (${connections.size - 1} other connections)`);
 			logRemoteAddress().catch((error) => {
 				logger.info('Failed to fetch remote ICE stats', { connectionId, error });
 			});
@@ -251,11 +250,10 @@ export const POST: RequestHandler = async ({ request }) => {
 				JSON.stringify({
 					type: 'welcome',
 					message: 'RTC channel established with server',
-					at: new Date().toISOString()
+					at: new Date().toLocaleString()
 				})
 			);
 		};
-
 		channel.onclose = () => {
 			logger.debug(`Connection closed: ${connectionId}`);
 		};
@@ -263,8 +261,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			logger.debug(`Connection error: ${connectionId}`);
 		};
 
-		// Simply send back any received message
-		// (This is it! The heart of the server, right here)
+		/**
+		 * This is the heart of the backend server
+		 * It simply echoes (sends back) every message
+		 * it receives. That's it! Really!
+		 * All the rest of the magic happens on the client
+		 */
 		channel.onmessage = (msgEvent) => {
 			channel.send(msgEvent.data);
 		};
