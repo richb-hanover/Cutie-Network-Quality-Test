@@ -2,13 +2,15 @@
 
 ## Unreleased
 
+---
+
+## Version 0.2.4 - 2025-11-03
+
 - Align left edges of all three charts
   so time stamps all line up vertically.
 - Make all labels for the axes bold
 - Move startup/logging code to hooks.server.ts
 - Bump version to 0.2.4
-
----
 
 ## Version 0.2.3 - 2025-11-03
 
