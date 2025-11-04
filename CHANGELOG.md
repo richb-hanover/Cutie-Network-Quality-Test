@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Move startup/logging code to hooks.server.ts
+- Bump version to 0.2.4
+
 ---
 
 ## Version 0.2.3 - 2025-11-03

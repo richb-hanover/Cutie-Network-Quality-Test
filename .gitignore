@@ -1,3 +1,4 @@
+# ignore node_modules
 node_modules
 
 # Output
@@ -24,3 +25,4 @@ vite.config.ts.timestamp-*
 
 # pseudo-release
 nohup.out
+logs

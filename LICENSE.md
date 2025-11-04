@@ -1,4 +1,4 @@
-# License
+# Licenses for Cutie
 
 ## MIT License
 
@@ -12,5 +12,5 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 ## Other licenses
 
-- This software also bundles a PRO Personal license for
+- This software also bundles a (paid) PRO Personal license for
   [UAParser.js PRO](https://gist.github.com/faisalman/2643fe2e89c4ba3be9088045513a2c5b)

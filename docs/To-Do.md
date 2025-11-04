@@ -5,10 +5,10 @@
 - Display a spinner centered above the entire page from the time of the Start until it's connected
 - Add TURN server capability
 - Create a Docker container with docker-compose.yml for ease of remote installation
-- Need to bundle coturn along with the WebRTC Nest. Single container?
-- Also add to the Docker container netperf, iperf, iperf3,
-  Crusader (client and server) WebRTC NeST
-- Install Docker container on atl.richb-hanover.com
+  - Need to bundle coturn along with the WebRTC Nest. Single container?
+  - Also add to the Docker container netperf, iperf, iperf3,
+    Crusader (client and server) WebRTC NeST
+  - Install Docker container on atl.richb-hanover.com
 - Why does the Start button briefly flash green on page load?
 - FF fails to connect to atl.richb-hanover.com after `git pull; npm run dev`
   (Connect gave immediate Connecting... but then
@@ -22,16 +22,19 @@
 
 ## Bugs
 
+- If server fails, WebRTC seems to remain live which causes browser to restart?
+- Also other connections aren't released?
+- (Same bug?) After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run
 - In one run, Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
 - Are the Min and Max values displaying the 10s Averages?
-- After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run
+- Server init code (printing version, etc) should appear first in output
 
 ## Testing ideas
 
 - READ THE CODE!
-- Seriously analyze packet loss, latency, and jitter code
-- Why is "page" deprecated? (+page.svelte, line 3)
-- In sendprobe(), why not latencyStats.totalSent += 1
+  - Seriously analyze packet loss, latency, and jitter code
+  - Why is "page" deprecated? (+page.svelte, line 3)
+  - In sendprobe(), why not latencyStats.totalSent += 1
 - How does integrateSamples() work? Does it move samples into mosStore?
 - Feed in fake data greater than the max on the chart, and see that it's clipped to the top
 - Devise test cases to make sure arriving RTCProbes
@@ -91,3 +94,4 @@ solves it.)_
 - Tint the two-hour timeout and manual stop with green
 - Add elapsed time & Bytes/second
 - Move charts closer (vertically) so they all can be seen on one screen
+- Where does startup code go for the backend? In hooks.server.ts...
