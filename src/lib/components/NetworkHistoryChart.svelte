@@ -47,6 +47,12 @@
 
 	type ChartVariant = 'mos' | 'packetLoss' | 'latencyJitter';
 
+	const LEFT_AXIS_PADDING: Record<ChartVariant, number> = {
+		mos: 0,
+		packetLoss: 29,
+		latencyJitter: 22
+	};
+
 	export let variant: ChartVariant;
 	export let testMode = false;
 
@@ -109,6 +115,9 @@
 					ticks: {
 						stepSize: 0.5,
 						color: '#6b7280',
+						font: {
+							weight: 'bold'
+						},
 						callback(value) {
 							const key = typeof value === 'number' ? value.toString() : String(value);
 							return yAxisLabels[key] ?? '';
@@ -139,9 +148,21 @@
 					grid: {
 						color: '#d1d5db'
 					},
+					title: {
+						display: true,
+						text: 'Packet loss',
+						color: '#6b7280',
+						padding: { top: 0, bottom: 8 },
+						font: {
+							weight: 'bold'
+						}
+					},
 					ticks: {
 						stepSize: 2,
 						color: '#6b7280',
+						font: {
+							weight: 'bold'
+						},
 						callback(value) {
 							const numeric = Number(value);
 							return Number.isNaN(numeric) ? '' : `${numeric}`;
@@ -181,9 +202,21 @@
 					grid: {
 						color: '#d1d5db'
 					},
+					title: {
+						display: true,
+						text: 'ms',
+						color: '#6b7280',
+						padding: { top: 0, bottom: 8 },
+						font: {
+							weight: 'bold'
+						}
+					},
 					ticks: {
 						stepSize: 20,
 						color: '#6b7280',
+						font: {
+							weight: 'bold'
+						},
 						callback(value) {
 							const numeric = Number(value);
 							return Number.isNaN(numeric) ? '' : `${numeric}`;
@@ -392,6 +425,8 @@
 
 		currentConfig = getVariantConfig(variant);
 		datasetSpecs = currentConfig.datasets;
+		const leftPadding = LEFT_AXIS_PADDING[variant];
+		const isMosVariant = variant === 'mos';
 
 		chart = new Chart<'line'>(canvas, {
 			type: 'line',
@@ -404,6 +439,7 @@
 				maintainAspectRatio: false,
 				layout: {
 					padding: {
+						left: leftPadding,
 						top: 0,
 						bottom: 0
 					}
@@ -450,6 +486,9 @@
 							autoSkip: false,
 							stepSize: STEP_SECONDS,
 							padding: 0,
+							font: {
+								weight: 'bold'
+							},
 							callback(value, index) {
 								if (index % xLabelModulo !== 0) {
 									return '';
