@@ -53,6 +53,15 @@
 		latencyJitter: 22
 	};
 
+	type MosConfig = VariantConfig<MosPoint>;
+	type SummaryConfig = VariantConfig<TenSecondSummary>;
+	type AnyVariantConfig = MosConfig | SummaryConfig;
+	type VariantConfigMap = {
+		mos: MosConfig;
+		packetLoss: MosConfig;
+		latencyJitter: SummaryConfig;
+	};
+
 	export let variant: ChartVariant;
 	export let testMode = false;
 
@@ -67,8 +76,9 @@
 	let activeVariant: ChartVariant | null = null;
 	let lastTestMode = testMode;
 
-	let currentConfig: VariantConfig<any> = getVariantConfig(variant);
-	let datasetSpecs: DatasetSpec<any>[] = currentConfig.datasets;
+	let currentConfig: AnyVariantConfig = getVariantConfig(variant);
+	let datasetSpecs: DatasetSpec<TimedSample>[] =
+		currentConfig.datasets as unknown as DatasetSpec<TimedSample>[];
 
 	const formatLabel = (timestamp: number): string => {
 		const date = new Date(timestamp);
@@ -92,8 +102,8 @@
 		return Math.floor(timestamp / (STEP_SECONDS * 1000)) * (STEP_SECONDS * 1000);
 	}
 
-	function getVariantConfig(instance: ChartVariant): VariantConfig<any> {
-		const configs: Record<ChartVariant, VariantConfig<any>> = {
+	function getVariantConfig(instance: ChartVariant): AnyVariantConfig {
+		const configs: VariantConfigMap = {
 			mos: {
 				datasets: [
 					{
@@ -371,7 +381,9 @@
 		resetChartData();
 
 		if (currentConfig.supportsTestMode && currentConfig.testGenerator && testMode) {
-			stopTestMode = currentConfig.testGenerator((samples) => updateChart(samples));
+			stopTestMode = currentConfig.testGenerator((samples) =>
+				updateChart(samples as TimedSample[])
+			);
 			return;
 		}
 
@@ -424,9 +436,8 @@
 		if (!canvas) return;
 
 		currentConfig = getVariantConfig(variant);
-		datasetSpecs = currentConfig.datasets;
+		datasetSpecs = currentConfig.datasets as unknown as DatasetSpec<TimedSample>[];
 		const leftPadding = LEFT_AXIS_PADDING[variant];
-		const isMosVariant = variant === 'mos';
 
 		chart = new Chart<'line'>(canvas, {
 			type: 'line',
@@ -522,9 +533,9 @@
 		lastTestMode = testMode;
 	}
 
-	function rebuildChartIfNeeded() {
+	function rebuildChartIfNeeded(currentVariant: ChartVariant) {
 		if (!chart) return;
-		if (variant === activeVariant) {
+		if (currentVariant === activeVariant) {
 			return;
 		}
 
@@ -534,16 +545,16 @@
 		createChart();
 	}
 
-	function handleTestModeChange() {
+	function handleTestModeChange(currentTestMode: boolean) {
 		if (!chart || !currentConfig.supportsTestMode) {
 			return;
 		}
-		if (testMode === lastTestMode) {
+		if (currentTestMode === lastTestMode) {
 			return;
 		}
 		updateDatasetColors();
 		startDataSources();
-		lastTestMode = testMode;
+		lastTestMode = currentTestMode;
 	}
 
 	onMount(() => {
@@ -557,8 +568,12 @@
 		chart = null;
 	});
 
-	$: rebuildChartIfNeeded();
-	$: handleTestModeChange();
+	$: if (chart) {
+		rebuildChartIfNeeded(variant);
+	}
+	$: if (chart) {
+		handleTestModeChange(testMode);
+	}
 </script>
 
 <div class="chart-card">

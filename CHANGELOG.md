@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fix lint errors in _NetworkHistoryChart.svelte_
+- Bump version to 0.2.5
+
 ---
 
 ## Version 0.2.4 - 2025-11-03
