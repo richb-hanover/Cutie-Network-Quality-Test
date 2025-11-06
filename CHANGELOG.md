@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added `?createData=1` test that writes triples of { seq, sentAt, receivedAt} to a CSV file when collection stops and downloads it as _cutie-results-yyyy-mm-dd-hh-mm.csv_.
+- Added `injectLatencyInfo()` function that takes an array of triples and injects them into the chart just as if they had been received "in real time"
+- Adding test routines that use this facility
 - Fix lint errors in _NetworkHistoryChart.svelte_
 - Bump version to 0.2.5
 
