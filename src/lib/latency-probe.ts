@@ -50,6 +50,7 @@ type LatencyMonitorOptions = {
 	onStats?: (stats: LatencyStats) => void;
 	onSamples?: (samples: LatencySample[]) => void;
 	collectSamples?: boolean;
+	onProbeReceived?: (probe: { seq: number; sentAt: number; receivedAt: number }) => void;
 	now?: () => number;
 	formatTimestamp?: () => string;
 	// logger?: (error: unknown) => void;
@@ -85,6 +86,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		onStats,
 		onSamples,
 		collectSamples = true,
+		onProbeReceived,
 		now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
 		formatTimestamp = () => new Date().toLocaleTimeString()
 		// logger = (error: unknown) => console.error('latency probe: ', error)
@@ -365,6 +367,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 			jitterMs,
 			history
 		}));
+		onProbeReceived?.({ seq, sentAt: startedAt, receivedAt });
 		return true;
 	};
 

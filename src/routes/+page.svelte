@@ -23,7 +23,14 @@
 			? `Version ${buildVersion} - #${buildCommit}`
 			: `Version ${buildVersion}`;
 
-	const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
+const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
+const LATENCY_CSV_HEADER = '# sequence,sentAt,receivedAt';
+
+type LatencyProbeCsvRow = {
+	seq: number;
+	sentAt: number;
+	receivedAt: number;
+};
 
 	let connection: ServerConnection | null = null;
 	let connectionId: string | null = null;
@@ -53,11 +60,13 @@
 	let collectionStartAt: number | null = null;
 	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | 'auto' | null = null;
 	let isDisconnecting = false;
-	let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
-	let elapsedMs: number | null = null;
-	let bytesPerSecond: number | null = null;
+let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
+let elapsedMs: number | null = null;
+let bytesPerSecond: number | null = null;
+let isCreateDataMode = false;
+let recordedProbes: LatencyProbeCsvRow[] = [];
 
-	const SHOW_RECENT_PROBES_HISTORY = false;
+const SHOW_RECENT_PROBES_HISTORY = false;
 
 	const latencyProbe = initializeLatencyMonitor({
 		collectSamples: false,
@@ -68,6 +77,12 @@
 		},
 		onSamples: (samples) => {
 			ingestLatencySamples(samples);
+		},
+		onProbeReceived: ({ seq, sentAt, receivedAt }) => {
+			if (!isCreateDataMode) {
+				return;
+			}
+			recordedProbes = [...recordedProbes, { seq, sentAt, receivedAt }];
 		}
 	});
 
@@ -125,6 +140,43 @@
 		return parts.join(' ');
 	}
 
+	function formatProbeNumber(value: number): string {
+		return Number.isFinite(value) ? value.toFixed(3) : '';
+	}
+
+	function formatFileTimestamp(date: Date): string {
+		const pad = (input: number) => input.toString().padStart(2, '0');
+		const year = date.getFullYear();
+		const month = pad(date.getMonth() + 1);
+		const day = pad(date.getDate());
+		const hours = pad(date.getHours());
+		const minutes = pad(date.getMinutes());
+		return `${year}-${month}-${day}-${hours}:${minutes}`;
+	}
+
+	function downloadLatencyProbeCsv(rows: LatencyProbeCsvRow[]): string | null {
+		if (!rows.length) {
+			return null;
+		}
+		const lines = rows.map(
+			(row) =>
+				`${row.seq},${formatProbeNumber(row.sentAt)},${formatProbeNumber(row.receivedAt)}`
+		);
+		const csv = [LATENCY_CSV_HEADER, ...lines, ''].join('\n');
+		const timestamp = formatFileTimestamp(new Date());
+		const fileName = `cutie-results-${timestamp}.csv`;
+		const blob = new Blob([csv], { type: 'text/csv' });
+		const url = URL.createObjectURL(blob);
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = fileName;
+		document.body.appendChild(anchor);
+		anchor.click();
+		document.body.removeChild(anchor);
+		URL.revokeObjectURL(url);
+		return fileName;
+	}
+
 	$: elapsedMs =
 		statsSummary && collectionStartAt !== null
 			? Math.max(0, statsSummary.timestamp - collectionStartAt)
@@ -134,6 +186,11 @@
 		statsSummary && elapsedMs !== null && elapsedMs > 0
 			? statsSummary.bytesSent / (elapsedMs / 1000)
 			: null;
+
+	$: isCreateDataMode = $pageStore.url.searchParams.get('createData') === '1';
+	$: if (!isCreateDataMode) {
+		recordedProbes = [];
+	}
 
 	$: isChartTestMode = $pageStore.url.searchParams.get('chartTest') === '1';
 	function clearCollectionAutoStopTimer() {
@@ -158,6 +215,9 @@
 		activeDisconnectReason = null;
 		collectionStatusMessage = null;
 		scheduleCollectionAutoStop();
+		if (isCreateDataMode) {
+			recordedProbes = [];
+		}
 		latencyProbe.start(dataChannel);
 	}
 
@@ -314,6 +374,8 @@
 		isDisconnecting = true;
 		activeDisconnectReason = reason;
 
+		let savedCsv: string | null = null;
+
 		latencyProbe.stop();
 		stopStats?.();
 		stopStats = null;
@@ -355,8 +417,18 @@
 			errorMessage = '';
 		}
 
+		if (isCreateDataMode && recordedProbes.length > 0) {
+			savedCsv = downloadLatencyProbeCsv(recordedProbes);
+			recordedProbes = [];
+		}
+
 		resetMosData({ clearHistory: false });
 		isDisconnecting = false;
+
+		if (savedCsv && !options.suppressMessage) {
+			const prefix = collectionStatusMessage ? `${collectionStatusMessage} ` : '';
+			collectionStatusMessage = `${prefix}Saved latency probe data to ${savedCsv}`;
+		}
 	}
 
 	function sendMessage() {
