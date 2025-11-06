@@ -1,38 +1,42 @@
 # To-Do
 
-- Make the chart legend font even bigger
-- Align all chart left and right edges (make them the same width) so that it's easier to line up packet loss & MOS drop
-- Display a spinner centered above the entire page from the time of the Start until it's connected
-- Add TURN server capability
+Ideas that have occurred to me. Some are good...
+
+- See **Testing Ideas** below
+- Make `npm run build` work
+  - Need to understand @sveltejs/adapter-auto, adapter-node, adapter-cloudflare...
+- (maybe) Display a spinner centered above the entire page from the time of the Start until it's connected
 - Create a Docker container with docker-compose.yml for ease of remote installation
-  - Need to bundle coturn along with the WebRTC Nest. Single container?
-  - Also add to the Docker container netperf, iperf, iperf3,
-    Crusader (client and server) WebRTC NeST
+  - Add TURN server capability
+  - Probably bundle `coturn` along with Cutie.
+    Is it possible to do it in a single container?
+    Or does docker-compose.yml do it all?
+  - Also add netperf, iperf, iperf3,
+    Crusader (client and server)
+    to the Docker container
   - Install Docker container on atl.richb-hanover.com
+  - Install on some external server site. Can it be free?
 - Why does the Start button briefly flash green on page load?
 - FF fails to connect to atl.richb-hanover.com after `git pull; npm run dev`
   (Connect gave immediate Connecting... but then
   gave "WebRTC error...".) Subsequent test worked fine.
   Happened again after git pull; immediately reloaded
   and retried worked as expected.
-- Move the CSS out of the end of +page.svelte
-- Install on some external server site. Can it be free?
-- If latency (or other value) is greater than Y-axis, adjust Y-axis. (Or peg it...)
-- Need to understand @sveltejs/adapter-auto, adapter-node, adapter-cloudflare...
+- Move the CSS out of the end of +page.svelte (?)
 
 ## Bugs
 
-- If server fails, WebRTC seems to remain live which causes browser to restart?
+- If server fails, WebRTC connection seems to remain live which causes browser to restart?
 - Also other connections aren't released?
 - (Same bug?) After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run
-- In one run, Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
+- In one test run, Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
 - Are the Min and Max values displaying the 10s Averages?
-- Server init code (printing version, etc) should appear first in output
+- `nohup npm run dev &` on atl stops accepting WebRTC connections
 
 ## Testing ideas
 
 - READ THE CODE!
-  - Seriously analyze packet loss, latency, and jitter code
+  - Analyze packet loss, latency, and jitter code
   - Why is "page" deprecated? (+page.svelte, line 3)
   - In sendprobe(), why not latencyStats.totalSent += 1
 - How does integrateSamples() work? Does it move samples into mosStore?
@@ -95,3 +99,7 @@ solves it.)_
 - Add elapsed time & Bytes/second
 - Move charts closer (vertically) so they all can be seen on one screen
 - Where does startup code go for the backend? In hooks.server.ts...
+- Make the chart legend font even bigger
+- Align all chart left and right edges (make them the same width) so that it's easier to line up packet loss & MOS drop by eye
+- If latency (or other value) is greater than Y-axis, adjust Y-axis. (Or peg it...)
+- Server init code (printing version, etc) should appear first in output

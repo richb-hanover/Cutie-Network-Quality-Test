@@ -4,7 +4,7 @@
 
 This project uses a WebRTC connection to
 send "probe messages" multiple times a second
-to a server and use the resulting data to
+to a server and use the resulting responses to
 measure latency, jitter, and packet loss.
 
 Specifically, the client inserts
@@ -71,7 +71,7 @@ This is the heart of the measurement process:
 
 ## MOS (Mean Opinion Score) calculations
 
-The Netbeez article
+This Netbeez article
 [Impact of Packet Loss, Jitter, and Latency on VoIP](https://netbeez.net/blog/impact-of-packet-loss-jitter-and-latency-on-voip/)
 describes "Mean Opinion Score" (MOS) quality calculations.
 Here is an excerpt from their article:
