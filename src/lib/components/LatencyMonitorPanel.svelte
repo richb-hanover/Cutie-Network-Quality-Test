@@ -94,6 +94,34 @@
 	$: updateBounds('latencyMs', latencyStats.lastLatencyMs);
 	$: updateBounds('jitterMs', latencyStats.jitterMs);
 	$: updateBounds('mos', mosInstant);
+
+	const toNumber = (value: number | null): number =>
+		value === null || Number.isNaN(value) ? Number.NaN : value;
+
+	const toNumberArray = (values: Array<number | null>): number[] =>
+		values.map((value) => toNumber(value));
+
+	export const getLatencyMonitorStats = () => ({
+		MOSQuality: toNumberArray([mosInstant, bounds.mos.min, bounds.mos.max, mosAverage]),
+		PacketLoss: toNumberArray([
+			totalPacketLossPercent,
+			bounds.packetLossPercent.min,
+			bounds.packetLossPercent.max,
+			recent.packetLossPercent
+		]),
+		Latency: toNumberArray([
+			latencyStats.lastLatencyMs,
+			bounds.latencyMs.min,
+			bounds.latencyMs.max,
+			recent.averageLatencyMs
+		]),
+		Jitter: toNumberArray([
+			latencyStats.jitterMs,
+			bounds.jitterMs.min,
+			bounds.jitterMs.max,
+			recent.averageJitterMs
+		])
+	});
 </script>
 
 <section class="panel">
