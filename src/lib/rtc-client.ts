@@ -1,3 +1,6 @@
+import { getLogger } from './logger';
+const logger = getLogger('rtc-client');
+
 const DEFAULT_SIGNAL_URL = '/api/webrtc';
 const ICE_GATHER_TIMEOUT_MS = 15_000;
 
@@ -132,12 +135,12 @@ function extractCandidateInfo(
 function logCandidate(stage: 'Local' | 'Remote', candidateInit: RTCIceCandidateInit): void {
 	const info = extractCandidateInfo(candidateInit);
 	if (!info) {
-		console.info(`[RTC] ${stage} ICE candidate`, candidateInit);
+		logger.debug(`[RTC] ${stage} ICE candidate`, candidateInit);
 		return;
 	}
 
 	if (info.type === 'host') {
-		// console.info(`[RTC] ${stage} ICE candidate (${info.type})`, {
+		// logger.debug(`[RTC] ${stage} ICE candidate (${info.type})`, {
 		// 	address: info.address,
 		// 	port: info.port,
 		// 	protocol: info.protocol,
@@ -146,12 +149,12 @@ function logCandidate(stage: 'Local' | 'Remote', candidateInit: RTCIceCandidateI
 		return;
 	}
 
-	console.info(`[RTC] ${stage} ICE candidate (${info.type})`, {
-		address: info.address,
-		port: info.port,
-		protocol: info.protocol,
-		raw: info.raw
-	});
+	logger.debug(`[RTC] ${stage} ICE candidate (${info.type})
+		address: ${JSON.stringify(info.address)}
+		port: ${JSON.stringify(info.port)}
+		protocol: ${JSON.stringify(info.protocol)},
+		raw: ${JSON.stringify(info.raw)}
+	`);
 }
 
 function logGatheringSummary(stage: 'Local' | 'Remote', candidates: RTCIceCandidateInit[]): void {
@@ -165,10 +168,9 @@ function logGatheringSummary(stage: 'Local' | 'Remote', candidates: RTCIceCandid
 		return acc;
 	}, {});
 
-	console.info(`[RTC] ${stage} ICE gathering complete`, {
-		total: candidates.length,
-		types: counts
-	});
+	logger.debug(
+		`[RTC] ${stage} ICE gathering complete ${candidates.length} ${JSON.stringify(counts)}`
+	);
 }
 
 function normaliseLocalCandidate(candidateInit: RTCIceCandidateInit): RTCIceCandidateInit {
@@ -194,21 +196,21 @@ function waitForIceGatheringComplete(peer: RTCPeerConnection): Promise<void> {
 
 	return new Promise((resolve) => {
 		const finish = () => {
-			console.log('ICE gathering finished. Final state:', peer.iceGatheringState);
+			logger.info('ICE gathering finished. Final state:', peer.iceGatheringState);
 			clearTimeout(timeout);
 			peer.removeEventListener?.('icegatheringstatechange', handleStateChange);
 			resolve();
 		};
 
 		const handleStateChange = () => {
-			console.log('ICE gathering state changed to:', peer.iceGatheringState);
+			logger.info('ICE gathering state changed to:', peer.iceGatheringState);
 			if (peer.iceGatheringState === 'complete') {
 				finish();
 			}
 		};
 
 		const timeout = setTimeout(() => {
-			console.log('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
+			logger.info('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
 			finish();
 		}, ICE_GATHER_TIMEOUT_MS);
 
@@ -325,14 +327,14 @@ async function negotiate(
 
 	const { sdp: normalisedSdp, replacements } = normaliseSdpCandidates(localDescription.sdp ?? '');
 	if (replacements > 0) {
-		console.info(`[RTC] Normalised ${replacements} candidate(s) in local SDP`);
+		logger.debug(`[RTC] Normalised ${replacements} candidate(s) in local SDP`);
 	}
 
 	let candidatePayload = gatheredCandidates;
 	if (candidatePayload.length === 0) {
 		candidatePayload = extractCandidatesFromSdp(normalisedSdp);
 		if (candidatePayload.length > 0) {
-			console.info(`[RTC] Derived ${candidatePayload.length} candidate(s) from SDP`);
+			logger.debug(`[RTC] Derived ${candidatePayload.length} candidate(s) from SDP`);
 		}
 	}
 

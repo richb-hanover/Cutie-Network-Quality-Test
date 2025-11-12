@@ -12,6 +12,8 @@
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import NetworkHistoryChart from '$lib/components/NetworkHistoryChart.svelte';
 	import { updateMosLatencyStats, resetMosData, ingestLatencySamples } from '$lib/stores/mosStore';
+	import { getLogger } from '../lib/logger';
+	const logger = getLogger('+page-svelte');
 
 	export let data: PageData;
 	const pageStore = page;
@@ -23,14 +25,14 @@
 			? `Version ${buildVersion} - #${buildCommit}`
 			: `Version ${buildVersion}`;
 
-const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
-const LATENCY_CSV_HEADER = '# sequence,sentAt,receivedAt';
+	const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
+	const LATENCY_CSV_HEADER = '# sequence,sentAt,receivedAt';
 
-type LatencyProbeCsvRow = {
-	seq: number;
-	sentAt: number;
-	receivedAt: number;
-};
+	type LatencyProbeCsvRow = {
+		seq: number;
+		sentAt: number;
+		receivedAt: number;
+	};
 
 	let connection: ServerConnection | null = null;
 	let connectionId: string | null = null;
@@ -60,13 +62,13 @@ type LatencyProbeCsvRow = {
 	let collectionStartAt: number | null = null;
 	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | 'auto' | null = null;
 	let isDisconnecting = false;
-let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
-let elapsedMs: number | null = null;
-let bytesPerSecond: number | null = null;
-let isCreateDataMode = false;
-let recordedProbes: LatencyProbeCsvRow[] = [];
+	let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
+	let elapsedMs: number | null = null;
+	let bytesPerSecond: number | null = null;
+	let isCreateDataMode = false;
+	let recordedProbes: LatencyProbeCsvRow[] = [];
 
-const SHOW_RECENT_PROBES_HISTORY = false;
+	const SHOW_RECENT_PROBES_HISTORY = false;
 
 	const latencyProbe = initializeLatencyMonitor({
 		collectSamples: false,
@@ -159,8 +161,7 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 			return null;
 		}
 		const lines = rows.map(
-			(row) =>
-				`${row.seq},${formatProbeNumber(row.sentAt)},${formatProbeNumber(row.receivedAt)}`
+			(row) => `${row.seq},${formatProbeNumber(row.sentAt)},${formatProbeNumber(row.receivedAt)}`
 		);
 		const csv = [LATENCY_CSV_HEADER, ...lines, ''].join('\n');
 		const timestamp = formatFileTimestamp(new Date());
@@ -310,13 +311,13 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 			});
 
 			dataChannel.addEventListener('open', () => {
-				console.log(`dataChannel opened`);
+				logger.info(`dataChannel opened`);
 				dataChannelState = dataChannel.readyState;
 				beginCollectionSession(dataChannel);
 			});
 
 			dataChannel.addEventListener('close', () => {
-				console.log(`dataChannel closed`);
+				logger.info(`dataChannel closed`);
 				dataChannelState = dataChannel.readyState;
 				latencyProbe.stop();
 				if (
@@ -329,7 +330,7 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 			});
 
 			dataChannel.addEventListener('error', (e) => {
-				console.log(`dataChannel error: ${e}`);
+				logger.info(`dataChannel error: ${e}`);
 				latencyProbe.stop();
 				const message = e instanceof Error ? e.message : String(e);
 				if (
@@ -351,7 +352,7 @@ const SHOW_RECENT_PROBES_HISTORY = false;
 				statsSummary = summary;
 			});
 		} catch (err) {
-			console.log(`dataChannel caught error: ${err}`);
+			logger.info(`dataChannel caught error: ${err}`);
 			const message = err instanceof Error ? err.message : String(err);
 			errorMessage = message;
 			connectionState = 'failed';

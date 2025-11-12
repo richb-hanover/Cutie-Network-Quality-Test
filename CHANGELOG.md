@@ -4,8 +4,11 @@
 
 - Added `?createData=1` test that writes triples of { seq, sentAt, receivedAt} to a CSV file when collection stops and downloads it as _cutie-results-yyyy-mm-dd-hh-mm.csv_.
 - Added `injectLatencyInfo()` function that takes an array of triples and injects them into the chart just as if they had been received "in real time"
+- Added `getLatencyMonitorStats()` that retrieves `{ MOSQuality, PacketLoss, Latency, Jitter }` with arrays of four values that mirror those in the Latency Monitor.
 - Adding test routines that use this facility
 - Fix lint errors in _NetworkHistoryChart.svelte_
+- Much more logging (using `tslog`) to understand loss of connection or possible OOM
+
 - Bump version to 0.2.5
 
 ---

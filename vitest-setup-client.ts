@@ -1,2 +1,6 @@
-/// <reference types="@vitest/browser/matchers" />
-/// <reference types="@vitest/browser/providers/playwright" />
+import { afterEach } from 'vitest';
+import '@testing-library/jest-dom/vitest';
+
+afterEach(() => {
+	document.body.innerHTML = '';
+});

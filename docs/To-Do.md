@@ -2,6 +2,8 @@
 
 Ideas that have occurred to me. Some are good...
 
+- Change latency chart Y-axis to 250ms
+- If web GUI can't initially make WebRTC connection, error message should be "Can't make WebRTC connection" not "Collection stopped: WebRTC connection failed"
 - See **Testing Ideas** below
 - Make `npm run build` work
   - Need to understand @sveltejs/adapter-auto, adapter-node, adapter-cloudflare...
