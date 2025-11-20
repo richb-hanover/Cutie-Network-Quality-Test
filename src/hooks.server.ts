@@ -3,7 +3,6 @@ import type { Handle } from '@sveltejs/kit';
 import { UAParser } from '@ua-parser-js/pro-personal';
 import { dev } from '$app/environment';
 import { execSync } from 'node:child_process';
-
 /**
  * Start of the main server process
  */
@@ -21,7 +20,9 @@ if (dev) {
 }
 
 logger.info(`=============`);
-logger.info(`Starting Cutie server: Version: ${version.version}; Git commit: #${gitCommit}`);
+logger.info(
+	`Starting Cutie server: Version: ${version.version}; Git commit: #${gitCommit} LOG_LEVEL: ${logger.settings.minLevel}`
+);
 logger.info(`=============`);
 
 // handlers for all kinds of error coditions

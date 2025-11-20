@@ -2,6 +2,8 @@
 
 Ideas that have occurred to me. Some are good...
 
+- In the server connected message, include the number of current connections, maybe total connections since start time
+- Create a deploy-cutie.sh that pulls from repo, issues required build commands, then `npm run preview` (or somesuch)
 - Change latency chart Y-axis to 250ms
 - If web GUI can't initially make WebRTC connection, error message should be "Can't make WebRTC connection" not "Collection stopped: WebRTC connection failed"
 - See **Testing Ideas** below
@@ -28,6 +30,7 @@ Ideas that have occurred to me. Some are good...
 
 ## Bugs
 
+- `npm run build` then `npm run preview` seem to work, but GUI cannot start a WebRTC connection.
 - If server fails, WebRTC connection seems to remain live which causes browser to restart?
 - Also other connections aren't released?
 - (Same bug?) After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run

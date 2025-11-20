@@ -1,6 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import wrtc from '@roamhq/wrtc';
+import {
+	serverStartTime,
+	webrtcConnections,
+	incrementWebrtcConnections
+} from '$lib/server/runtimeState';
 import { getLogger } from '../../../lib/logger';
 const logger = getLogger('server');
 
@@ -55,6 +60,10 @@ function registerConnection(pc: RTCPeerConnection): string {
 				state: pc.iceConnectionState,
 				gathering: pc.iceGatheringState
 			});
+			// console.log('Connection state changed', {
+			// 	state: pc.iceConnectionState,
+			// 	gathering: pc.iceGatheringState
+			// });
 
 			connections.delete(id);
 		}
@@ -94,10 +103,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			state: pc.iceConnectionState,
 			gathering: pc.iceGatheringState
 		});
+		console.log('ICE connection state changed', {
+			id: connectionId,
+			state: pc.iceConnectionState,
+			gathering: pc.iceGatheringState
+		});
 	};
 
 	pc.onconnectionstatechange = () => {
 		logger.debug(`Server connection state changed: ${pc.connectionState}`);
+		// console.log(`Server connection state changed: ${pc.connectionState}`);
 	};
 
 	const localCandidates: RTCIceCandidateInit[] = [];
@@ -167,6 +182,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			if (!selectedPair) {
 				logger.debug('No succeeded ICE candidate pair yet', { connectionId });
+				// console.log('No succeeded ICE candidate pair yet', { connectionId });
 				return;
 			}
 
@@ -178,6 +194,11 @@ export const POST: RequestHandler = async ({ request }) => {
 					connectionId,
 					pair: pair.id
 				});
+				// console.log('Selected pair has no matching remote candidate', {
+				// 	connectionId,
+				// 	pair: pair.id
+				// });
+
 				return;
 			}
 
@@ -192,6 +213,12 @@ export const POST: RequestHandler = async ({ request }) => {
 				port,
 				foundation: remote.foundation
 			});
+			// console.log('Remote ICE candidate selected', {
+			// 	connectionId,
+			// 	ip,
+			// 	port,
+			// 	foundation: remote.foundation
+			// });
 		};
 
 		// When the data channel opens, send a welcome message
@@ -200,6 +227,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		channel.onopen = () => {
 			const state = connectionId ?? 'pending';
 			logger.info(`Connection established: ${state} (${connections.size - 1} other connections)`);
+			incrementWebrtcConnections();
 			logRemoteAddress().catch((error) => {
 				logger.info('Failed to fetch remote ICE stats', { connectionId, error });
 			});
@@ -208,15 +236,18 @@ export const POST: RequestHandler = async ({ request }) => {
 				JSON.stringify({
 					type: 'welcome',
 					message: 'RTC channel established with server',
-					at: new Date().toLocaleString()
+					at: new Date().toLocaleString(),
+					connections: `Current: ${connections.size} Total: ${webrtcConnections} since: ${serverStartTime.toLocaleString()}`
 				})
 			);
 		};
 		channel.onclose = () => {
 			logger.debug(`Connection closed: ${connectionId}`);
+			// console.log(`Connection closed: ${connectionId}`);
 		};
 		channel.onerror = () => {
 			logger.debug(`Connection error: ${connectionId}`);
+			// console.log(`Connection error: ${connectionId}`);
 		};
 
 		/**
@@ -262,6 +293,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		iceConnectionState: pc.iceConnectionState,
 		iceGatheringState: pc.iceGatheringState
 	});
+	// console.log('WebRTC answer ready', {
+	// 	connectionId,
+	// 	localCandidateCount: localCandidates.length,
+	// 	iceConnectionState: pc.iceConnectionState,
+	// 	iceGatheringState: pc.iceGatheringState
+	// });
 
 	return json(
 		{
@@ -287,6 +324,7 @@ export const DELETE: RequestHandler = async ({ url }) => {
 	}
 
 	logger.debug(`Deleting connection: ${managed.id}`);
+	// console.log(`Deleting connection: ${managed.id}`);
 	managed.pc.close();
 	connections.delete(connectionId);
 

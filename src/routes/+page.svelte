@@ -60,7 +60,7 @@
 	const textInputTags = new Set(['INPUT', 'TEXTAREA']);
 	let collectionStatusMessage: string | null = null;
 	let collectionStartAt: number | null = null;
-	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | 'auto' | null = null;
+	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | 'auto' | 'reload' | null = null;
 	let isDisconnecting = false;
 	let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
 	let elapsedMs: number | null = null;
@@ -317,7 +317,7 @@
 			});
 
 			dataChannel.addEventListener('close', () => {
-				logger.info(`dataChannel closed`);
+				logger.info(`dataChannel closed: ${activeDisconnectReason}`);
 				dataChannelState = dataChannel.readyState;
 				latencyProbe.stop();
 				if (
@@ -358,6 +358,7 @@
 			connectionState = 'failed';
 			latencyProbe.stop();
 			if (activeDisconnectReason !== 'manual' && activeDisconnectReason !== 'error') {
+				console.log(`about to call disconnect("error"): ${message}`);
 				await disconnect('error', { message });
 			}
 		} finally {
@@ -366,9 +367,10 @@
 	}
 
 	async function disconnect(
-		reason: 'manual' | 'timeout' | 'error' | 'auto' = 'timeout',
+		reason: 'manual' | 'timeout' | 'error' | 'auto' | 'reload' = 'timeout',
 		options: { message?: string; suppressMessage?: boolean } = {}
 	) {
+		console.log(`disconnect called: ${reason}, ${JSON.stringify(options)}`);
 		if (isDisconnecting) {
 			return;
 		}
@@ -406,14 +408,15 @@
 				collectionStatusMessage = `Collection stopped after ${minutes} minute${minutes === 1 ? '' : 's'}`;
 			} else if (reason === 'auto') {
 				collectionStatusMessage = 'Collection stopped after two hours.';
-			} else if (reason === 'error') {
-				const detail = options.message?.trim();
-				collectionStatusMessage = `Collection stopped: ${detail && detail.length > 0 ? detail : 'Unknown error'}`;
+				// } else if (reason === 'error') {
+				// 	const detail = options.message?.trim();
+				// 	collectionStatusMessage = `Collection stopped: ${detail && detail.length > 0 ? detail : 'Unknown error'}`;
 			}
 		}
 
 		if (reason === 'error' && options.message) {
 			errorMessage = options.message;
+			console.log(`got other error: ${errorMessage}`);
 		} else if (reason !== 'error') {
 			errorMessage = '';
 		}
@@ -528,10 +531,10 @@
 			</span>
 		</div>
 
-		{#if collectionStatusMessage}
-			<div class="status">{collectionStatusMessage}</div>
-		{:else if errorMessage}
+		{#if errorMessage}
 			<div class="error">{errorMessage}</div>
+		{:else if collectionStatusMessage}
+			<div class="status">{collectionStatusMessage}</div>
 		{/if}
 	</section>
 
