@@ -1,19 +1,18 @@
 <script lang="ts">
+	import { get } from 'svelte/store';
 	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import type { PageData } from './$types';
 	import {
-		initializeLatencyMonitor,
-		createEmptyLatencyStats,
-		type LatencyStats
-	} from '$lib/latency-probe';
-	import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
-	import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
+		connectToServer,
+		disconnect,
+		sendMessage as sendWebrtcMessage,
+		setCreateDataMode,
+		webrtcState
+	} from '$lib/webrtc';
+	import type { WebRtcState } from '$lib/webrtc';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import NetworkHistoryChart from '$lib/components/NetworkHistoryChart.svelte';
-	import { updateMosLatencyStats, resetMosData, ingestLatencySamples } from '$lib/stores/mosStore';
-	import { getLogger } from '../lib/logger';
-	const logger = getLogger('+page-svelte');
 
 	export let data: PageData;
 	const pageStore = page;
@@ -25,70 +24,31 @@
 			? `Version ${buildVersion} - #${buildCommit}`
 			: `Version ${buildVersion}`;
 
-	const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
-	const LATENCY_CSV_HEADER = '# sequence,sentAt,receivedAt';
-
-	type LatencyProbeCsvRow = {
-		seq: number;
-		sentAt: number;
-		receivedAt: number;
-	};
-
-	let connection: ServerConnection | null = null;
-	let connectionId: string | null = null;
-	let connectionState: RTCPeerConnectionState = 'disconnected';
-	let iceConnectionState: RTCIceConnectionState = 'new';
-	let dataChannelState: RTCDataChannelState = 'closed';
-	let statsSummary: StatsSummary | null = null;
-	let isConnecting = false;
-	let errorMessage = '';
-	let outgoingMessage = 'probe';
-	let messageId = 0;
-	let isChartTestMode = false;
-
-	let messages: Array<{
-		id: number;
-		direction: 'in' | 'out';
-		payload: string;
-		at: string;
-		connectionId?: string | null;
-	}> = [];
-
-	let stopStats: (() => void) | null = null;
-	let latencyStats: LatencyStats = createEmptyLatencyStats();
-	const textDecoder = new TextDecoder();
+	const DATA_UNITS = ['bytes', 'Kbytes', 'Mbytes', 'Gbytes', 'Tbytes'];
 	const textInputTags = new Set(['INPUT', 'TEXTAREA']);
-	let collectionStatusMessage: string | null = null;
-	let collectionStartAt: number | null = null;
-	let activeDisconnectReason: 'manual' | 'timeout' | 'error' | 'auto' | 'reload' | null = null;
-	let isDisconnecting = false;
-	let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
-	let elapsedMs: number | null = null;
-	let bytesPerSecond: number | null = null;
-	let isCreateDataMode = false;
-	let recordedProbes: LatencyProbeCsvRow[] = [];
-
 	const SHOW_RECENT_PROBES_HISTORY = false;
 
-	const latencyProbe = initializeLatencyMonitor({
-		collectSamples: false,
-		onStats: (stats) => {
-			const snapshot = { ...stats, history: [] };
-			latencyStats = snapshot;
-			updateMosLatencyStats(snapshot);
-		},
-		onSamples: (samples) => {
-			ingestLatencySamples(samples);
-		},
-		onProbeReceived: ({ seq, sentAt, receivedAt }) => {
-			if (!isCreateDataMode) {
-				return;
-			}
-			recordedProbes = [...recordedProbes, { seq, sentAt, receivedAt }];
-		}
-	});
+	let outgoingMessage = 'probe';
+	let isChartTestMode = false;
+	let isCreateDataMode = false;
+	let elapsedMs: number | null = null;
+	let bytesPerSecond: number | null = null;
 
-	const DATA_UNITS = ['bytes', 'Kbytes', 'Mbytes', 'Gbytes', 'Tbytes'];
+	let webrtcSnapshot: WebRtcState = get(webrtcState);
+	let {
+		connection,
+		connectionId,
+		connectionState,
+		iceConnectionState,
+		dataChannelState,
+		statsSummary,
+		isConnecting,
+		errorMessage,
+		messages,
+		latencyStats,
+		collectionStatusMessage,
+		collectionStartAt
+	} = webrtcSnapshot;
 
 	function formatDataAmount(
 		value: number | null | undefined,
@@ -142,41 +102,21 @@
 		return parts.join(' ');
 	}
 
-	function formatProbeNumber(value: number): string {
-		return Number.isFinite(value) ? value.toFixed(3) : '';
-	}
-
-	function formatFileTimestamp(date: Date): string {
-		const pad = (input: number) => input.toString().padStart(2, '0');
-		const year = date.getFullYear();
-		const month = pad(date.getMonth() + 1);
-		const day = pad(date.getDate());
-		const hours = pad(date.getHours());
-		const minutes = pad(date.getMinutes());
-		return `${year}-${month}-${day}-${hours}:${minutes}`;
-	}
-
-	function downloadLatencyProbeCsv(rows: LatencyProbeCsvRow[]): string | null {
-		if (!rows.length) {
-			return null;
-		}
-		const lines = rows.map(
-			(row) => `${row.seq},${formatProbeNumber(row.sentAt)},${formatProbeNumber(row.receivedAt)}`
-		);
-		const csv = [LATENCY_CSV_HEADER, ...lines, ''].join('\n');
-		const timestamp = formatFileTimestamp(new Date());
-		const fileName = `cutie-results-${timestamp}.csv`;
-		const blob = new Blob([csv], { type: 'text/csv' });
-		const url = URL.createObjectURL(blob);
-		const anchor = document.createElement('a');
-		anchor.href = url;
-		anchor.download = fileName;
-		document.body.appendChild(anchor);
-		anchor.click();
-		document.body.removeChild(anchor);
-		URL.revokeObjectURL(url);
-		return fileName;
-	}
+	$: webrtcSnapshot = $webrtcState;
+	$: ({
+		connection,
+		connectionId,
+		connectionState,
+		iceConnectionState,
+		dataChannelState,
+		statsSummary,
+		isConnecting,
+		errorMessage,
+		messages,
+		latencyStats,
+		collectionStatusMessage,
+		collectionStartAt
+	} = webrtcSnapshot);
 
 	$: elapsedMs =
 		statsSummary && collectionStartAt !== null
@@ -189,268 +129,14 @@
 			: null;
 
 	$: isCreateDataMode = $pageStore.url.searchParams.get('createData') === '1';
-	$: if (!isCreateDataMode) {
-		recordedProbes = [];
-	}
+	$: setCreateDataMode(isCreateDataMode);
 
 	$: isChartTestMode = $pageStore.url.searchParams.get('chartTest') === '1';
-	function clearCollectionAutoStopTimer() {
-		if (collectionAutoStopTimer) {
-			clearTimeout(collectionAutoStopTimer);
-			collectionAutoStopTimer = null;
+
+	function handleSendMessage() {
+		if (sendWebrtcMessage(outgoingMessage)) {
+			outgoingMessage = '';
 		}
-	}
-
-	function scheduleCollectionAutoStop() {
-		clearCollectionAutoStopTimer();
-		collectionAutoStopTimer = setTimeout(() => {
-			collectionAutoStopTimer = null;
-			if (connection && !isDisconnecting) {
-				void disconnect('auto');
-			}
-		}, COLLECTION_DURATION_MS);
-	}
-
-	function beginCollectionSession(dataChannel: RTCDataChannel) {
-		collectionStartAt = Date.now();
-		activeDisconnectReason = null;
-		collectionStatusMessage = null;
-		scheduleCollectionAutoStop();
-		if (isCreateDataMode) {
-			recordedProbes = [];
-		}
-		latencyProbe.start(dataChannel);
-	}
-
-	async function normaliseDataMessage(data: unknown): Promise<string> {
-		if (typeof data === 'string') {
-			return data;
-		}
-		if (data instanceof ArrayBuffer) {
-			return textDecoder.decode(data);
-		}
-		if (ArrayBuffer.isView(data)) {
-			return textDecoder.decode(data as ArrayBufferView);
-		}
-		if (typeof Blob !== 'undefined' && data instanceof Blob) {
-			const buffer = await data.arrayBuffer();
-			return textDecoder.decode(buffer);
-		}
-		if (data === null || data === undefined) {
-			return '';
-		}
-		return String(data);
-	}
-
-	async function connectToServer() {
-		if (isConnecting) return;
-
-		isConnecting = true;
-		errorMessage = '';
-		collectionStatusMessage = null;
-		collectionStartAt = null;
-		statsSummary = null;
-		activeDisconnectReason = null;
-		clearCollectionAutoStopTimer();
-		resetMosData();
-
-		try {
-			if (connection) {
-				await disconnect('manual', { suppressMessage: true });
-				activeDisconnectReason = null;
-			}
-
-			connection = await createServerConnection({
-				onMessage: async (event: MessageEvent) => {
-					const payload = await normaliseDataMessage(event.data);
-					if (latencyProbe.handleMessage(payload)) {
-						return;
-					}
-
-					messages = [
-						...messages,
-						{
-							id: ++messageId,
-							direction: 'in',
-							payload,
-							at: new Date().toLocaleTimeString(),
-							connectionId
-						}
-					];
-				},
-				onOpen: () => {
-					dataChannelState = connection?.dataChannel.readyState ?? 'open';
-				},
-				onError: (err: unknown) => {
-					const message = err instanceof Error ? err.message : String(err);
-					errorMessage = message;
-					latencyProbe.stop();
-					if (
-						activeDisconnectReason !== 'manual' &&
-						activeDisconnectReason !== 'error' &&
-						activeDisconnectReason !== 'auto'
-					) {
-						void disconnect('error', { message });
-					}
-				}
-			});
-
-			connectionId = connection.connectionId;
-
-			const { peerConnection, dataChannel } = connection;
-
-			connectionState = peerConnection.connectionState;
-			iceConnectionState = peerConnection.iceConnectionState;
-			dataChannelState = dataChannel.readyState;
-
-			peerConnection.addEventListener('connectionstatechange', () => {
-				connectionState = peerConnection.connectionState;
-			});
-			peerConnection.addEventListener('iceconnectionstatechange', () => {
-				iceConnectionState = peerConnection.iceConnectionState;
-			});
-
-			dataChannel.addEventListener('open', () => {
-				logger.info(`dataChannel opened`);
-				dataChannelState = dataChannel.readyState;
-				beginCollectionSession(dataChannel);
-			});
-
-			dataChannel.addEventListener('close', () => {
-				logger.info(`dataChannel closed: ${activeDisconnectReason}`);
-				dataChannelState = dataChannel.readyState;
-				latencyProbe.stop();
-				if (
-					activeDisconnectReason !== 'manual' &&
-					activeDisconnectReason !== 'error' &&
-					activeDisconnectReason !== 'auto'
-				) {
-					void disconnect('timeout');
-				}
-			});
-
-			dataChannel.addEventListener('error', (e) => {
-				logger.info(`dataChannel error: ${e}`);
-				latencyProbe.stop();
-				const message = e instanceof Error ? e.message : String(e);
-				if (
-					activeDisconnectReason !== 'manual' &&
-					activeDisconnectReason !== 'timeout' &&
-					activeDisconnectReason !== 'error' &&
-					activeDisconnectReason !== 'auto'
-				) {
-					void disconnect('error', { message });
-				}
-			});
-
-			if (dataChannel.readyState === 'open') {
-				beginCollectionSession(dataChannel);
-			}
-
-			stopStats?.();
-			stopStats = startStatsReporter(peerConnection, (summary: StatsSummary) => {
-				statsSummary = summary;
-			});
-		} catch (err) {
-			logger.info(`dataChannel caught error: ${err}`);
-			const message = err instanceof Error ? err.message : String(err);
-			errorMessage = message;
-			connectionState = 'failed';
-			latencyProbe.stop();
-			if (activeDisconnectReason !== 'manual' && activeDisconnectReason !== 'error') {
-				console.log(`about to call disconnect("error"): ${message}`);
-				await disconnect('error', { message });
-			}
-		} finally {
-			isConnecting = false;
-		}
-	}
-
-	async function disconnect(
-		reason: 'manual' | 'timeout' | 'error' | 'auto' | 'reload' = 'timeout',
-		options: { message?: string; suppressMessage?: boolean } = {}
-	) {
-		console.log(`disconnect called: ${reason}, ${JSON.stringify(options)}`);
-		if (isDisconnecting) {
-			return;
-		}
-		isDisconnecting = true;
-		activeDisconnectReason = reason;
-
-		let savedCsv: string | null = null;
-
-		latencyProbe.stop();
-		stopStats?.();
-		stopStats = null;
-		clearCollectionAutoStopTimer();
-
-		if (connection) {
-			try {
-				await connection.close();
-			} catch (closeError) {
-				console.error('Failed to close connection', closeError);
-			}
-			connection = null;
-		}
-
-		connectionId = null;
-		connectionState = 'disconnected';
-		iceConnectionState = 'new';
-		dataChannelState = 'closed';
-
-		if (!options.suppressMessage) {
-			if (reason === 'manual') {
-				collectionStatusMessage = 'Collection stopped manually';
-			} else if (reason === 'timeout') {
-				const referenceStart = collectionStartAt ?? Date.now();
-				const elapsedMs = Date.now() - referenceStart;
-				const minutes = Math.max(1, Math.ceil(elapsedMs / 60000));
-				collectionStatusMessage = `Collection stopped after ${minutes} minute${minutes === 1 ? '' : 's'}`;
-			} else if (reason === 'auto') {
-				collectionStatusMessage = 'Collection stopped after two hours.';
-				// } else if (reason === 'error') {
-				// 	const detail = options.message?.trim();
-				// 	collectionStatusMessage = `Collection stopped: ${detail && detail.length > 0 ? detail : 'Unknown error'}`;
-			}
-		}
-
-		if (reason === 'error' && options.message) {
-			errorMessage = options.message;
-			console.log(`got other error: ${errorMessage}`);
-		} else if (reason !== 'error') {
-			errorMessage = '';
-		}
-
-		if (isCreateDataMode && recordedProbes.length > 0) {
-			savedCsv = downloadLatencyProbeCsv(recordedProbes);
-			recordedProbes = [];
-		}
-
-		resetMosData({ clearHistory: false });
-		isDisconnecting = false;
-
-		if (savedCsv && !options.suppressMessage) {
-			const prefix = collectionStatusMessage ? `${collectionStatusMessage} ` : '';
-			collectionStatusMessage = `${prefix}Saved latency probe data to ${savedCsv}`;
-		}
-	}
-
-	function sendMessage() {
-		if (!connection || !outgoingMessage.trim()) {
-			return;
-		}
-
-		connection.dataChannel.send(outgoingMessage);
-		messages = [
-			...messages,
-			{
-				id: ++messageId,
-				direction: 'out',
-				payload: outgoingMessage,
-				at: new Date().toLocaleTimeString()
-			}
-		];
-		outgoingMessage = '';
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -496,7 +182,6 @@
 
 	onDestroy(() => {
 		void disconnect('manual', { suppressMessage: true });
-		resetMosData();
 	});
 </script>
 
@@ -593,12 +278,12 @@
 					on:keydown={(event) => {
 						if (event.key === 'Enter') {
 							event.preventDefault();
-							sendMessage();
+							handleSendMessage();
 						}
 					}}
 				/>
 				<button
-					on:click={sendMessage}
+					on:click={handleSendMessage}
 					disabled={!connection || dataChannelState !== 'open' || !outgoingMessage.trim()}
 				>
 					Send

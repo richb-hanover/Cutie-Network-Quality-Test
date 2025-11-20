@@ -2,7 +2,6 @@
 
 Ideas that have occurred to me. Some are good...
 
-- In the server connected message, include the number of current connections, maybe total connections since start time
 - Create a deploy-cutie.sh that pulls from repo, issues required build commands, then `npm run preview` (or somesuch)
 - Change latency chart Y-axis to 250ms
 - If web GUI can't initially make WebRTC connection, error message should be "Can't make WebRTC connection" not "Collection stopped: WebRTC connection failed"
@@ -108,3 +107,4 @@ solves it.)_
 - Align all chart left and right edges (make them the same width) so that it's easier to line up packet loss & MOS drop by eye
 - If latency (or other value) is greater than Y-axis, adjust Y-axis. (Or peg it...)
 - Server init code (printing version, etc) should appear first in output
+- In the server connected message, include the number of current connections, maybe total connections since start time

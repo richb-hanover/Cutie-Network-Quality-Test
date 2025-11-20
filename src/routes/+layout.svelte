@@ -2,17 +2,16 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.ico';
 	import { onMount } from 'svelte';
-	import { disconnect } from './+page.svelte';
+	import { disconnect } from '$lib/webrtc';
 	let { children } = $props();
 
 	onMount(() => {
-		// const handler = (event: BeforeUnloadEvent) => {
-		// 	event.preventDefault();
-		// 	// event.returnValue = ''; // triggers the prompt
-		// };
+		const handleBeforeUnload = () => {
+			void disconnect('reload', { suppressMessage: true });
+		};
 
-		window.addEventListener('beforeunload', disconnect());
-		return () => window.removeEventListener('beforeunload', handler);
+		window.addEventListener('beforeunload', handleBeforeUnload);
+		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
 	});
 </script>
 
