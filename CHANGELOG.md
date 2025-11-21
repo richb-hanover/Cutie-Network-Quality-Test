@@ -6,12 +6,22 @@
 - Added `injectLatencyInfo()` function that takes an array of triples and injects them into the chart just as if they had been received "in real time"
 - Added `getLatencyMonitorStats()` that retrieves `{ MOSQuality, PacketLoss, Latency, Jitter }` with arrays of four values that mirror those in the Latency Monitor.
 - Adding test routines that use this facility
-- Fix lint errors in _NetworkHistoryChart.svelte_
-- Much more logging (using `tslog`) to understand loss of connection or possible OOM
-
-- Bump version to 0.2.5
 
 ---
+
+## Version 0.2.6 - 2025-11-21
+
+- Add `/api/stats` to return runtime stats
+- Added `beforeUnload` listener to drop connection before browser window closes/reloads
+- Factor _+page.svelte_ to move all the WebRTC functions to _webrtc.ts_
+- Server startup message includes LOG_LEVEL
+- Add _deploy.sh_ script to deploy the app on the production host
+- Fix lint errors in _NetworkHistoryChart.svelte_
+- Much more logging (using `logger`) to understand loss of connection or possible OOM
+- Switched to `@sveltejs/adapter-node` (`npm run preview` still doesn't work;
+  keep using `npm run dev` on production host)
+- Moved Blueberry Hill Software _favicon.ico_ to _/static_
+- Bump version to 0.2.6 (skipped 0.2.5)
 
 ## Version 0.2.4 - 2025-11-03
 

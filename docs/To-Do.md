@@ -1,7 +1,8 @@
 # To-Do
 
-Ideas that have occurred to me. Some are good...
+Ideas that have occurred to me. Some might be good ones...
 
+- Add navigator.sendBeacon() to tell the server that the window/connectionID has closed
 - Create a deploy-cutie.sh that pulls from repo, issues required build commands, then `npm run preview` (or somesuch)
 - Change latency chart Y-axis to 250ms
 - If web GUI can't initially make WebRTC connection, error message should be "Can't make WebRTC connection" not "Collection stopped: WebRTC connection failed"

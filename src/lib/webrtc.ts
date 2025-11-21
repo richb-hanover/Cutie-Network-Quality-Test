@@ -432,7 +432,10 @@ export async function disconnect(
 	if (savedCsv && !options.suppressMessage) {
 		webrtcState.update((current) => {
 			const prefix = current.collectionStatusMessage ? `${current.collectionStatusMessage} ` : '';
-			return { ...current, collectionStatusMessage: `${prefix}Saved latency probe data to ${savedCsv}` };
+			return {
+				...current,
+				collectionStatusMessage: `${prefix}Saved latency probe data to ${savedCsv}`
+			};
 		});
 	}
 }
