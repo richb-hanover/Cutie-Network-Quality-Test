@@ -6,18 +6,11 @@ import {
 	webrtcConnections,
 	incrementWebrtcConnections
 } from '$lib/server/runtimeState';
+import { connections, type ManagedConnection } from '$lib/server/webrtcRegistry';
 import { getLogger } from '../../../lib/logger';
 const logger = getLogger('server');
 
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
-
-type ManagedConnection = {
-	id: string;
-	pc: RTCPeerConnection;
-	createdAt: Date;
-};
-
-const connections = new Map<string, ManagedConnection>();
 
 function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidateInit {
 	if (!candidate?.candidate) {
@@ -101,12 +94,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.debug('ICE connection state changed', {
 			id: connectionId,
 			state: pc.iceConnectionState,
-			gathering: pc.iceGatheringState
+			gathering: pc.iceGatheringState,
+			connections: connections.size
 		});
-		console.log('ICE connection state changed', {
+		console.log('ICE connection BIG state changed', {
 			id: connectionId,
 			state: pc.iceConnectionState,
-			gathering: pc.iceGatheringState
+			gathering: pc.iceGatheringState,
+			connections: connections.size
 		});
 	};
 
@@ -226,7 +221,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// shows up in the web GUI)
 		channel.onopen = () => {
 			const state = connectionId ?? 'pending';
-			logger.info(`Connection established: ${state} (${connections.size - 1} other connections)`);
+			logger.info(`Connection established: ${state} (${connections.size} total)`);
 			incrementWebrtcConnections();
 			logRemoteAddress().catch((error) => {
 				logger.info('Failed to fetch remote ICE stats', { connectionId, error });
