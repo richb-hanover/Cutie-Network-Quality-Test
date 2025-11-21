@@ -3,6 +3,7 @@ import type { Handle } from '@sveltejs/kit';
 import { UAParser } from '@ua-parser-js/pro-personal';
 import { dev } from '$app/environment';
 import { execSync } from 'node:child_process';
+import { incrementVisitors } from '$lib/server/runtimeState';
 /**
  * Start of the main server process
  */
@@ -20,9 +21,9 @@ if (dev) {
 }
 
 logger.info(`=============`);
-logger.info(
-	`Starting Cutie server: Version: ${version.version}; Git commit: #${gitCommit} LOG_LEVEL: ${logger.settings.minLevel}`
-);
+logger.info(`Starting Cutie server: Version: ${version.version}; Git commit: #${gitCommit}`);
+logger.info(`    node version: ${process.version}; LOG_LEVEL: ${logger.settings.minLevel}`);
+
 logger.info(`=============`);
 
 // handlers for all kinds of error coditions
@@ -57,6 +58,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const { browser } = UAParser(agent);
 
 	if (path === '/') {
+		incrementVisitors();
 		logger.info(`=== New connection ===`);
 	}
 	logger.info(`  Received http ${method} from ${clientAddress} for ${path} (${browser})`);

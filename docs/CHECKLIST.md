@@ -16,5 +16,6 @@ Do these steps before a final push to the production server
 ## On the production server
 
 - Pull `main` branch from Github
+- `npm install` to pull in any new dependencies
 - `sh run-dev.sh` **OR**
 - `sh deploy.sh` to start up the server

@@ -97,7 +97,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			gathering: pc.iceGatheringState,
 			connections: connections.size
 		});
-		console.log('ICE connection BIG state changed', {
+		console.log('ICE connection state changed', {
 			id: connectionId,
 			state: pc.iceConnectionState,
 			gathering: pc.iceGatheringState,

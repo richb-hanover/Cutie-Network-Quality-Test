@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { serverStartTime, webrtcConnections } from '$lib/server/runtimeState';
+import { serverStartTime, webrtcConnections, numberVisitors } from '$lib/server/runtimeState';
 import { connections } from '$lib/server/webrtcRegistry';
 
 function formatDuration(milliseconds: number): string {
@@ -18,6 +18,7 @@ export const GET: RequestHandler = () => {
 	const elapsedMs = now.getTime() - serverStartTime.getTime();
 
 	return json({
+		totalVisitors: numberVisitors,
 		currentConnections: connections.size,
 		totalConnections: webrtcConnections,
 		serverStartTime: serverStartTime.toLocaleString(),
