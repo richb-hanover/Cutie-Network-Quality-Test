@@ -25,6 +25,36 @@ const logger = getLogger('server');
 
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
 
+const SERVER_ICE_GATHER_TIMEOUT_MS = 10_000;
+
+/**
+ * Wait for the server's ICE gathering to complete before sending the
+ * HTTP response, so that all server candidates are included.
+ */
+function waitForServerIceGathering(pc: RTCPeerConnection): Promise<void> {
+	return new Promise((resolve) => {
+		if (pc.iceGatheringState === 'complete') {
+			resolve();
+			return;
+		}
+
+		const timeout = setTimeout(() => {
+			logger.info(
+				`Server ICE gathering timeout after ${SERVER_ICE_GATHER_TIMEOUT_MS}ms. State: ${pc.iceGatheringState}`
+			);
+			resolve();
+		}, SERVER_ICE_GATHER_TIMEOUT_MS);
+
+		pc.onicegatheringstatechange = () => {
+			logger.debug(`Server ICE gathering state: ${pc.iceGatheringState}`);
+			if (pc.iceGatheringState === 'complete') {
+				clearTimeout(timeout);
+				resolve();
+			}
+		};
+	});
+}
+
 function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidateInit {
 	if (!candidate?.candidate) {
 		return candidate;
@@ -315,11 +345,12 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const answer = await pc.createAnswer();
 	await pc.setLocalDescription(answer);
+	await waitForServerIceGathering(pc);
 
 	connectionId = registerConnection(pc);
 
 	logger.debug(
-		`WebRTC answer ready: ${connectionId} ${pc.iceConnectionState} ${pc.iceGatheringState}`
+		`WebRTC answer ready: ${connectionId} ${pc.iceConnectionState} ${pc.iceGatheringState} (${localCandidates.length} candidates)`
 	);
 
 	return json(
