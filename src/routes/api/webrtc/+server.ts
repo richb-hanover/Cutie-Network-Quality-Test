@@ -26,30 +26,67 @@ const logger = getLogger('server');
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
 
 const SERVER_ICE_GATHER_TIMEOUT_MS = 10_000;
+const SERVER_ICE_SETTLE_MS = 500;
 
 /**
  * Wait for the server's ICE gathering to complete before sending the
  * HTTP response, so that all server candidates are included.
+ *
+ * Resolves when gathering state reaches "complete", OR after a short
+ * settling period once at least one candidate has been collected
+ * (some STUN lookups for unreachable addresses may never finish).
  */
-function waitForServerIceGathering(pc: RTCPeerConnection): Promise<void> {
+function waitForServerIceGathering(
+	pc: RTCPeerConnection,
+	candidateCount: () => number
+): Promise<void> {
 	return new Promise((resolve) => {
 		if (pc.iceGatheringState === 'complete') {
 			resolve();
 			return;
 		}
 
-		const timeout = setTimeout(() => {
+		let settleTimer: ReturnType<typeof setTimeout> | null = null;
+
+		const hardTimeout = setTimeout(() => {
 			logger.info(
 				`Server ICE gathering timeout after ${SERVER_ICE_GATHER_TIMEOUT_MS}ms. State: ${pc.iceGatheringState}`
 			);
 			resolve();
 		}, SERVER_ICE_GATHER_TIMEOUT_MS);
 
+		const done = () => {
+			clearTimeout(hardTimeout);
+			if (settleTimer) clearTimeout(settleTimer);
+			resolve();
+		};
+
 		pc.onicegatheringstatechange = () => {
 			logger.debug(`Server ICE gathering state: ${pc.iceGatheringState}`);
 			if (pc.iceGatheringState === 'complete') {
-				clearTimeout(timeout);
-				resolve();
+				done();
+			}
+		};
+
+		// Also watch for candidates arriving - once we have at least one,
+		// start a short settle timer rather than waiting for all STUN
+		// lookups (some may never complete for unreachable addresses).
+		const originalHandler = pc.onicecandidate;
+		pc.onicecandidate = (event: { candidate: RTCIceCandidate | null }) => {
+			// Call the original handler first (collects candidates)
+			if (originalHandler) {
+				(originalHandler as (event: { candidate: RTCIceCandidate | null }) => void)(event);
+			}
+
+			if (event.candidate && candidateCount() > 0) {
+				// Reset settle timer on each new candidate
+				if (settleTimer) clearTimeout(settleTimer);
+				settleTimer = setTimeout(() => {
+					logger.debug(
+						`Server ICE settling complete with ${candidateCount()} candidate(s)`
+					);
+					done();
+				}, SERVER_ICE_SETTLE_MS);
 			}
 		};
 	});
@@ -345,7 +382,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const answer = await pc.createAnswer();
 	await pc.setLocalDescription(answer);
-	await waitForServerIceGathering(pc);
+	await waitForServerIceGathering(pc, () => localCandidates.length);
 
 	connectionId = registerConnection(pc);
 

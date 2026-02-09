@@ -2,6 +2,7 @@
 
 Ideas that have occurred to me. Some might be good ones...
 
+- HTTPS for the web page?
 - Add navigator.sendBeacon() to tell the server that the window/connectionID has closed
 - Change latency chart Y-axis to 250ms
 - If web GUI can't initially make WebRTC connection, error message should be "Can't make WebRTC connection" not "Collection stopped: WebRTC connection failed"
@@ -29,10 +30,6 @@ Ideas that have occurred to me. Some might be good ones...
 
 ## Bugs
 
-- `npm run build` then `npm run preview` seem to work, but GUI cannot start a WebRTC connection.
-- If server fails, WebRTC connection seems to remain live which causes browser to restart?
-- Also other connections aren't released?
-- (Same bug?) After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run
 - In one test run, Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
 - Are the Min and Max values displaying the 10s Averages?
 - `nohup npm run dev &` on atl stops accepting WebRTC connections
@@ -116,3 +113,7 @@ solves it.)_
 - Create a deploy-cutie.sh that pulls from repo, issues required build commands, then `npm run preview` (or somesuch)
 - Make `npm run build` work
   - Need to understand @sveltejs/adapter-auto, adapter-node, adapter-cloudflare...
+- If server fails, WebRTC connection seems to remain live which causes browser to restart? ~~This is likely due to npm run dev automagically restarting web sessions~~
+- `npm run build` then `npm run preview` seem to work, but GUI cannot start a WebRTC connection.
+- Also other connections aren't released?
+- (Same bug?) After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run
