@@ -5,7 +5,7 @@ Do these steps before a final push to the production server
 - Update CHANGELOG to document the interesting changes
 - Ensure that the `version` in _package.json_ is up to date
 - Close all files in VSCode (to ensure they're all saved)
-- `npm install`
+- `npm install` (Fix any vulnerabilities with `audit fix`)
 - `npm run check`
 - `npm run lint`
 - Fix any problems

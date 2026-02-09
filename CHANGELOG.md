@@ -13,6 +13,14 @@
 
 ---
 
+## Version 0.2.15 - 2026-02-09
+
+- Much work on improved WebRTC connection establishment
+- Worked around Firefox peculiarities (Thanks, Claude)
+- Updated npm dependencies; ran audit fix
+- Bumped version to 0.2.15 (interim versions not released)
+- Deploying to production
+
 ## Version 0.2.12 - 2025-12-14
 
 - Add `connectionId` to the beacon where available
