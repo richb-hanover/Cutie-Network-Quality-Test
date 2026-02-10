@@ -7,9 +7,14 @@
   - Added `injectLatencyInfo()` function that takes an array of triples and injects them into the chart just as if they had been received "in real time"
   - Added `getLatencyMonitorStats()` that retrieves `{ MOSQuality, PacketLoss, Latency, Jitter }` with arrays of four values that mirror those in the Latency Monitor.
 
-- Log when client connection is established
-- Log when start/stop button clicked
-- Other logging tweaks
+## Version 0.2.16 - 2026-02-10
+
+- Simplified to have one Start/Connecting/Stop button
+- Added About button and its modal window to explain the program
+- Added "Buy me a coffee" button
+- Tightened up the Latency Monitor statistics to look better
+  in narrow windows
+- Add ConnectionID to initial Welcome message
 
 ---
 

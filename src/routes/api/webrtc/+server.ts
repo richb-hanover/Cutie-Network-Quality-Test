@@ -330,7 +330,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			const msg = {
 				type: 'welcome',
 				message: 'RTC channel established with server',
-				at: new Date().toLocaleString()
+				at: new Date().toLocaleString(),
+				connectionId: connectionId ?? 'pending'
 			};
 			channel.send(JSON.stringify(msg));
 		};
