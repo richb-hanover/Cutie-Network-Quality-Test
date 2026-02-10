@@ -9,11 +9,12 @@
 
 ## Version 0.2.16 - 2026-02-10
 
-- Simplified to have one Start/Connecting/Stop button
+- Simplified GUI to have one Start/Connecting/Stop button
 - Added About button and its modal window to explain the program
 - Added "Buy me a coffee" button
 - Tightened up the Latency Monitor statistics to look better
   in narrow windows
+- Fixed Svelte 4 holdover for "page"
 - Add ConnectionID to initial Welcome message
 
 ---

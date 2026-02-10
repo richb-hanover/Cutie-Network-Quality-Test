@@ -139,9 +139,11 @@
 			? statsSummary.bytesSent / (elapsedMs / 1000)
 			: null;
 
+	// eslint-disable-next-line svelte/no-immutable-reactive-statements -- page from $app/state is reactive
 	$: isCreateDataMode = page.url.searchParams.get('createData') === '1';
 	$: setCreateDataMode(isCreateDataMode);
 
+	// eslint-disable-next-line svelte/no-immutable-reactive-statements -- page from $app/state is reactive
 	$: isChartTestMode = page.url.searchParams.get('chartTest') === '1';
 
 	function handleSendMessage() {
@@ -330,6 +332,7 @@
 	<div class="modal-overlay" on:click={() => (showAbout = false)}>
 		<div class="modal-content" on:click|stopPropagation>
 			<button class="modal-close" on:click={() => (showAbout = false)}>&times;</button>
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -- content is from our own static about.md -->
 			{@html aboutHtml}
 		</div>
 	</div>
