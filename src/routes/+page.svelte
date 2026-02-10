@@ -11,8 +11,21 @@
 		webrtcState
 	} from '$lib/webrtc';
 	import type { WebRtcState } from '$lib/webrtc';
+	import { marked } from 'marked';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import NetworkHistoryChart from '$lib/components/NetworkHistoryChart.svelte';
+
+	let showAbout = false;
+	let aboutHtml = '';
+
+	async function openAbout() {
+		if (!aboutHtml) {
+			const res = await fetch('/about.md');
+			const md = await res.text();
+			aboutHtml = await marked(md);
+		}
+		showAbout = true;
+	}
 
 	export let data: PageData;
 	const pageStore = page;
@@ -194,23 +207,22 @@
 			Open this page before beginning a call or videoconference and let it run in the background.
 			Cutie detects intervals of high packet loss, latency or jitter that impair the quality of the
 			network connection. The test runs for at most two hours, and consumes a bit of bandwidth,
-			under two kilobytes per second. <a
-				href="https://github.com/richb-hanover/Cutie-Network-Quality-Test"
-				target="_blank">Github repo...</a
-			>
+			under two kilobytes per second.
 		</p>
 
 		<div class="controls">
-			<button on:click={connectToServer} disabled={isConnecting || connectionState === 'connected'}>
-				{#if isConnecting}
-					Connecting…
-				{:else if connectionState === 'connected'}
-					Connected
-				{:else}
-					Start
-				{/if}
-			</button>
-			<button on:click={() => disconnect('manual')} disabled={!connection}>Stop</button>
+			{#if connectionState === 'connected'}
+				<button on:click={() => disconnect('manual')}>Stop</button>
+			{:else}
+				<button on:click={connectToServer} disabled={isConnecting}>
+					{#if isConnecting}
+						Connecting…
+					{:else}
+						Start
+					{/if}
+				</button>
+			{/if}
+			<button class="about-btn" on:click={openAbout}>About</button>
 			<span class="build-info">
 				{buildInfoLabel}
 			</span>
@@ -314,6 +326,16 @@
 		{/if}
 	</section>
 </main>
+
+{#if showAbout}
+	<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+	<div class="modal-overlay" on:click={() => (showAbout = false)}>
+		<div class="modal-content" on:click|stopPropagation>
+			<button class="modal-close" on:click={() => (showAbout = false)}>&times;</button>
+			{@html aboutHtml}
+		</div>
+	</div>
+{/if}
 
 <style>
 	.container {
@@ -504,5 +526,60 @@
 		.message-form button {
 			width: 100%;
 		}
+	}
+
+	.about-btn {
+		background: #6b7280;
+	}
+
+	.about-btn:hover:not(:disabled) {
+		background: #4b5563;
+		box-shadow: 0 12px 25px rgba(107, 114, 128, 0.2);
+	}
+
+	.modal-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.modal-content {
+		position: relative;
+		background: white;
+		border-radius: 0.75rem;
+		padding: 2rem;
+		max-width: 640px;
+		width: 90%;
+		max-height: 80vh;
+		overflow-y: auto;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	}
+
+	.modal-content :global(h1:first-child) {
+		margin-top: 0;
+	}
+
+	.modal-close {
+		position: absolute;
+		top: 0.5rem;
+		right: 0.75rem;
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		color: #6b7280;
+		cursor: pointer;
+		padding: 0.25rem 0.5rem;
+		line-height: 1;
+		box-shadow: none;
+	}
+
+	.modal-close:hover:not(:disabled) {
+		color: #111;
+		transform: none;
+		box-shadow: none;
 	}
 </style>
