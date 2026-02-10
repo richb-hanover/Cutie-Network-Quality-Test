@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 	import { onDestroy, onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import {
 		connectToServer,
@@ -28,8 +28,6 @@
 	}
 
 	export let data: PageData;
-	const pageStore = page;
-
 	const buildVersion = data.version;
 	const buildCommit = data.gitCommit;
 	const buildInfoLabel =
@@ -141,10 +139,10 @@
 			? statsSummary.bytesSent / (elapsedMs / 1000)
 			: null;
 
-	$: isCreateDataMode = $pageStore.url.searchParams.get('createData') === '1';
+	$: isCreateDataMode = page.url.searchParams.get('createData') === '1';
 	$: setCreateDataMode(isCreateDataMode);
 
-	$: isChartTestMode = $pageStore.url.searchParams.get('chartTest') === '1';
+	$: isChartTestMode = page.url.searchParams.get('chartTest') === '1';
 
 	function handleSendMessage() {
 		if (sendWebrtcMessage(outgoingMessage)) {

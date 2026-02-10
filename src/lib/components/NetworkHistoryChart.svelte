@@ -207,7 +207,7 @@
 				displayColors: true,
 				yAxis: {
 					min: 0,
-					max: 200,
+					max: 250,
 					grace: '10%',
 					grid: {
 						color: '#d1d5db'
