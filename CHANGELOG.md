@@ -14,7 +14,7 @@
 - Added "Buy me a coffee" button
 - Tightened up the Latency Monitor statistics to look better
   in narrow windows
-- Fixed Svelte 4 holdover for "page"
+- Fixed Svelte 4 holdover for "page"; hold off on full Svelte 5 refactor
 - Add ConnectionID to initial Welcome message
 
 ---

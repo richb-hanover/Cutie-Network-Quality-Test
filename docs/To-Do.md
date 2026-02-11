@@ -2,6 +2,9 @@
 
 Ideas that have occurred to me. Some might be good ones...
 
+- Why do some oldConnections on the server end with "failed / complete"?
+- Why do Android tablets seem to take longer to establish connections?
+- Why are dots sometimes spaced out when the browser tab is in the background?
 - HTTPS for the web page?
 - Add navigator.sendBeacon() to tell the server that the window/connectionID has closed
 - See **Testing Ideas** below
@@ -46,6 +49,7 @@ All these items had been in the "to-do" section, but have been completed:
 - Bind to `0.0.0.0` in development mode for Firefox.
   Chrome and Safari are less strict about addresses:
   Use: `npm run dev --host 0.0.0.0 --port 5173`
+  (Same for preview mode)
 - Why does Firefox fail to get the second and subsequent RTCProbes
   connecting to 192.168.253.6:5173?
   Chrome and Safari (Edge, Brave, FF Developer edition) seem to work fine.
@@ -65,8 +69,7 @@ solves it.)_
 
 - Add charts
 - **Display** the package.json version number and
-  (if not a production build)
-  and the git commit hash in small text
+  (if not a production build) the git commit hash in small text
   at the lower-right corner of the "WebRTC Stability Test" panel.
   The string should be "Version x.x.x &mdash; #xxxxxxxx"-
 - Display package.json `version` and the git hash somewhere in the GUI.
