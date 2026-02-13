@@ -319,7 +319,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 			(parsed as { type: unknown }).type !== 'latency-probe' ||
 			typeof (parsed as { seq?: unknown }).seq !== 'number'
 		) {
-			logger.info(`receiveProbe received bad payload:  ${payload}`);
+			logger.info(`receiveProbe received bad payload: ${payload}`);
 			return false;
 		}
 
@@ -331,7 +331,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 
 		// if not, (where did it come from?????) say we handled it
 		if (startedAt === undefined) {
-			logger.info(`receiveProbe non-pending sequence number: ${seq}`);
+			logger.info(`receiveProbe non-pending sequence number: ${seq} (${nextSeq})`);
 			return true;
 		}
 
