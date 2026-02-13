@@ -243,7 +243,9 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 	 */
 	const startCollection = (channel: RTCDataChannel) => {
 		if (activeChannel === channel && sendInterval) {
-			console.debug(`start: returned because active && sendInterval`);
+			console.debug(
+				`startCollection: failed activeChannel or sendInterval already active: ${activeChannel} ${sendInterval} `
+			);
 			return;
 		}
 
@@ -251,46 +253,45 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		activeChannel = channel;
 		resetCollection();
 
-		/**
-		 * sendProbe() - initialize a new LatencyProbe
-		 *   send it into activeChannel
-		 * @returns void
-		 */
-		const sendProbe = () => {
-			if (!activeChannel || activeChannel.readyState !== 'open') {
-				console.info(`sendProbe: returned because no channel or not open`);
-				return;
-			}
-
-			const seq = nextSeq++;
-			const sentAt = now(); // uses performance.now() in preference to Date.now()
-
-			// stringify a new LatencyProbe
-			const payload = JSON.stringify({
-				type: 'latency-probe',
-				seq,
-				sentAt: sentAt
-			});
-
-			// send the probe, add it to pendingProbes, update and emit latencyStats
-			try {
-				activeChannel.send(payload);
-				pendingProbes.set(seq, sentAt);
-				// why not latencyStats.totalSent += 1 ??????
-				latencyStats = {
-					...latencyStats,
-					totalSent: latencyStats.totalSent + 1
-				};
-				emitStats();
-			} catch (err) {
-				console.info(err);
-			}
-		};
-
 		// actually send the LatencyProbe and schedule the time to re-send
 		sendProbe();
 		sendInterval = setInterval(sendProbe, intervalMs);
 		lossInterval = setInterval(recordLostProbes, lossCheckIntervalMs);
+	};
+
+	/**
+	 * sendProbe() - initialize a new LatencyProbe
+	 *   send it into activeChannel
+	 * @returns void
+	 */
+	const sendProbe = () => {
+		if (!activeChannel || activeChannel.readyState !== 'open') {
+			logger.info(`sendProbe: returned because no channel or not open`);
+			return;
+		}
+
+		const seq = nextSeq++;
+		const sentAt = now(); // initialization code sets performance.now() in preference to Date.now()
+
+		// stringify a new LatencyProbe
+		const payload = JSON.stringify({
+			type: 'latency-probe',
+			seq,
+			sentAt: sentAt
+		});
+
+		// send the probe, add it to pendingProbes, update and emit latencyStats
+		try {
+			activeChannel.send(payload);
+			pendingProbes.set(seq, sentAt);
+			latencyStats = {
+				...latencyStats,
+				totalSent: latencyStats.totalSent + 1
+			};
+			emitStats();
+		} catch (err) {
+			logger.info(err);
+		}
 	};
 
 	/**
@@ -330,7 +331,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 
 		// if not, (where did it come from?????) say we handled it
 		if (startedAt === undefined) {
-			console.info(`receiveProbe received non-existent sequence: ${seq}`);
+			logger.info(`receiveProbe non-pending sequence number: ${seq}`);
 			return true;
 		}
 
