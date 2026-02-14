@@ -58,7 +58,8 @@
 		messages,
 		latencyStats,
 		collectionStatusMessage,
-		collectionStartAt
+		collectionStartAt,
+		collectionEndAt
 	} = webrtcSnapshot;
 
 	function formatDataAmount(
@@ -126,7 +127,8 @@
 		messages,
 		latencyStats,
 		collectionStatusMessage,
-		collectionStartAt
+		collectionStartAt,
+		collectionEndAt
 	} = webrtcSnapshot);
 
 	$: elapsedMs =
@@ -205,9 +207,7 @@
 		<h1>Cutie &mdash; Network Quality Test</h1>
 		<p>
 			Open this page before beginning a call or videoconference and let it run in the background.
-			Cutie detects intervals of high packet loss, latency or jitter that impair the quality of the
-			network connection. The test runs for at most two hours, and consumes a bit of bandwidth,
-			under two kilobytes per second.
+			Cutie detects impairments to the quality of your network and shows them in the charts.
 		</p>
 
 		<div class="controls">
@@ -250,12 +250,16 @@
 			<table>
 				<tbody>
 					<tr>
-						<th>Start Time</th>
-						<td>{collectionStartAt ? new Date(collectionStartAt).toLocaleTimeString() : '—'}</td>
+						<th>Start / Elapsed Time</th>
+						<td>
+							{collectionStartAt ? new Date(collectionStartAt).toLocaleTimeString() : '—'} / {formatElapsed(
+								elapsedMs
+							)}
+						</td>
 					</tr>
 					<tr>
-						<th>Elapsed Time</th>
-						<td>{formatElapsed(elapsedMs)}</td>
+						<th>End Time</th>
+						<td>{collectionEndAt ? new Date(collectionEndAt).toLocaleTimeString() : '—'}</td>
 					</tr>
 					<tr>
 						<th>Bytes Transferred</th>

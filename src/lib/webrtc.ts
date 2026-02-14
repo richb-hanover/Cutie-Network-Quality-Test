@@ -39,6 +39,7 @@ export type WebRtcState = {
 	latencyStats: LatencyStats;
 	collectionStatusMessage: string | null;
 	collectionStartAt: number | null;
+	collectionEndAt: number | null;
 	activeDisconnectReason: DisconnectReason | null;
 	isDisconnecting: boolean;
 	recordedProbes: LatencyProbeCsvRow[];
@@ -58,6 +59,7 @@ const initialState: WebRtcState = {
 	latencyStats: createEmptyLatencyStats(),
 	collectionStatusMessage: null,
 	collectionStartAt: null,
+	collectionEndAt: null,
 	activeDisconnectReason: null,
 	isDisconnecting: false,
 	recordedProbes: [],
@@ -121,6 +123,7 @@ function beginCollectionSession(dataChannel: RTCDataChannel): void {
 	webrtcState.update((state) => ({
 		...state,
 		collectionStartAt: startAt,
+		collectionEndAt: null,
 		activeDisconnectReason: null,
 		collectionStatusMessage: null,
 		recordedProbes: state.isCreateDataMode ? [] : state.recordedProbes
@@ -428,6 +431,7 @@ export async function disconnect(
 		iceConnectionState: 'new',
 		dataChannelState: 'closed',
 		collectionStatusMessage,
+		collectionEndAt: options.suppressMessage ? current.collectionEndAt : Date.now(),
 		errorMessage,
 		recordedProbes: state.isCreateDataMode ? [] : current.recordedProbes,
 		isDisconnecting: false
