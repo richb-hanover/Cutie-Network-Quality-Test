@@ -6,7 +6,7 @@ Ideas that have occurred to me. Some might be good ones...
 - Why do Android tablets seem to take longer to establish connections?
 - Why are dots sometimes spaced out when the browser tab is in the background?
 - HTTPS for the web page?
-- Add navigator.sendBeacon() to tell the server that the window/connectionID has closed
+- Add navigator.sendBeacon() to tell the server that the window/connectionID has closed _(done)._ Change server code to observe those transitoins
 - See **Testing Ideas** below
 - Create a Docker container with docker-compose.yml for ease of remote installation
   - Add TURN server capability
@@ -121,4 +121,4 @@ solves it.)_
 - Are the Min and Max values displaying the 10s Averages?
 - `nohup npm run dev &` on atl stops accepting WebRTC connections
 - Screenshot from DH - in 3K waiting room. First "outage" was from running betterspeedtest.sh from my computer. Second was with my computer idle
-- Loss of connection should not say "Data channel closed" (SB sth like "Lost connection to other end")
+- Loss of connection should not say "Data channel closed" (SB something like "Lost connection to other end")
