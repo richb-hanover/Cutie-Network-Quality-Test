@@ -82,9 +82,7 @@ function waitForServerIceGathering(
 				// Reset settle timer on each new candidate
 				if (settleTimer) clearTimeout(settleTimer);
 				settleTimer = setTimeout(() => {
-					logger.debug(
-						`Server ICE settling complete with ${candidateCount()} candidate(s)`
-					);
+					logger.debug(`Server ICE settling complete with ${candidateCount()} candidate(s)`);
 					done();
 				}, SERVER_ICE_SETTLE_MS);
 			}
@@ -250,8 +248,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	};
 
 	pc.onicecandidateerror = (_event: unknown) => {
-		const foo: any = _event;
-		logger.debug(`Server ICE candidate error ${foo.address} ${foo.errorCode} "${foo.errorText}"`);
+		const ev = _event as { address?: string; errorCode?: number; errorText?: string };
+		logger.debug(`Server ICE candidate error ${ev.address} ${ev.errorCode} "${ev.errorText}"`);
 	};
 
 	pc.ondatachannel = (event) => {
@@ -329,7 +327,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			const msg = {
 				type: 'welcome',
-				message: 'RTC channel established with server',
+				message: `RTC channel established with server - Connection ID: ${connectionId ?? 'pending'}`,
 				at: new Date().toLocaleString()
 			};
 			channel.send(JSON.stringify(msg));

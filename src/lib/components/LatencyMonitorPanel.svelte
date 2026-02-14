@@ -209,32 +209,46 @@
 </section>
 
 <style>
+	section {
+		overflow-x: auto;
+	}
+
 	.latency-summary,
 	.latency-history {
-		width: 100%;
+		width: auto;
 		border-collapse: collapse;
 	}
 
 	.latency-summary thead th {
 		font-weight: 600;
+		white-space: nowrap;
 	}
 
 	.latency-summary th,
 	.latency-summary td,
 	.latency-history th,
 	.latency-history td {
-		text-align: left;
 		padding: 0.5rem 0.75rem;
 		border-bottom: 1px solid #e5e7eb;
+		white-space: nowrap;
 	}
 
+	/* Row label column: auto-width, left-aligned */
 	.latency-summary th:first-child {
-		width: 40%;
+		text-align: left;
+		width: 1%;
+		padding-right: 5px;
+	}
+
+	/* Data columns: right-aligned to match metric values */
+	.latency-summary thead th:not(:first-child),
+	.latency-summary td {
+		text-align: right;
 	}
 
 	.metric-value {
 		display: inline-block;
-		min-width: 9ch;
+		width: 5ch;
 		text-align: right;
 		font-variant-numeric: tabular-nums;
 	}

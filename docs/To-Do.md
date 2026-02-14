@@ -2,12 +2,12 @@
 
 Ideas that have occurred to me. Some might be good ones...
 
+- Why do some oldConnections on the server end with "failed / complete"?
+- Why do Android tablets seem to take longer to establish connections?
+- Why are dots sometimes spaced out when the browser tab is in the background?
 - HTTPS for the web page?
 - Add navigator.sendBeacon() to tell the server that the window/connectionID has closed
-- Change latency chart Y-axis to 250ms
-- If web GUI can't initially make WebRTC connection, error message should be "Can't make WebRTC connection" not "Collection stopped: WebRTC connection failed"
 - See **Testing Ideas** below
-- (maybe) Display a spinner centered above the entire page from the time of the Start until it's connected
 - Create a Docker container with docker-compose.yml for ease of remote installation
   - Add TURN server capability
   - Probably bundle `coturn` along with Cutie.
@@ -18,23 +18,11 @@ Ideas that have occurred to me. Some might be good ones...
     to the Docker container
   - Install Docker container on atl.richb-hanover.com
   - Install on some external server site. Can it be free?
-- Why does the Start button briefly flash green on page load?
-- FF fails to connect to atl.richb-hanover.com after `git pull; npm run dev`
-  (Connect gave immediate Connecting... but then
-  gave "WebRTC error...".) Subsequent test worked fine.
-  Happened again after git pull; immediately reloaded
-  and retried worked as expected.
-- Move the CSS out of the end of +page.svelte (?)
 - Email/save results of a (failed) test before restarting/reloading
-- Fix "page" in _+page.svelte_, line 4
 
 ## Bugs
 
-- In one test run, Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
-- Are the Min and Max values displaying the 10s Averages?
-- `nohup npm run dev &` on atl stops accepting WebRTC connections
-- Screenshot from DH - in 3K waiting room. First "outage" was from running betterspeedtest.sh from my computer. Second was with my computer idle
-- Loss of connection should not say "Data channel closed" (SB sth like "Loss connection to other end"
+_declaring bug bankruptcy because many are fixed_
 
 ## Testing ideas
 
@@ -61,6 +49,7 @@ All these items had been in the "to-do" section, but have been completed:
 - Bind to `0.0.0.0` in development mode for Firefox.
   Chrome and Safari are less strict about addresses:
   Use: `npm run dev --host 0.0.0.0 --port 5173`
+  (Same for preview mode)
 - Why does Firefox fail to get the second and subsequent RTCProbes
   connecting to 192.168.253.6:5173?
   Chrome and Safari (Edge, Brave, FF Developer edition) seem to work fine.
@@ -80,8 +69,7 @@ solves it.)_
 
 - Add charts
 - **Display** the package.json version number and
-  (if not a production build)
-  and the git commit hash in small text
+  (if not a production build) the git commit hash in small text
   at the lower-right corner of the "WebRTC Stability Test" panel.
   The string should be "Version x.x.x &mdash; #xxxxxxxx"-
 - Display package.json `version` and the git hash somewhere in the GUI.
@@ -117,3 +105,20 @@ solves it.)_
 - `npm run build` then `npm run preview` seem to work, but GUI cannot start a WebRTC connection.
 - Also other connections aren't released?
 - (Same bug?) After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run
+- Change latency chart Y-axis to 250ms
+- If web GUI can't initially make WebRTC connection, error message should be "Can't make WebRTC connection" not "Collection stopped: WebRTC connection failed"
+- (maybe) Display a spinner centered above the entire page from the time of the Start until it's connected ~~Not needed since it connects quicker~~
+- Why does the Start button briefly flash green on page load?
+- FF fails to connect to atl.richb-hanover.com after `git pull; npm run dev`
+  (Connect gave immediate Connecting... but then
+  gave "WebRTC error...".) Subsequent test worked fine.
+  Happened again after git pull; immediately reloaded
+  and retried worked as expected.
+- Move the CSS out of the end of +page.svelte (?)
+- Fix "page" in _+page.svelte_, line 4
+- _Bug Bankruptcy follows_
+- In one test run, Min. MOS was shown as 0.99 (not even possible), chart didn't show it.
+- Are the Min and Max values displaying the 10s Averages?
+- `nohup npm run dev &` on atl stops accepting WebRTC connections
+- Screenshot from DH - in 3K waiting room. First "outage" was from running betterspeedtest.sh from my computer. Second was with my computer idle
+- Loss of connection should not say "Data channel closed" (SB sth like "Lost connection to other end")
