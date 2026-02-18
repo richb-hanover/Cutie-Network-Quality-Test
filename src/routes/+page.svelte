@@ -95,6 +95,12 @@
 		return formatDataAmount(value, { suffix: 'sec' });
 	}
 
+	function formatDateTime(ts: number | null): string {
+		if (ts === null) return '—';
+		const d = new Date(ts);
+		return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+	}
+
 	function formatElapsed(value: number | null): string {
 		if (value === null || value < 0 || !Number.isFinite(value)) {
 			return '—';
@@ -250,16 +256,16 @@
 			<table>
 				<tbody>
 					<tr>
-						<th>Start / Elapsed Time</th>
-						<td>
-							{collectionStartAt ? new Date(collectionStartAt).toLocaleTimeString() : '—'} / {formatElapsed(
-								elapsedMs
-							)}
-						</td>
+						<th>Start Time</th>
+						<td>{formatDateTime(collectionStartAt)}</td>
 					</tr>
 					<tr>
-						<th>End Time</th>
-						<td>{collectionEndAt ? new Date(collectionEndAt).toLocaleTimeString() : '—'}</td>
+						<th>End / Elapsed Time</th>
+						<td
+							>{collectionEndAt ? formatDateTime(collectionEndAt) : '-'} / {formatElapsed(
+								elapsedMs
+							)}</td
+						>
 					</tr>
 					<tr>
 						<th>Bytes Transferred</th>

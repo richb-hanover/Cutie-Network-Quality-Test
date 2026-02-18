@@ -3,7 +3,7 @@ import type { Handle } from '@sveltejs/kit';
 import { UAParser } from '@ua-parser-js/pro-personal';
 import { dev } from '$app/environment';
 import { execSync } from 'node:child_process';
-import { incrementVisitors } from '$lib/server/runtimeState';
+import { incrementVisitors, serverStartTime } from '$lib/server/runtimeState';
 /**
  * Start of the main server process
  */
@@ -49,8 +49,24 @@ process.on('warning', (warning) => {
 	logger.warn(`Process warning: ${warning.message}`);
 });
 
+function formatDuration(ms: number): string {
+	const totalSeconds = Math.floor(ms / 1000);
+	const days = Math.floor(totalSeconds / 86400);
+	const hours = Math.floor((totalSeconds % 86400) / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+	return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+}
+
+const BLOCKED_IP_PREFIXES = ['47.128.'];
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const clientAddress = event.getClientAddress();
+
+	if (BLOCKED_IP_PREFIXES.some((p) => clientAddress.startsWith(p))) {
+		return new Response(null, { status: 400, headers: { Connection: 'close' } });
+	}
+
 	const method = event.request.method;
 	const path = event.url.pathname;
 	let agent = event.request.headers.get('user-agent');
@@ -59,7 +75,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (path === '/') {
 		incrementVisitors();
-		logger.info(`=== New connection ===`);
+		logger.info(
+			`=== New connection (running for ${formatDuration(Date.now() - serverStartTime.getTime())}) ===`
+		);
 	}
 	logger.info(`  Received http ${method} from ${clientAddress} for ${path} (${browser})`);
 

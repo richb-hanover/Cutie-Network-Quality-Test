@@ -3,12 +3,12 @@
 Cutie makes a Quality Test (QT - "Cutie", get it?)
 of the connection from your browser, through your ISP,
 to the Cutie server.
-It makes three measurements:
+It continually tests:
 _MOS Quality_ (a measure of the quality of a voice or video call),
 _Packet Loss_, and
 _Latency/Jitter_.
 
-Any of these can impair the network connection -
+Any problem can impair the network connection -
 the graphs show when performance is bad.
 Cutie hardly uses any resources -
 a little less than two kilobytes per second.

@@ -9,6 +9,13 @@
 
 ---
 
+## Version 0.2.17 - 2026-02-18
+
+- Adjust Long-term Statistics to display Start Time (date & time)
+  on the first line, then End / Elapsed time on the second,
+  where End time is "-" when the connection is active.
+- Block certain addresses
+
 ## Version 0.2.16 - 2026-02-13
 
 - Simplified GUI to have one Start/Connecting/Stop button

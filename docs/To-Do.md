@@ -2,6 +2,14 @@
 
 Ideas that have occurred to me. Some might be good ones...
 
+- Set up cutie.bufferbloat.net to redirect to port 4173
+  (Or set up cutie.bufferbloat.net to serve out its own domain name
+  from the `dist` directory using Apache)
+- Figure out how to discourage frequent flyers/abusers
+- Change Long-term Stats to show Start time as dd/mm/yyyy hh:mm:ss
+  and Elapsed / End Time Time as ?m ?s / dd/mm/yyyy hh:mm:ss
+- Aggregate the traffic volume of latency probes received & sent
+  plus a measure of traffic rate
 - Why do some oldConnections on the server end with "failed / complete"?
 - Why do Android tablets seem to take longer to establish connections?
 - Why are dots sometimes spaced out when the browser tab is in the background?
