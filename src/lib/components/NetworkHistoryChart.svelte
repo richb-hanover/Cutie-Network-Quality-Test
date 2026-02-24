@@ -141,7 +141,7 @@
 				datasets: [
 					{
 						label: 'Packet Loss (%)',
-						color: '#8c4d15',
+						color: '#F59E0B',
 						value: (point: MosPoint) => point.value,
 						formatTooltipLabel: (value) =>
 							value === null || Number.isNaN(value)

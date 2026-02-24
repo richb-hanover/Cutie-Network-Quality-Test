@@ -39,7 +39,7 @@
 	const textInputTags = new Set(['INPUT', 'TEXTAREA']);
 	const SHOW_RECENT_PROBES_HISTORY = false;
 
-	let outgoingMessage = 'probe';
+	let outgoingMessage = '';
 	let isChartTestMode = false;
 	let isCreateDataMode = false;
 	let elapsedMs: number | null = null;
@@ -260,7 +260,7 @@
 						<td>{formatDateTime(collectionStartAt)}</td>
 					</tr>
 					<tr>
-						<th>End / Elapsed Time</th>
+						<th>End Time / Elapsed Time</th>
 						<td
 							>{collectionEndAt ? formatDateTime(collectionEndAt) : '-'} / {formatElapsed(
 								elapsedMs
@@ -282,16 +282,17 @@
 		{/if}
 	</section>
 
-	<section class="panel status-grid">
-		<div>
-			<h2>Connection</h2>
-			<p><strong>ID:</strong> {connectionId ?? '—'}</p>
-			<p><strong>State:</strong> {connectionState}</p>
-			<p><strong>ICE:</strong> {iceConnectionState}</p>
-			<p><strong>Data channel:</strong> {dataChannelState}</p>
-		</div>
-		<div>
-			<h2>Send Message</h2>
+	<section class="panel">
+		<h2>Connection</h2>
+		<p><strong>ID:</strong> {connectionId ?? '—'}</p>
+		<p><strong>State:</strong> {connectionState}</p>
+		<p><strong>ICE:</strong> {iceConnectionState}</p>
+		<p><strong>Data channel:</strong> {dataChannelState}</p>
+	</section>
+
+	<section class="panel">
+		<div class="message-log-header">
+			<h2>Message Log</h2>
 			<div class="message-form">
 				<input
 					placeholder="Type a message"
@@ -312,10 +313,6 @@
 				</button>
 			</div>
 		</div>
-	</section>
-
-	<section class="panel">
-		<h2>Message Log</h2>
 		{#if messages.length === 0}
 			<p>No messages exchanged yet.</p>
 		{:else}
@@ -434,20 +431,30 @@
 		color: #991b1b;
 	}
 
-	.status-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	.message-log-header {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
 		gap: 1.5rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.message-log-header h2 {
+		margin: 0;
+		white-space: nowrap;
 	}
 
 	.message-form {
 		display: flex;
+		flex: 1;
+		min-width: calc(15ch + 6rem); /* wrap before input shrinks below ~15 chars */
 		gap: 0.75rem;
 		align-items: center;
 	}
 
 	.message-form input {
 		flex: 1;
+		min-width: 0;
 		padding: 0.65rem 0.75rem;
 		border-radius: 0.5rem;
 		border: 1px solid #d1d5db;
@@ -529,14 +536,6 @@
 			align-items: stretch;
 		}
 
-		.message-form {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		.message-form button {
-			width: 100%;
-		}
 	}
 
 	.about-btn {
