@@ -215,6 +215,7 @@ export async function connectToServer(): Promise<void> {
 		collectionStatusMessage: null,
 		collectionStartAt: null,
 		statsSummary: null,
+		latencyStats: createEmptyLatencyStats(),
 		activeDisconnectReason: null
 	}));
 

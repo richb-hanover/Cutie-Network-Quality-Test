@@ -2,6 +2,7 @@
 
 Ideas that have occurred to me. Some might be good ones...
 
+- Clicking Start should clear all accumulated stats
 - Set up cutie.bufferbloat.net to redirect to port 4173
   (Or set up cutie.bufferbloat.net to serve out its own domain name
   from the `dist` directory using Apache)
@@ -130,3 +131,5 @@ solves it.)_
 - `nohup npm run dev &` on atl stops accepting WebRTC connections
 - Screenshot from DH - in 3K waiting room. First "outage" was from running betterspeedtest.sh from my computer. Second was with my computer idle
 - Loss of connection should not say "Data channel closed" (SB something like "Lost connection to other end")
+- Change to "End Time / Elapsed Time"
+- Move "Message" to the Message Log panel; then remove remainder of Connection panel

@@ -217,18 +217,20 @@
 		</p>
 
 		<div class="controls">
-			{#if connectionState === 'connected'}
-				<button on:click={() => disconnect('manual')}>Stop</button>
-			{:else}
-				<button on:click={connectToServer} disabled={isConnecting}>
-					{#if isConnecting}
-						Connecting…
-					{:else}
-						Start
-					{/if}
-				</button>
-			{/if}
-			<button class="about-btn" on:click={openAbout}>About</button>
+			<div class="button-group">
+				{#if connectionState === 'connected'}
+					<button on:click={() => disconnect('manual')}>Stop</button>
+				{:else}
+					<button on:click={connectToServer} disabled={isConnecting}>
+						{#if isConnecting}
+							Connecting…
+						{:else}
+							Start
+						{/if}
+					</button>
+				{/if}
+				<button class="about-btn" on:click={openAbout}>About</button>
+			</div>
 			<span class="build-info">
 				{buildInfoLabel}
 			</span>
@@ -280,14 +282,6 @@
 		{:else}
 			<p>No stats collected yet.</p>
 		{/if}
-	</section>
-
-	<section class="panel">
-		<h2>Connection</h2>
-		<p><strong>ID:</strong> {connectionId ?? '—'}</p>
-		<p><strong>State:</strong> {connectionState}</p>
-		<p><strong>ICE:</strong> {iceConnectionState}</p>
-		<p><strong>Data channel:</strong> {dataChannelState}</p>
 	</section>
 
 	<section class="panel">
@@ -382,9 +376,16 @@
 
 	.controls {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.75rem;
 		margin-top: 1rem;
-		align-items: flex-end;
+		align-items: center;
+	}
+
+	.button-group {
+		display: flex;
+		gap: 0.75rem;
+		flex-shrink: 0;
 	}
 
 	button {
@@ -528,14 +529,6 @@
 	.messages li.out .bubble {
 		background: #10b981;
 		box-shadow: 0 8px 18px rgba(16, 185, 129, 0.2);
-	}
-
-	@media (max-width: 800px) {
-		.controls {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
 	}
 
 	.about-btn {
