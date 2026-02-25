@@ -2,20 +2,17 @@
 
 Ideas that have occurred to me. Some might be good ones...
 
-- Clicking Start should clear all accumulated stats
 - Set up cutie.bufferbloat.net to redirect to port 4173
   (Or set up cutie.bufferbloat.net to serve out its own domain name
   from the `dist` directory using Apache)
 - Figure out how to discourage frequent flyers/abusers
-- Change Long-term Stats to show Start time as dd/mm/yyyy hh:mm:ss
-  and Elapsed / End Time Time as ?m ?s / dd/mm/yyyy hh:mm:ss
 - Aggregate the traffic volume of latency probes received & sent
   plus a measure of traffic rate
 - Why do some oldConnections on the server end with "failed / complete"?
 - Why do Android tablets seem to take longer to establish connections?
 - Why are dots sometimes spaced out when the browser tab is in the background?
-- HTTPS for the web page?
-- Add navigator.sendBeacon() to tell the server that the window/connectionID has closed _(done)._ Change server code to observe those transitoins
+- HTTPS for the web page? Use [Caddy reverse proxy?](https://caddyserver.com/docs/quick-starts/reverse-proxy)
+- Change server code to observe navigator.sendBeacon() messages that the window/connectionID has closed/changed/etc.
 - See **Testing Ideas** below
 - Create a Docker container with docker-compose.yml for ease of remote installation
   - Add TURN server capability
@@ -133,3 +130,6 @@ solves it.)_
 - Loss of connection should not say "Data channel closed" (SB something like "Lost connection to other end")
 - Change to "End Time / Elapsed Time"
 - Move "Message" to the Message Log panel; then remove remainder of Connection panel
+- Clicking Start should clear all accumulated stats
+- Change Long-term Stats to show Start time as dd/mm/yyyy hh:mm:ss
+  and Elapsed Time / End Time Time as ?m ?s / dd/mm/yyyy hh:mm:ss

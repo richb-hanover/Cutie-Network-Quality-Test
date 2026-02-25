@@ -3,18 +3,26 @@
 ## Unreleased
 
 - Adding test routines to verify the correct summary of received data
-  - Added `?createData=1` test that writes triples of { seq, sentAt, receivedAt} to a CSV file when collection stops and downloads it as _cutie-results-yyyy-mm-dd-hh-mm.csv_.
-  - Added `injectLatencyInfo()` function that takes an array of triples and injects them into the chart just as if they had been received "in real time"
-  - Added `getLatencyMonitorStats()` that retrieves `{ MOSQuality, PacketLoss, Latency, Jitter }` with arrays of four values that mirror those in the Latency Monitor.
+- Added `?createData=1` test that writes triples of { seq, sentAt, receivedAt} to a CSV file when collection stops and downloads it as _cutie-results-yyyy-mm-dd-hh-mm.csv_.
+- Added `injectLatencyInfo()` function that takes an array of triples and injects them into the chart just as if they had been received "in real time"
+- Added `getLatencyMonitorStats()` that retrieves `{ MOSQuality, PacketLoss, Latency, Jitter }` with arrays of four values that mirror those in the Latency Monitor.
 
 ---
 
-## Version 0.2.17 - 2026-02-18
+## Version 0.2.18 - 2026-02-24
 
-- Adjust Long-term Statistics to display Start Time (date & time)
-  on the first line, then End / Elapsed time on the second,
-  where End time is "-" when the connection is active.
-- Block certain addresses
+- Start/Stop/Connecting and About buttons are now side-by-side
+- Change Packet loss chart color to be orange-like (#6b7280)
+- Adjust Long-term Statistics to display
+  Start Time (date & time) on the first line,
+  then End Time / Elapsed Time on the second,
+  where End time is "-" while the connection is active.
+- Block certain client IP addresses
+- Right-justify values in the Latency Monitor panel
+- Move message sending to the Message Log panel
+- Remove the Connection panel because its information
+  was redundant/confusing
+- Bump version to 0.2.18
 
 ## Version 0.2.16 - 2026-02-13
 

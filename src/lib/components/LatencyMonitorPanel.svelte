@@ -228,7 +228,7 @@
 	.latency-summary td,
 	.latency-history th,
 	.latency-history td {
-		padding: 0.5rem 0.75rem;
+		padding: 0.5rem 0.5rem;
 		border-bottom: 1px solid #e5e7eb;
 		white-space: nowrap;
 	}
@@ -247,9 +247,6 @@
 	}
 
 	.metric-value {
-		display: inline-block;
-		width: 5ch;
-		text-align: right;
 		font-variant-numeric: tabular-nums;
 	}
 
