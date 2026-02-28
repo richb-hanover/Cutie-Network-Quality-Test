@@ -8,7 +8,7 @@ _MOS Quality_ (a measure of the quality of a voice or video call),
 _Packet Loss_, and
 _Latency/Jitter_.
 
-A problem with any of these measurements can impair the network connection -
+Any problem with these measurements can impair the network connection -
 the graphs show when performance is bad.
 Cutie hardly uses any resources -
 a little less than two kilobytes per second.

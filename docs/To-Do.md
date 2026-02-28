@@ -2,33 +2,41 @@
 
 Ideas that have occurred to me. Some might be good ones...
 
-- Set up cutie.bufferbloat.net to redirect to port 4173
-  (Or set up cutie.bufferbloat.net to serve out its own domain name
-  from the `dist` directory using Apache)
+## Features
+
+- Email/save results of a test before restarting/reloading
+- Change client to detect changes & stop test when
+  laptop lid closes; etc.
+- Change server code to observe navigator.sendBeacon()
+  messages that the window/connectionID has closed/changed/etc.
+- Aggregate the traffic volume of latency probes
+  received & sent plus a measure of traffic rate
+  and add to `/api/stats`
 - Figure out how to discourage frequent flyers/abusers
-- Aggregate the traffic volume of latency probes received & sent
-  plus a measure of traffic rate
-- Why do some oldConnections on the server end with "failed / complete"?
-- Why do Android tablets seem to take longer to establish connections?
-- Why are dots sometimes spaced out when the browser tab is in the background?
-- HTTPS for the web page? Use [Caddy reverse proxy?](https://caddyserver.com/docs/quick-starts/reverse-proxy)
-- Change server code to observe navigator.sendBeacon() messages that the window/connectionID has closed/changed/etc.
 - See **Testing Ideas** below
-- Create a Docker container with docker-compose.yml for ease of remote installation
-  - Add TURN server capability
-  - Probably bundle `coturn` along with Cutie.
+
+## Hosting
+
+- Use [Caddy reverse proxy?](https://caddyserver.com/docs/quick-starts/reverse-proxy) for HTTPS server?
+- Set up cutie.bufferbloat.net to redirect to port 4173
+  (Or set up cutie.bufferbloat.net to serve out
+  its own domain name from the `dist` directory using Apache)
+- Create a Docker container with _docker-compose.yml_
+  for ease of remote installation
+  - Add TURN server capability.
+    Maybe bundle `coturn`.
     Is it possible to do it in a single container?
-    Or does docker-compose.yml do it all?
   - Also add netperf, iperf, iperf3,
     Crusader (client and server)
     to the Docker container
   - Install Docker container on atl.richb-hanover.com
   - Install on some external server site. Can it be free?
-- Email/save results of a (failed) test before restarting/reloading
 
 ## Bugs
 
-_declaring bug bankruptcy because many are fixed_
+- Why do some oldConnections on the server end with "failed / complete"?
+- Why do Android tablets seem to take longer to establish connections?
+- Why are dots sometimes spaced out when the browser tab is in the background?
 
 ## Testing ideas
 
@@ -41,7 +49,8 @@ _declaring bug bankruptcy because many are fixed_
 - Devise test cases to make sure arriving RTCProbes
   are sorted properly and MOS scores are correct
 - Consider testing with WebRTC Leak Shield or uBlock’s “Prevent WebRTC IP leak”
-- What does Percent loss chart show? Instantaneous? (What would that mean?)
+- What does Percent loss chart show? Instantaneous?
+  (What would that mean?)
   10-second? (Would have 100 samples in 10 seconds...)
 
 ## Done
