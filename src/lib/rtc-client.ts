@@ -2,7 +2,7 @@ import { getLogger } from './logger';
 const logger = getLogger('rtc-client');
 
 const DEFAULT_SIGNAL_URL = '/api/webrtc';
-const ICE_GATHER_TIMEOUT_MS = 1_500;
+export const ICE_GATHER_TIMEOUT_MS = 1_500;
 
 function shouldNormaliseAddress(address: string | null | undefined): boolean {
 	if (!address) {
@@ -202,7 +202,6 @@ function waitForIceGatheringComplete(peer: RTCPeerConnection): Promise<void> {
 
 		const timeout = setTimeout(() => {
 			logger.info('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
-			console.log('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
 			finish();
 		}, ICE_GATHER_TIMEOUT_MS);
 
