@@ -2,7 +2,7 @@ import { getLogger } from './logger';
 const logger = getLogger('rtc-client');
 
 const DEFAULT_SIGNAL_URL = '/api/webrtc';
-const ICE_GATHER_TIMEOUT_MS = 15_000;
+const ICE_GATHER_TIMEOUT_MS = 1_500;
 
 function shouldNormaliseAddress(address: string | null | undefined): boolean {
 	if (!address) {
