@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push -u origin claude-code-experiment)",
+      "Bash(npm test -- tests/rtc-client-timeout.test.ts 2>&1)",
+      "Bash(npm test 2>&1 | head -30)",
+      "Bash(npm test 2>&1)",
+      "Bash(npm run check 2>&1)",
+      "Bash(npm test -- tests/rtc-client-late-candidates.test.ts 2>&1)",
+      "Bash(npx vitest run tests/rtc-client-late-candidates.test.ts 2>&1)",
+      "Bash(npx vitest run 2>&1)"
+    ]
+  }
+}

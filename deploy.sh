@@ -93,7 +93,11 @@ ensure_no_existing_preview() {
 	esac
 }
 
-# Retrieve newest files from the repo
+# Branch to deploy (default: main)
+branch="${1:-main}"
+
+# Check out the requested branch and pull latest
+log_and_run "git checkout $branch" git checkout "$branch"
 log_and_run "git pull" git pull
 
 # pull all the dependencies
