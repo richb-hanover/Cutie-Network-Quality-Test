@@ -11,4 +11,12 @@ describe('negotiate() late candidate handling', () => {
     const src = readFileSync('src/lib/rtc-client.ts', 'utf8');
     expect(src).toContain('peer.addIceCandidate');
   });
+
+  it('source contains key logger.info calls', () => {
+    const src = readFileSync('src/lib/rtc-client.ts', 'utf8');
+    expect(src).toContain('Starting ICE gathering');
+    expect(src).toContain('ICE gather ended');
+    expect(src).toContain('Sending offer to server');
+    expect(src).toContain('Answer received');
+  });
 });
