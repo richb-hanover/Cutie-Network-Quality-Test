@@ -230,6 +230,7 @@ async function negotiate(
 	connectionInit: NegotiationHandlers = {}
 ): Promise<{ connectionId: string; dataChannel: RTCDataChannel }> {
 	const gatheredCandidates: RTCIceCandidateInit[] = [];
+	let remoteDescriptionSet = false;
 	const candidateListener = (event: RTCPeerConnectionIceEvent) => {
 		if (event.candidate) {
 			const candidateInit =
@@ -244,7 +245,14 @@ async function negotiate(
 
 			if (candidateInit.candidate) {
 				logCandidate('Local', candidateInit);
-				gatheredCandidates.push(normaliseLocalCandidate(candidateInit));
+				const normalised = normaliseLocalCandidate(candidateInit);
+				if (remoteDescriptionSet) {
+					peer.addIceCandidate(new RTCIceCandidate(normalised)).catch((err: unknown) => {
+						logger.warn(`[RTC] Late local ICE candidate rejected: ${err}`);
+					});
+				} else {
+					gatheredCandidates.push(normalised);
+				}
 			}
 		}
 	};
@@ -273,7 +281,14 @@ async function negotiate(
 
 				if (candidateInit.candidate) {
 					logCandidate('Local', candidateInit);
-					gatheredCandidates.push(normaliseLocalCandidate(candidateInit));
+					const normalised = normaliseLocalCandidate(candidateInit);
+					if (remoteDescriptionSet) {
+						peer.addIceCandidate(new RTCIceCandidate(normalised)).catch((err: unknown) => {
+							logger.warn(`[RTC] Late local ICE candidate rejected: ${err}`);
+						});
+					} else {
+						gatheredCandidates.push(normalised);
+					}
 				}
 			}
 			originalCandidateHandler?.apply(peer, args);
@@ -353,6 +368,7 @@ async function negotiate(
 
 	const { answer, connectionId, candidates: remoteCandidates = [] } = await response.json();
 	await peer.setRemoteDescription(answer);
+	remoteDescriptionSet = true;
 
 	for (const candidate of remoteCandidates as RTCIceCandidateInit[]) {
 		if (!candidate?.candidate) {
