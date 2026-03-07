@@ -292,7 +292,7 @@ async function negotiate(
 	if (connectionInit?.onDataChannelMessage) {
 		dataChannel.onmessage = (event) => {
 			Promise.resolve(connectionInit.onDataChannelMessage?.(event, dataChannel)).catch((error) => {
-				console.error('Data channel message handler failed', error);
+				logger.error('Data channel message handler failed', error);
 			});
 		};
 	}
@@ -366,13 +366,13 @@ async function negotiate(
 			logCandidate('Remote', normalised);
 			await peer.addIceCandidate(new RTCIceCandidate(normalised));
 		} catch (err) {
-			console.warn('Failed to add server ICE candidate', err);
+			logger.warn('Failed to add server ICE candidate', err);
 		}
 	}
 	try {
 		await peer.addIceCandidate(null);
 	} catch (err) {
-		console.warn('Failed to finalize server ICE candidates', err);
+		logger.warn('Failed to finalize server ICE candidates', err);
 	}
 
 	await channelPromise;
