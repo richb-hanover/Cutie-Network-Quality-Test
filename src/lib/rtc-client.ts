@@ -311,7 +311,9 @@ async function negotiate(
 	const offer = await peer.createOffer();
 	await peer.setLocalDescription(offer);
 	await waitForIceGatheringComplete(peer);
-	logger.info(`[RTC] ICE gather ended: ${gatheredCandidates.length} candidates (${peer.iceGatheringState})`);
+	logger.info(
+		`[RTC] ICE gather ended: ${gatheredCandidates.length} candidates (${peer.iceGatheringState})`
+	);
 
 	const localDescription = peer.localDescription;
 	if (!localDescription) {

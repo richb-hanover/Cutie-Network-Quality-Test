@@ -7,8 +7,8 @@ export type ManagedConnection = {
 	pc: RTCPeerConnection;
 	startedAt: Date;
 	reason: string;
-	deleteReceived: boolean;    // true when DELETE request received for this connection
-	openedAt: Date | null;      // when the server's data channel opened
+	deleteReceived: boolean; // true when DELETE request received for this connection
+	openedAt: Date | null; // when the server's data channel opened
 	lastMessageAt: Date | null; // when the last message was received
 };
 

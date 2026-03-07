@@ -153,33 +153,32 @@ function registerConnection(pc: RTCPeerConnection): string {
 		) {
 			const managed = connections.get(id); // get BEFORE finalizeConnection removes it
 			if (managed) {
-				const openDurationMs = managed.openedAt
-					? Date.now() - managed.openedAt.getTime()
-					: null;
+				const openDurationMs = managed.openedAt ? Date.now() - managed.openedAt.getTime() : null;
 				const lastMessageAt = managed.lastMessageAt?.toISOString() ?? 'never';
 				if (managed.deleteReceived) {
 					logger.info(
 						`[server] Connection ${id} closed cleanly (DELETE received). ` +
-						`openDurationMs=${openDurationMs}`
+							`openDurationMs=${openDurationMs}`
 					);
 				} else {
 					logger.info(
 						`[server] UNEXPECTED connection close: id=${id} ` +
-						`state=${pc.connectionState} iceState=${pc.iceConnectionState} ` +
-						`lastMessageAt=${lastMessageAt} openDurationMs=${openDurationMs}`
+							`state=${pc.connectionState} iceState=${pc.iceConnectionState} ` +
+							`lastMessageAt=${lastMessageAt} openDurationMs=${openDurationMs}`
 					);
 				}
-				finalizeConnection(id, managed.deleteReceived
-					? 'Client DELETE'
-					: `${pc.iceConnectionState} / ${pc.iceGatheringState}`);
+				finalizeConnection(
+					id,
+					managed.deleteReceived
+						? 'Client DELETE'
+						: `${pc.iceConnectionState} / ${pc.iceGatheringState}`
+				);
 			} else {
 				// Already finalized by DELETE handler
 				logger.debug(`[server] Connection ${id} state=${pc.connectionState} (already finalized)`);
 			}
 		} else {
-			logger.info(
-				`Connection state changed: id: ${id} state: ${pc.connectionState}`
-			);
+			logger.info(`Connection state changed: id: ${id} state: ${pc.connectionState}`);
 		}
 	};
 

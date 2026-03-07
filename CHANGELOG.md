@@ -9,6 +9,17 @@
 
 ---
 
+## Version 0.2.20 - 2026-03-07
+
+- Use obra/superpowers to re-engineer the WebRTC connection logic.
+  May solve the problem of random disconnections.
+- Add design documentation in _docs/plans_
+- Reduce ICE timeout from 15 seconds to 5 seconds (1.5 seconds is too short,
+  and frequently fails to connect)
+- Improve logging of disconnect reasons for troubleshooting
+- Remove stray console.log() in favor of logger.info()
+- Bump version to 0.2.20 (0.2.19 not published)
+
 ## Version 0.2.18 - 2026-02-24
 
 - Start/Stop/Connecting and About buttons are now side-by-side

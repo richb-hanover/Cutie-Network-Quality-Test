@@ -294,10 +294,10 @@ export async function connectToServer(): Promise<void> {
 				const elapsedMs = snap.collectionStartAt ? Date.now() - snap.collectionStartAt : null;
 				logger.info(
 					`[webrtc] Peer connection ${peerConnection.connectionState} — ` +
-					`iceConnectionState=${peerConnection.iceConnectionState} ` +
-					`dataChannelState=${dataChannel.readyState} ` +
-					`lastProbeSeq=${snap.latencyStats.totalReceived} ` +
-					`elapsedMs=${elapsedMs}`
+						`iceConnectionState=${peerConnection.iceConnectionState} ` +
+						`dataChannelState=${dataChannel.readyState} ` +
+						`lastProbeSeq=${snap.latencyStats.totalReceived} ` +
+						`elapsedMs=${elapsedMs}`
 				);
 			}
 		});
@@ -335,13 +335,13 @@ export async function connectToServer(): Promise<void> {
 				const elapsedMs = snap.collectionStartAt ? Date.now() - snap.collectionStartAt : null;
 				logger.info(
 					`[webrtc] Unexpected disconnect — ` +
-					`connectionState=${peerConnection.connectionState} ` +
-					`iceConnectionState=${peerConnection.iceConnectionState} ` +
-					`dataChannelState=${dataChannel.readyState} ` +
-					`lastProbeSeq=${snap.latencyStats.totalReceived} ` +
-					`totalSent=${snap.latencyStats.totalSent} ` +
-					`totalLost=${snap.latencyStats.totalLost} ` +
-					`elapsedMs=${elapsedMs}`
+						`connectionState=${peerConnection.connectionState} ` +
+						`iceConnectionState=${peerConnection.iceConnectionState} ` +
+						`dataChannelState=${dataChannel.readyState} ` +
+						`lastProbeSeq=${snap.latencyStats.totalReceived} ` +
+						`totalSent=${snap.latencyStats.totalSent} ` +
+						`totalLost=${snap.latencyStats.totalLost} ` +
+						`elapsedMs=${elapsedMs}`
 				);
 				void disconnect('timeout');
 			}

@@ -78,6 +78,7 @@ In the `dataChannel` `close` event handler and `peerConnection` `connectionstate
 ```
 
 Fields:
+
 - `connectionState` — `RTCPeerConnectionState` at time of close
 - `iceConnectionState` — `RTCIceConnectionState` at time of close
 - `dataChannelState` — `RTCDataChannelState` at time of close
@@ -105,8 +106,8 @@ No reconnect, no state changes — pure observability.
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `src/lib/rtc-client.ts` | Reduce gather timeout to 1.5s; keep candidate listener alive post-offer; add logger calls |
-| `src/lib/webrtc.ts` | Add structured log snapshot on unexpected disconnect |
-| `src/routes/api/webrtc/+server.ts` | Track `lastMessageAt` and `openedAt` per connection; log on unexpected close |
+| File                               | Change                                                                                    |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| `src/lib/rtc-client.ts`            | Reduce gather timeout to 1.5s; keep candidate listener alive post-offer; add logger calls |
+| `src/lib/webrtc.ts`                | Add structured log snapshot on unexpected disconnect                                      |
+| `src/routes/api/webrtc/+server.ts` | Track `lastMessageAt` and `openedAt` per connection; log on unexpected close              |
