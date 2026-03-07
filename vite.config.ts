@@ -18,7 +18,7 @@ export default defineConfig({
 	},
 	test: {
 		environment: 'jsdom',
-		include: ['src/**/*.{test,spec}.{js,ts}'],
+		include: ['src/**/*.{test,spec}.{js,ts}', 'tests/**/*.{test,spec}.{js,ts}'],
 		exclude: ['src/lib/server/**'],
 		setupFiles: ['./vitest-setup-client.ts'],
 		expect: { requireAssertions: true }

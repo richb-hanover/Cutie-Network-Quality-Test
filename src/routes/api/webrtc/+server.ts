@@ -135,7 +135,15 @@ function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidat
  */
 function registerConnection(pc: RTCPeerConnection): string {
 	const id = crypto.randomUUID();
-	const managed: ManagedConnection = { id, pc, startedAt: new Date(), reason: '' };
+	const managed: ManagedConnection = {
+		id,
+		pc,
+		startedAt: new Date(),
+		reason: '',
+		deleteReceived: false,
+		openedAt: null,
+		lastMessageAt: null
+	};
 
 	pc.onconnectionstatechange = () => {
 		if (
@@ -143,14 +151,34 @@ function registerConnection(pc: RTCPeerConnection): string {
 			pc.connectionState === 'failed' ||
 			pc.connectionState === 'disconnected'
 		) {
-			logger.info(
-				`Connection state ended: state: ${pc.iceConnectionState} gathering: ${pc.iceGatheringState}`
-			);
-			finalizeConnection(id, `${pc.iceConnectionState} / ${pc.iceGatheringState}`);
+			const managed = connections.get(id); // get BEFORE finalizeConnection removes it
+			if (managed) {
+				const openDurationMs = managed.openedAt ? Date.now() - managed.openedAt.getTime() : null;
+				const lastMessageAt = managed.lastMessageAt?.toISOString() ?? 'never';
+				if (managed.deleteReceived) {
+					logger.info(
+						`[server] Connection ${id} closed cleanly (DELETE received). ` +
+							`openDurationMs=${openDurationMs}`
+					);
+				} else {
+					logger.info(
+						`[server] UNEXPECTED connection close: id=${id} ` +
+							`state=${pc.connectionState} iceState=${pc.iceConnectionState} ` +
+							`lastMessageAt=${lastMessageAt} openDurationMs=${openDurationMs}`
+					);
+				}
+				finalizeConnection(
+					id,
+					managed.deleteReceived
+						? 'Client DELETE'
+						: `${pc.iceConnectionState} / ${pc.iceGatheringState}`
+				);
+			} else {
+				// Already finalized by DELETE handler
+				logger.debug(`[server] Connection ${id} state=${pc.connectionState} (already finalized)`);
+			}
 		} else {
-			logger.info(
-				`Connection state changed: state: ${pc.iceConnectionState} gathering: ${pc.iceGatheringState}`
-			);
+			logger.info(`Connection state changed: id: ${id} state: ${pc.connectionState}`);
 		}
 	};
 
@@ -318,6 +346,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		// (The welcome is not necessary for the protocol, but
 		// shows up in the web GUI)
 		channel.onopen = () => {
+			const managed = connections.get(connectionId ?? '');
+			if (managed) {
+				managed.openedAt = new Date();
+			}
 			const state = connectionId ?? 'pending';
 			logger.info(`Connection established: ${state}`);
 			incrementWebrtcConnections();
@@ -348,6 +380,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		 * All the rest of the magic happens on the client
 		 */
 		channel.onmessage = (msgEvent) => {
+			const managed = connections.get(connectionId ?? '');
+			if (managed) {
+				managed.lastMessageAt = new Date();
+			}
 			try {
 				JSON.parse(msgEvent.data);
 			} catch {
@@ -413,6 +449,7 @@ export const DELETE: RequestHandler = async ({ url }) => {
 
 	logger.debug(`Deleting connection: ${managed.id}`);
 	// console.log(`Deleting connection: ${managed.id}`);
+	managed.deleteReceived = true;
 	managed.pc.close();
 	finalizeConnection(connectionId, 'Client DELETE');
 

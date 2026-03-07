@@ -2,7 +2,7 @@ import { getLogger } from './logger';
 const logger = getLogger('rtc-client');
 
 const DEFAULT_SIGNAL_URL = '/api/webrtc';
-const ICE_GATHER_TIMEOUT_MS = 15_000;
+export const ICE_GATHER_TIMEOUT_MS = 5_000;
 
 function shouldNormaliseAddress(address: string | null | undefined): boolean {
 	if (!address) {
@@ -202,7 +202,6 @@ function waitForIceGatheringComplete(peer: RTCPeerConnection): Promise<void> {
 
 		const timeout = setTimeout(() => {
 			logger.info('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
-			console.log('ICE gathering TIMEOUT. State:', peer.iceGatheringState);
 			finish();
 		}, ICE_GATHER_TIMEOUT_MS);
 
@@ -293,7 +292,7 @@ async function negotiate(
 	if (connectionInit?.onDataChannelMessage) {
 		dataChannel.onmessage = (event) => {
 			Promise.resolve(connectionInit.onDataChannelMessage?.(event, dataChannel)).catch((error) => {
-				console.error('Data channel message handler failed', error);
+				logger.error('Data channel message handler failed', error);
 			});
 		};
 	}
@@ -308,9 +307,13 @@ async function negotiate(
 		dataChannel.onclose = () => connectionInit.onDataChannelClose?.(dataChannel);
 	}
 
+	logger.info('[RTC] Starting ICE gathering');
 	const offer = await peer.createOffer();
 	await peer.setLocalDescription(offer);
 	await waitForIceGatheringComplete(peer);
+	logger.info(
+		`[RTC] ICE gather ended: ${gatheredCandidates.length} candidates (${peer.iceGatheringState})`
+	);
 
 	const localDescription = peer.localDescription;
 	if (!localDescription) {
@@ -329,12 +332,12 @@ async function negotiate(
 		candidatePayload = extractCandidatesFromSdp(normalisedSdp);
 		if (candidatePayload.length > 0) {
 			logger.debug(`[RTC] Derived ${candidatePayload.length} candidate(s) from SDP`);
-			console.log(`[RTC] Derived ${candidatePayload.length} candidate(s) from SDP`);
 		}
 	}
 
 	logGatheringSummary('Local', candidatePayload);
 
+	logger.info(`[RTC] Sending offer to server (${candidatePayload.length} local candidates)`);
 	const response = await fetch(signalUrl, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -353,6 +356,7 @@ async function negotiate(
 	}
 
 	const { answer, connectionId, candidates: remoteCandidates = [] } = await response.json();
+	logger.info(`[RTC] Answer received: ${remoteCandidates.length} remote candidates`);
 	await peer.setRemoteDescription(answer);
 
 	for (const candidate of remoteCandidates as RTCIceCandidateInit[]) {
@@ -364,13 +368,13 @@ async function negotiate(
 			logCandidate('Remote', normalised);
 			await peer.addIceCandidate(new RTCIceCandidate(normalised));
 		} catch (err) {
-			console.warn('Failed to add server ICE candidate', err);
+			logger.warn('Failed to add server ICE candidate', err);
 		}
 	}
 	try {
 		await peer.addIceCandidate(null);
 	} catch (err) {
-		console.warn('Failed to finalize server ICE candidates', err);
+		logger.warn('Failed to finalize server ICE candidates', err);
 	}
 
 	await channelPromise;
