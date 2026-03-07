@@ -98,7 +98,7 @@ branch="${1:-main}"
 
 # Check out the requested branch and pull latest
 log_and_run "git checkout $branch" git checkout "$branch"
-log_and_run "git pull" git pull
+log_and_run "git pull origin $branch" git pull origin "$branch"
 
 # pull all the dependencies
 log_and_run "npm install" npm install
