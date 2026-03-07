@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 
 describe('negotiate() late candidate handling', () => {
-  it('contains remoteDescriptionSet flag', () => {
+  it('does not use remoteDescriptionSet (late local candidate routing removed)', () => {
     const src = readFileSync('src/lib/rtc-client.ts', 'utf8');
-    expect(src).toContain('remoteDescriptionSet');
+    expect(src).not.toContain('remoteDescriptionSet');
   });
 
-  it('calls peer.addIceCandidate for late candidates', () => {
+  it('calls peer.addIceCandidate only for remote candidates', () => {
     const src = readFileSync('src/lib/rtc-client.ts', 'utf8');
     expect(src).toContain('peer.addIceCandidate');
   });

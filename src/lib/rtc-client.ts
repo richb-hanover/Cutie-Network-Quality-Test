@@ -2,7 +2,7 @@ import { getLogger } from './logger';
 const logger = getLogger('rtc-client');
 
 const DEFAULT_SIGNAL_URL = '/api/webrtc';
-export const ICE_GATHER_TIMEOUT_MS = 1_500;
+export const ICE_GATHER_TIMEOUT_MS = 5_000;
 
 function shouldNormaliseAddress(address: string | null | undefined): boolean {
 	if (!address) {
@@ -230,7 +230,6 @@ async function negotiate(
 	connectionInit: NegotiationHandlers = {}
 ): Promise<{ connectionId: string; dataChannel: RTCDataChannel }> {
 	const gatheredCandidates: RTCIceCandidateInit[] = [];
-	let remoteDescriptionSet = false;
 	const candidateListener = (event: RTCPeerConnectionIceEvent) => {
 		if (event.candidate) {
 			const candidateInit =
@@ -245,14 +244,7 @@ async function negotiate(
 
 			if (candidateInit.candidate) {
 				logCandidate('Local', candidateInit);
-				const normalised = normaliseLocalCandidate(candidateInit);
-				if (remoteDescriptionSet) {
-					peer.addIceCandidate(new RTCIceCandidate(normalised)).catch((err: unknown) => {
-						logger.warn(`[RTC] Late local ICE candidate rejected: ${err}`);
-					});
-				} else {
-					gatheredCandidates.push(normalised);
-				}
+				gatheredCandidates.push(normaliseLocalCandidate(candidateInit));
 			}
 		}
 	};
@@ -281,14 +273,7 @@ async function negotiate(
 
 				if (candidateInit.candidate) {
 					logCandidate('Local', candidateInit);
-					const normalised = normaliseLocalCandidate(candidateInit);
-					if (remoteDescriptionSet) {
-						peer.addIceCandidate(new RTCIceCandidate(normalised)).catch((err: unknown) => {
-							logger.warn(`[RTC] Late local ICE candidate rejected: ${err}`);
-						});
-					} else {
-						gatheredCandidates.push(normalised);
-					}
+					gatheredCandidates.push(normaliseLocalCandidate(candidateInit));
 				}
 			}
 			originalCandidateHandler?.apply(peer, args);
@@ -371,7 +356,6 @@ async function negotiate(
 	const { answer, connectionId, candidates: remoteCandidates = [] } = await response.json();
 	logger.info(`[RTC] Answer received: ${remoteCandidates.length} remote candidates`);
 	await peer.setRemoteDescription(answer);
-	remoteDescriptionSet = true;
 
 	for (const candidate of remoteCandidates as RTCIceCandidateInit[]) {
 		if (!candidate?.candidate) {
