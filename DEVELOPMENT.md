@@ -16,11 +16,6 @@ To create a production version of your app:
 
 ```sh
 npm run build
-```
-
-To run the production build:
-
-```sh
 npm run preview
 # to run the production build on port 5173 to mimic "npm run dev"
 # npm run preview --port 5173
