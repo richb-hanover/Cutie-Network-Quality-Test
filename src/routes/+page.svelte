@@ -7,7 +7,6 @@
 		connectToServer,
 		disconnect,
 		sendMessage as sendWebrtcMessage,
-		setCreateDataMode,
 		webrtcState
 	} from '$lib/webrtc';
 	import type { WebRtcState } from '$lib/webrtc';
@@ -41,7 +40,6 @@
 
 	let outgoingMessage = '';
 	let isChartTestMode = false;
-	let isCreateDataMode = false;
 	let elapsedMs: number | null = null;
 	let bytesPerSecond: number | null = null;
 
@@ -146,10 +144,6 @@
 		statsSummary && elapsedMs !== null && elapsedMs > 0
 			? statsSummary.bytesSent / (elapsedMs / 1000)
 			: null;
-
-	// eslint-disable-next-line svelte/no-immutable-reactive-statements -- page from $app/state is reactive
-	$: isCreateDataMode = page.url.searchParams.get('createData') === '1';
-	$: setCreateDataMode(isCreateDataMode);
 
 	// eslint-disable-next-line svelte/no-immutable-reactive-statements -- page from $app/state is reactive
 	$: isChartTestMode = page.url.searchParams.get('chartTest') === '1';

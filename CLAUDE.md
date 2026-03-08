@@ -43,7 +43,6 @@ Cutie is a SvelteKit full-stack app that measures network quality (latency, jitt
 ## Debugging
 
 - `?chartTest=1` — injects synthetic test data into the charts
-- `?createData=1` — records probe data and downloads as CSV
 - `GET /api/stats` — returns current running statistics
 - Log level: `LOG_LEVEL` / `VITE_LOG_LEVEL` env vars
 - Keyboard: `Enter` starts, `Ctrl+C` stops

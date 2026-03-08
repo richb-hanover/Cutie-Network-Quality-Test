@@ -6,18 +6,12 @@ import {
 } from '$lib/latency-probe';
 import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
 import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
-import { ingestLatencySamples, resetMosData, updateMosLatencyStats } from '$lib/stores/mosStore';
+import { resetMosData, updateMosLatencyStats } from '$lib/stores/mosStore';
 import { getLogger } from './logger';
 
 const logger = getLogger('webrtc');
 
 export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload';
-
-export type LatencyProbeCsvRow = {
-	seq: number;
-	sentAt: number;
-	receivedAt: number;
-};
 
 export type MessageEntry = {
 	id: number;
@@ -42,8 +36,6 @@ export type WebRtcState = {
 	collectionEndAt: number | null;
 	activeDisconnectReason: DisconnectReason | null;
 	isDisconnecting: boolean;
-	recordedProbes: LatencyProbeCsvRow[];
-	isCreateDataMode: boolean;
 };
 
 const initialState: WebRtcState = {
@@ -61,13 +53,10 @@ const initialState: WebRtcState = {
 	collectionStartAt: null,
 	collectionEndAt: null,
 	activeDisconnectReason: null,
-	isDisconnecting: false,
-	recordedProbes: [],
-	isCreateDataMode: false
+	isDisconnecting: false
 };
 
 const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
-const LATENCY_CSV_HEADER = '# sequence,sentAt,receivedAt';
 
 export const webrtcState = writable<WebRtcState>(initialState);
 
@@ -79,24 +68,10 @@ let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
 let messageId = 0;
 
 const latencyProbe = initializeLatencyMonitor({
-	collectSamples: false,
 	onStats: (stats) => {
 		const snapshot = { ...stats, history: [] };
 		webrtcState.update((state) => ({ ...state, latencyStats: snapshot }));
 		updateMosLatencyStats(snapshot);
-	},
-	onSamples: (samples) => {
-		ingestLatencySamples(samples);
-	},
-	onProbeReceived: ({ seq, sentAt, receivedAt }) => {
-		const state = get(webrtcState);
-		if (!state.isCreateDataMode) {
-			return;
-		}
-		webrtcState.update((current) => ({
-			...current,
-			recordedProbes: [...current.recordedProbes, { seq, sentAt, receivedAt }]
-		}));
 	}
 });
 
@@ -125,60 +100,10 @@ function beginCollectionSession(dataChannel: RTCDataChannel): void {
 		collectionStartAt: startAt,
 		collectionEndAt: null,
 		activeDisconnectReason: null,
-		collectionStatusMessage: null,
-		recordedProbes: state.isCreateDataMode ? [] : state.recordedProbes
+		collectionStatusMessage: null
 	}));
 	scheduleCollectionAutoStop();
 	latencyProbe.start(dataChannel);
-}
-
-export function setCreateDataMode(enabled: boolean): void {
-	webrtcState.update((state) => {
-		if (state.isCreateDataMode === enabled) {
-			return state;
-		}
-		return {
-			...state,
-			isCreateDataMode: enabled,
-			recordedProbes: enabled ? state.recordedProbes : []
-		};
-	});
-}
-
-function formatProbeNumber(value: number): string {
-	return Number.isFinite(value) ? value.toFixed(3) : '';
-}
-
-function formatFileTimestamp(date: Date): string {
-	const pad = (input: number) => input.toString().padStart(2, '0');
-	const year = date.getFullYear();
-	const month = pad(date.getMonth() + 1);
-	const day = pad(date.getDate());
-	const hours = pad(date.getHours());
-	const minutes = pad(date.getMinutes());
-	return `${year}-${month}-${day}-${hours}:${minutes}`;
-}
-
-function downloadLatencyProbeCsv(rows: LatencyProbeCsvRow[]): string | null {
-	if (!rows.length) {
-		return null;
-	}
-	const lines = rows.map(
-		(row) => `${row.seq},${formatProbeNumber(row.sentAt)},${formatProbeNumber(row.receivedAt)}`
-	);
-	const csv = [LATENCY_CSV_HEADER, ...lines, ''].join('\n');
-	const timestamp = formatFileTimestamp(new Date());
-	const fileName = `cutie-results-${timestamp}.csv`;
-	const blob = new Blob([csv], { type: 'text/csv' });
-	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement('a');
-	anchor.href = url;
-	anchor.download = fileName;
-	document.body.appendChild(anchor);
-	anchor.click();
-	document.body.removeChild(anchor);
-	URL.revokeObjectURL(url);
-	return fileName;
 }
 
 async function normaliseDataMessage(data: unknown): Promise<string> {
@@ -405,8 +330,6 @@ export async function disconnect(
 		activeDisconnectReason: reason
 	}));
 
-	let savedCsv: string | null = null;
-
 	latencyProbe.stop();
 	stopStats?.();
 	stopStats = null;
@@ -444,10 +367,6 @@ export async function disconnect(
 		errorMessage = '';
 	}
 
-	if (state.isCreateDataMode && state.recordedProbes.length > 0) {
-		savedCsv = downloadLatencyProbeCsv(state.recordedProbes);
-	}
-
 	resetMosData({ clearHistory: false });
 
 	webrtcState.update((current) => ({
@@ -460,19 +379,8 @@ export async function disconnect(
 		collectionStatusMessage,
 		collectionEndAt: options.suppressMessage ? current.collectionEndAt : Date.now(),
 		errorMessage,
-		recordedProbes: state.isCreateDataMode ? [] : current.recordedProbes,
 		isDisconnecting: false
 	}));
-
-	if (savedCsv && !options.suppressMessage) {
-		webrtcState.update((current) => {
-			const prefix = current.collectionStatusMessage ? `${current.collectionStatusMessage} ` : '';
-			return {
-				...current,
-				collectionStatusMessage: `${prefix}Saved latency probe data to ${savedCsv}`
-			};
-		});
-	}
 }
 
 export function sendMessage(outgoingMessage: string): boolean {

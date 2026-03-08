@@ -31,12 +31,6 @@ export type LatencyStats = {
 	history: LatencySample[];
 };
 
-export type LatencyProbePlaybackRecord = {
-	seq: number;
-	sentAt: number;
-	receivedAt: number;
-};
-
 /**
  * Interesting functions regarding collection of stats
  */
@@ -46,7 +40,6 @@ export type LatencyMonitor = {
 	reset: () => void;
 	handleMessage: (payload: string) => boolean;
 	getStats: () => LatencyStats;
-	injectLatencyInfo: (records: LatencyProbePlaybackRecord[]) => void;
 };
 
 type LatencyMonitorOptions = {
@@ -55,8 +48,6 @@ type LatencyMonitorOptions = {
 	lossCheckIntervalMs?: number;
 	historySize?: number;
 	onStats?: (stats: LatencyStats) => void;
-	onSamples?: (samples: LatencySample[]) => void;
-	collectSamples?: boolean;
 	onProbeReceived?: (probe: { seq: number; sentAt: number; receivedAt: number }) => void;
 	now?: () => number;
 	formatTimestamp?: () => string;
@@ -91,8 +82,6 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		lossCheckIntervalMs = LOSS_CHECK_INTERVAL_MS,
 		historySize = MAX_LATENCY_HISTORY,
 		onStats,
-		onSamples,
-		collectSamples = true,
 		onProbeReceived,
 		now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
 		formatTimestamp = () => new Date().toLocaleTimeString()
@@ -135,9 +124,8 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 			return;
 		}
 		const previous = latencyStats;
-		const history = collectSamples ? appendHistory(samples) : previous.history;
+		const history = appendHistory(samples);
 		latencyStats = mutate(previous, history);
-		onSamples?.(samples);
 		emitStats();
 	};
 
@@ -387,68 +375,6 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		stop: stopCollection,
 		reset: resetCollection,
 		handleMessage: receiveProbe,
-		getStats: () => latencyStats,
-		injectLatencyInfo: (records: LatencyProbePlaybackRecord[]) => {
-			if (!Array.isArray(records) || records.length === 0) {
-				return;
-			}
-
-			for (const record of records) {
-				const { seq, sentAt, receivedAt } = record;
-
-				if (
-					typeof seq !== 'number' ||
-					typeof sentAt !== 'number' ||
-					typeof receivedAt !== 'number' ||
-					!Number.isFinite(sentAt) ||
-					!Number.isFinite(receivedAt)
-				) {
-					continue;
-				}
-
-				const latencyMs = receivedAt - sentAt;
-				if (!Number.isFinite(latencyMs)) {
-					continue;
-				}
-
-				latencyStats = {
-					...latencyStats,
-					totalSent: latencyStats.totalSent + 1
-				};
-
-				const previousLatency = latencyStats.lastLatencyMs;
-				totalLatencyMs += latencyMs;
-				const totalReceived = latencyStats.totalReceived + 1;
-
-				if (previousLatency !== null) {
-					const delta = Math.abs(latencyMs - previousLatency);
-					jitterEstimateMs += (delta - jitterEstimateMs) / 16;
-				} else {
-					jitterEstimateMs = 0;
-				}
-
-				const jitterMs = previousLatency !== null ? jitterEstimateMs : 0;
-
-				const sample: LatencySample = {
-					seq,
-					status: 'received',
-					latencyMs,
-					jitterMs,
-					at: formatTimestamp(),
-					timestampMs: receivedAt
-				};
-
-				integrateSamples([sample], (previous, history) => ({
-					...previous,
-					lastLatencyMs: latencyMs,
-					totalReceived,
-					averageLatencyMs: totalLatencyMs / totalReceived,
-					jitterMs,
-					history
-				}));
-
-				onProbeReceived?.({ seq, sentAt, receivedAt });
-			}
-		}
+		getStats: () => latencyStats
 	};
 }
