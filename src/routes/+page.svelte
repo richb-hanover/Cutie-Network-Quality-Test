@@ -46,9 +46,7 @@
 	let webrtcSnapshot: WebRtcState = get(webrtcState);
 	let {
 		connection,
-		connectionId,
 		connectionState,
-		iceConnectionState,
 		dataChannelState,
 		statsSummary,
 		isConnecting,
@@ -121,9 +119,7 @@
 	$: webrtcSnapshot = $webrtcState;
 	$: ({
 		connection,
-		connectionId,
 		connectionState,
-		iceConnectionState,
 		dataChannelState,
 		statsSummary,
 		isConnecting,
