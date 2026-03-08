@@ -2,12 +2,12 @@
 
 ## Unreleased
 
-- Adding test routines to verify the correct summary of received data
-- Added `?createData=1` test that writes triples of { seq, sentAt, receivedAt} to a CSV file when collection stops and downloads it as _cutie-results-yyyy-mm-dd-hh-mm.csv_.
-- Added `injectLatencyInfo()` function that takes an array of triples and injects them into the chart just as if they had been received "in real time"
-- Added `getLatencyMonitorStats()` that retrieves `{ MOSQuality, PacketLoss, Latency, Jitter }` with arrays of four values that mirror those in the Latency Monitor.
-
 ---
+
+## Version 0.2.21 - 2026-03-08
+
+- Remove untested code designed to collect samples to produce test data set
+- Bump version to 0.2.21
 
 ## Version 0.2.20 - 2026-03-07
 
