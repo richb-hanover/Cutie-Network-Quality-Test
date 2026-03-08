@@ -6,7 +6,7 @@ import {
 } from '$lib/latency-probe';
 import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
 import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
-import { resetMosData, updateMosLatencyStats } from '$lib/stores/mosStore';
+import { ingestLatencySamples, resetMosData, updateMosLatencyStats } from '$lib/stores/mosStore';
 import { getLogger } from './logger';
 
 const logger = getLogger('webrtc');
@@ -72,6 +72,9 @@ const latencyProbe = initializeLatencyMonitor({
 		const snapshot = { ...stats, history: [] };
 		webrtcState.update((state) => ({ ...state, latencyStats: snapshot }));
 		updateMosLatencyStats(snapshot);
+	},
+	onSamples: (samples) => {
+		ingestLatencySamples(samples);
 	}
 });
 

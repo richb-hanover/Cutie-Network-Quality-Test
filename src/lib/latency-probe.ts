@@ -48,6 +48,7 @@ type LatencyMonitorOptions = {
 	lossCheckIntervalMs?: number;
 	historySize?: number;
 	onStats?: (stats: LatencyStats) => void;
+	onSamples?: (samples: LatencySample[]) => void;
 	onProbeReceived?: (probe: { seq: number; sentAt: number; receivedAt: number }) => void;
 	now?: () => number;
 	formatTimestamp?: () => string;
@@ -82,6 +83,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		lossCheckIntervalMs = LOSS_CHECK_INTERVAL_MS,
 		historySize = MAX_LATENCY_HISTORY,
 		onStats,
+		onSamples,
 		onProbeReceived,
 		now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
 		formatTimestamp = () => new Date().toLocaleTimeString()
@@ -127,6 +129,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		const history = appendHistory(samples);
 		latencyStats = mutate(previous, history);
 		emitStats();
+		onSamples?.(samples);
 	};
 
 	/**

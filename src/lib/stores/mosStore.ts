@@ -201,6 +201,16 @@ export const tenSecondLatencyHistory = createValueHistoryStore(
 
 export const tenSecondJitterHistory = createValueHistoryStore((summary) => summary.averageJitterMs);
 
+export const ingestLatencySamples = (samples: LatencySample[]) => {
+	if (!samples.length) {
+		return;
+	}
+	sampleHistory = [...sampleHistory, ...samples];
+	if (sampleHistory.length > MAX_HISTORY_SAMPLES) {
+		sampleHistory = sampleHistory.slice(-MAX_HISTORY_SAMPLES);
+	}
+};
+
 export const updateMosLatencyStats = (stats: LatencyStats) => {
 	latestStats = stats;
 	ensureInterval();
