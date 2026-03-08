@@ -4,10 +4,11 @@
 
 ---
 
-## Version 0.2.21 - 2026-03-08
+## Version 0.2.22 - 2026-03-08
 
 - Remove untested code designed to collect samples to produce test data set
-- Bump version to 0.2.21
+- Fixed new bug where stats never were added to 10_sec values and not charted
+- Bump version to 0.2.22
 
 ## Version 0.2.20 - 2026-03-07
 
