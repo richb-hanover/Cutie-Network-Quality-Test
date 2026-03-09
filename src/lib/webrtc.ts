@@ -11,11 +11,14 @@ import {
 	resetMosData,
 	updateMosLatencyStats,
 	tenSecondAverages,
-	tenSecondMos
+	tenSecondMos,
+	loadRecentAverages,
+	loadSessionSummaries
 } from '$lib/stores/mosStore';
 import {
 	formatCutieFile,
 	downloadCutieFile,
+	parseCutieFile,
 	type SessionBounds,
 	type SessionFileData
 } from '$lib/session-file';
@@ -467,4 +470,67 @@ export async function saveSession(bounds: SessionBounds, version: string): Promi
 
 	const content = formatCutieFile(data);
 	await downloadCutieFile(content, state.collectionStartAt);
+}
+
+export async function loadSession(content: string): Promise<SessionFileData | null> {
+	let data: SessionFileData;
+	try {
+		data = parseCutieFile(content);
+	} catch {
+		return null;
+	}
+
+	// Stop any live session first
+	const state = get(webrtcState);
+	if (state.connection || state.isConnecting) {
+		await disconnect('manual', { suppressMessage: true });
+	}
+
+	// Clear accumulated probes
+	rawProbes = [];
+	epochOffsetMs = 0;
+	resetMosData();
+
+	// Synthetic statsSummary for Long-term Statistics panel
+	const syntheticStats = {
+		timestamp: data.sessionStartMs + data.durationMs,
+		bytesSent: data.bytesSent,
+		bytesReceived: 0,
+		packetsSent: 0,
+		packetsReceived: 0,
+		messagesSent: 0,
+		messagesReceived: 0,
+		currentRoundTripTime: null
+	};
+
+	// Synthetic "Reloaded" message
+	const reloadedPayload = JSON.stringify({
+		type: 'Reloaded',
+		sessionStart: new Date(data.sessionStartMs).toISOString(),
+		connectionId: data.connectionId,
+		durationMs: data.durationMs
+	});
+
+	webrtcState.update(() => ({
+		...initialState,
+		latencyStats: data.latencyStats,
+		collectionStartAt: data.sessionStartMs,
+		collectionEndAt: data.sessionStartMs + data.durationMs,
+		connectionId: data.connectionId,
+		statsSummary: syntheticStats,
+		messages: [
+			{
+				id: ++messageId,
+				direction: 'in',
+				payload: reloadedPayload,
+				at: new Date(data.sessionStartMs).toLocaleTimeString()
+			}
+		]
+	}));
+
+	// Populate charts from raw probe data
+	loadSessionSummaries(data.probes);
+	loadRecentAverages(data.tenSecondAverages, data.tenSecondMos);
+
+	return data; // caller uses data.bounds to update LatencyMonitorPanel
 }
