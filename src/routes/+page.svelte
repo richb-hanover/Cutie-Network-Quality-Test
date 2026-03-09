@@ -7,9 +7,14 @@
 		connectToServer,
 		disconnect,
 		sendMessage as sendWebrtcMessage,
-		webrtcState
+		webrtcState,
+		saveSession,
+		loadSession,
+		getRawProbes
 	} from '$lib/webrtc';
 	import type { WebRtcState } from '$lib/webrtc';
+	import { decompressCutieFile } from '$lib/session-file';
+	import type { SessionBounds } from '$lib/session-file';
 	import { marked } from 'marked';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import NetworkHistoryChart from '$lib/components/NetworkHistoryChart.svelte';
@@ -39,6 +44,7 @@
 	const SHOW_RECENT_PROBES_HISTORY = false;
 
 	let outgoingMessage = '';
+	let panelBounds: SessionBounds | undefined;
 	let isChartTestMode = false;
 	let elapsedMs: number | null = null;
 	let bytesPerSecond: number | null = null;
@@ -144,6 +150,26 @@
 	// eslint-disable-next-line svelte/no-immutable-reactive-statements -- page from $app/state is reactive
 	$: isChartTestMode = page.url.searchParams.get('chartTest') === '1';
 
+	async function handleSave() {
+		if (!panelBounds) return;
+		await saveSession(panelBounds, buildVersion);
+	}
+
+	async function handleLoad(file: File) {
+		const content = await decompressCutieFile(file);
+		const data = await loadSession(content);
+		if (data) {
+			panelBounds = data.bounds;
+		}
+	}
+
+	function handleFileInput(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (file) void handleLoad(file);
+		input.value = '';
+	}
+
 	function handleSendMessage() {
 		if (sendWebrtcMessage(outgoingMessage)) {
 			outgoingMessage = '';
@@ -189,6 +215,17 @@
 		if (!isConnecting && connectionState !== 'connected') {
 			void connectToServer();
 		}
+
+		const handleCmdS = (e: KeyboardEvent) => {
+			const tag = (e.target as HTMLElement)?.tagName;
+			if (textInputTags.has(tag)) return;
+			if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+				e.preventDefault();
+				if (getRawProbes().length > 0) void handleSave();
+			}
+		};
+		window.addEventListener('keydown', handleCmdS);
+		return () => window.removeEventListener('keydown', handleCmdS);
 	});
 
 	onDestroy(() => {
@@ -198,7 +235,16 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<main class="container">
+<main
+	class="container"
+	on:dragover|preventDefault={(e) => {
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+	}}
+	on:drop|preventDefault={(e) => {
+		const file = e.dataTransfer?.files?.[0];
+		if (file?.name.endsWith('.cutie')) void handleLoad(file);
+	}}
+>
 	<section class="panel main-panel">
 		<h1>Cutie &mdash; Network Quality Test</h1>
 		<p>
@@ -240,7 +286,11 @@
 			<NetworkHistoryChart variant="latencyJitter" />
 		</div>
 	</section>
-	<LatencyMonitorPanel {latencyStats} showHistory={SHOW_RECENT_PROBES_HISTORY} />
+	<LatencyMonitorPanel
+		{latencyStats}
+		showHistory={SHOW_RECENT_PROBES_HISTORY}
+		bind:bounds={panelBounds}
+	/>
 
 	<section class="panel">
 		<h2>Long-term Statistics</h2>
@@ -315,6 +365,16 @@
 				{/each}
 			</ul>
 		{/if}
+	</section>
+
+	<section class="panel">
+		<div class="save-reload-buttons">
+			<button on:click={handleSave} disabled={getRawProbes().length === 0}> Save Session </button>
+			<label class="reload-button">
+				Reload Session
+				<input type="file" accept=".cutie" style="display:none" on:change={handleFileInput} />
+			</label>
+		</div>
 	</section>
 </main>
 
@@ -574,5 +634,21 @@
 		color: #111;
 		transform: none;
 		box-shadow: none;
+	}
+
+	.save-reload-buttons {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
+	}
+
+	.reload-button {
+		display: inline-block;
+		padding: 0.4rem 0.9rem;
+		background: #fff;
+		border: 1px solid #d1d5db;
+		border-radius: 0.375rem;
+		cursor: pointer;
+		font-size: inherit;
 	}
 </style>
