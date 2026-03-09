@@ -66,6 +66,8 @@ const textDecoder = new TextDecoder();
 let stopStats: (() => void) | null = null;
 let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
 let messageId = 0;
+let rawProbes: Array<{ seq: number; sentAt: number; receivedAt: number | null }> = [];
+let epochOffsetMs = 0; // Date.now() - performance.now() at session start
 
 const latencyProbe = initializeLatencyMonitor({
 	onStats: (stats) => {
@@ -75,6 +77,13 @@ const latencyProbe = initializeLatencyMonitor({
 	},
 	onSamples: (samples) => {
 		ingestLatencySamples(samples);
+		for (const s of samples) {
+			rawProbes.push({
+				seq: s.seq,
+				sentAt: Math.round(s.sentAt + epochOffsetMs),
+				receivedAt: s.latencyMs !== null ? Math.round(s.sentAt + s.latencyMs + epochOffsetMs) : null
+			});
+		}
 	}
 });
 
@@ -97,6 +106,7 @@ function scheduleCollectionAutoStop(): void {
 }
 
 function beginCollectionSession(dataChannel: RTCDataChannel): void {
+	epochOffsetMs = Date.now() - performance.now();
 	const startAt = Date.now();
 	webrtcState.update((state) => ({
 		...state,
@@ -148,6 +158,8 @@ export async function connectToServer(): Promise<void> {
 	}));
 
 	clearCollectionAutoStopTimer();
+	rawProbes = [];
+	epochOffsetMs = 0;
 	resetMosData();
 
 	try {
@@ -411,4 +423,12 @@ export function sendMessage(outgoingMessage: string): boolean {
 	}));
 
 	return true;
+}
+
+export function getRawProbes(): Array<{ seq: number; sentAt: number; receivedAt: number | null }> {
+	return rawProbes;
+}
+
+export function getEpochOffsetMs(): number {
+	return epochOffsetMs;
 }
