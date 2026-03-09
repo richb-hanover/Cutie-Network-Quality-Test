@@ -1,5 +1,6 @@
 import { derived, writable } from 'svelte/store';
 import type { LatencySample, LatencyStats } from '$lib/latency-probe';
+import type { RawProbe } from '$lib/session-file';
 
 const TEN_SECONDS_MS = 10_000;
 const MAX_HISTORY_SAMPLES = 1000;
@@ -228,4 +229,61 @@ export const resetMosData = (options?: { clearHistory?: boolean }) => {
 		clearInterval(interval);
 		interval = null;
 	}
+};
+
+export const loadRecentAverages = (averages: RecentAverages, mos: number | null): void => {
+	recentAveragesStore.set(averages);
+	mosAverageStore.set(mos);
+};
+
+export const loadSessionSummaries = (probes: RawProbe[]): void => {
+	if (probes.length === 0) return;
+
+	const TEN_S = 10_000;
+	const origin = probes[0].sentAt;
+	const buckets = new Map<number, RawProbe[]>();
+
+	for (const p of probes) {
+		const bucket = Math.floor((p.sentAt - origin) / TEN_S);
+		const list = buckets.get(bucket) ?? [];
+		list.push(p);
+		buckets.set(bucket, list);
+	}
+
+	const summaries: TenSecondSummary[] = [];
+
+	for (const [bucket, ps] of [...buckets.entries()].sort((a, b) => a[0] - b[0])) {
+		const received = ps.filter((p) => p.receivedAt !== null);
+		const lost = ps.filter((p) => p.receivedAt === null).length;
+		const total = ps.length;
+
+		const packetLossPercent = total > 0 ? (lost / total) * 100 : null;
+
+		let latencySum = 0;
+		let jitterSum = 0;
+		let prevLatency: number | null = null;
+
+		for (const p of received) {
+			const latency = p.receivedAt! - p.sentAt;
+			latencySum += latency;
+			if (prevLatency !== null) {
+				jitterSum += Math.abs(latency - prevLatency);
+			}
+			prevLatency = latency;
+		}
+
+		const avgLatency = received.length > 0 ? latencySum / received.length : null;
+		const avgJitter = received.length > 1 ? jitterSum / (received.length - 1) : null;
+		const mos = calculateMosScore(avgLatency, avgJitter, packetLossPercent);
+
+		summaries.push({
+			at: origin + bucket * TEN_S,
+			mos,
+			packetLossPercent,
+			averageLatencyMs: avgLatency,
+			averageJitterMs: avgJitter
+		});
+	}
+
+	summaryHistoryStore.set(summaries.slice(-MAX_HISTORY_SAMPLES));
 };
