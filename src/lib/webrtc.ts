@@ -6,7 +6,20 @@ import {
 } from '$lib/latency-probe';
 import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
 import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
-import { ingestLatencySamples, resetMosData, updateMosLatencyStats } from '$lib/stores/mosStore';
+import {
+	ingestLatencySamples,
+	resetMosData,
+	updateMosLatencyStats,
+	tenSecondAverages,
+	tenSecondMos
+} from '$lib/stores/mosStore';
+import {
+	formatCutieFile,
+	downloadCutieFile,
+	type SessionBounds,
+	type SessionFileData
+} from '$lib/session-file';
+import { get as getStore } from 'svelte/store';
 import { getLogger } from './logger';
 
 const logger = getLogger('webrtc');
@@ -431,4 +444,27 @@ export function getRawProbes(): Array<{ seq: number; sentAt: number; receivedAt:
 
 export function getEpochOffsetMs(): number {
 	return epochOffsetMs;
+}
+
+export async function saveSession(bounds: SessionBounds, version: string): Promise<void> {
+	const state = get(webrtcState);
+	if (!state.collectionStartAt) return;
+
+	const durationMs = (state.collectionEndAt ?? Date.now()) - state.collectionStartAt;
+
+	const data: SessionFileData = {
+		version,
+		sessionStartMs: state.collectionStartAt,
+		connectionId: state.connectionId,
+		durationMs,
+		latencyStats: state.latencyStats,
+		bounds,
+		tenSecondAverages: getStore(tenSecondAverages),
+		tenSecondMos: getStore(tenSecondMos),
+		bytesSent: state.statsSummary?.bytesSent ?? 0,
+		probes: rawProbes
+	};
+
+	const content = formatCutieFile(data);
+	await downloadCutieFile(content, state.collectionStartAt);
 }
