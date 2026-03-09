@@ -14,6 +14,7 @@ export type LatencyProbe = {
 };
 export type LatencySample = {
 	seq: number;
+	sentAt: number; // performance.now() at send time
 	status: 'received' | 'lost';
 	latencyMs: number | null;
 	jitterMs: number | null;
@@ -199,14 +200,16 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 			return;
 		}
 
-		// delete the lost probes from pendingProbes Map
+		// Capture sentAt before deleting from pendingProbes
+		const lostWithSentAt = lost.map((seq) => ({ seq, sentAt: pendingProbes.get(seq)! }));
+
 		for (const seq of lost) {
 			pendingProbes.delete(seq);
 		}
 
-		// lostSamples array contains info about those lost samples
-		const lostSamples: LatencySample[] = lost.map((seq) => ({
+		const lostSamples: LatencySample[] = lostWithSentAt.map(({ seq, sentAt }) => ({
 			seq,
+			sentAt,
 			status: 'lost',
 			latencyMs: null,
 			jitterMs: null,
@@ -351,6 +354,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		// create a LatencySample with the newly-arrived values
 		const sample: LatencySample = {
 			seq,
+			sentAt: startedAt,
 			status: 'received',
 			latencyMs,
 			jitterMs,
