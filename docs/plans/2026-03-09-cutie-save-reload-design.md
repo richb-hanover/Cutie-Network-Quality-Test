@@ -41,6 +41,10 @@ seq,sentAt,receivedAt
 
 The existing in-memory history is capped at 1,000 entries. A new accumulation buffer in `webrtc.ts` collects every raw probe (`seq`, `sentAt`, `receivedAt | null`) for the full session duration. This requires `sentAt` and `receivedAt` to be added to `LatencySample` (or captured via a new callback) so lost probes are also recorded.
 
+## File Compression
+
+The `.cutie` file is gzip-compressed using the browser's native `CompressionStream('gzip')` API (no library). This reduces a 2-hour session from ~2.5 MB to ~400–600 KB. The file remains human-readable by running `gunzip -c file.cutie | head`.
+
 ## Save Behavior
 
 - **Trigger:** Save button click, or Cmd/Ctrl-S
