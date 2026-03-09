@@ -19,7 +19,7 @@
 		mos: { min: null, max: null }
 	});
 
-	let bounds = createMetricBounds();
+	export let bounds = createMetricBounds();
 
 	const calculatePacketLossPercent = (lost: number, total: number): number | null => {
 		if (total === 0) {
