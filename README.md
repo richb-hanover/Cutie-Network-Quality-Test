@@ -52,11 +52,9 @@ the values below:
   It computes the jitter from the differences between
   arrival times of subsequent messages.
 
-Note that Cutie measures the performance of the _entire_
-network.
-As noted above, traffic from other computers can affect
-the Cutie measurements.
-This displays the _actual_ performance of the entire network.
+Note that Cutie measures the performance of the _entire_ network.
+Traffic from other computers can affect
+the measurements in the charts.
 
 ## Demo site
 
@@ -65,9 +63,9 @@ You can try Cutie from the demo site at
 
 Notes:
 
-- The base ICMP ping time to that server is about 30 ms
+- The base ICMP ping time to that server is about 35 ms
   (it's a pretty slow VPS).
-  Consequently, Cutie's lowest latency tends to be a bit higher than 30 ms.
+  Consequently, Cutie's lowest latency tends to be a bit higher than 35 ms.
 - You could also install a Cutie server on a local computer
   to test your local network's abilities.
 
@@ -118,12 +116,18 @@ of "QT" for "Quality Test".
 A saving grace is that "Cutie" seems not to have collisions
 in a quick Google search for "cutie network test".
 
+_NB: I am aware of the
+[QT Graphics View Framework](https://qt.io)
+that shares the same acronym "QT".
+However, they pronounce it "cute"._
+
 ## Questions & Feedback
 
-This is version 0.2.6, and is early, alpha-quality code.
+This is version 0.2.24, and is beta-test quality code.
 Read the
 [Provenance - Vibe Engineering](./docs/Theory%20of%20Operation.md#provenance---vibe-engineering)
-information to see how this was derived.
+information to see how this was derived,
+as well as the `obra/superpowers` documents in _docs/plans_.
 
 I would be pleased to get feedback or bug reports on the
 [Issues](https://github.com/richb-hanover/Cutie-network-Quality-Test/issues)

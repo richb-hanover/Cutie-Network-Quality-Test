@@ -4,12 +4,13 @@
 
 ---
 
-## Version 0.2.23 - 2026-03-09
+## Version 0.2.24 - 2026-03-09
 
 - Adding Cmd/Ctl-S to save data; then reload by drag and drop
 - Or use Save / Reload Session buttons
 - Update README to show new screen shot with improved narrative
-- Bump version to 02.23
+- Add "Buy me a coffee" button to About box
+- Bump version to 0.2.24 (0.2.23 never published)
 
 ## Version 0.2.22 - 2026-03-08
 
