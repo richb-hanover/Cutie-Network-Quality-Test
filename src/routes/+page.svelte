@@ -12,7 +12,7 @@
 		loadSession
 	} from '$lib/webrtc';
 	import type { WebRtcState } from '$lib/webrtc';
-	import { decompressCutieFile } from '$lib/session-file';
+	import { decompressCutieFile, formatLocalDateTime } from '$lib/session-file';
 	import type { SessionBounds } from '$lib/session-file';
 	import { marked } from 'marked';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
@@ -98,8 +98,7 @@
 
 	function formatDateTime(ts: number | null): string {
 		if (ts === null) return '—';
-		const d = new Date(ts);
-		return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+		return formatLocalDateTime(ts);
 	}
 
 	function formatElapsed(value: number | null): string {

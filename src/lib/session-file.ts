@@ -18,6 +18,7 @@ export type SessionFileData = {
 	version: string;
 	sessionStartMs: number;
 	connectionId: string | null;
+	backendAddress: string | null;
 	durationMs: number;
 	latencyStats: LatencyStats;
 	bounds: SessionBounds;
@@ -41,6 +42,7 @@ export function formatCutieFile(data: SessionFileData): string {
 		`# cutie v${data.version}`,
 		`# session-start: ${new Date(data.sessionStartMs).toISOString()}`,
 		`# connection-id: ${data.connectionId ?? ''}`,
+		`# backend: ${data.backendAddress ?? ''}`,
 		`# duration-ms: ${data.durationMs}`,
 		`#`,
 		`# [latency-monitor]`,
@@ -131,6 +133,7 @@ export function parseCutieFile(content: string): SessionFileData {
 		version,
 		sessionStartMs: new Date(headers['session-start']).getTime(),
 		connectionId: headers['connection-id'] || null,
+		backendAddress: headers['backend'] || null,
 		durationMs: Number(headers['duration-ms'] ?? 0),
 		latencyStats: {
 			lastLatencyMs: parseN(headers['latency-ms'] ?? ''),
@@ -169,6 +172,19 @@ export function parseCutieFile(content: string): SessionFileData {
 		bytesSent: Number(headers['bytes-sent'] ?? 0),
 		probes
 	};
+}
+
+export function formatLocalDateTime(ms: number): string {
+	const d = new Date(ms);
+	const day = String(d.getDate()).padStart(2, '0');
+	const month = String(d.getMonth() + 1).padStart(2, '0');
+	const year = String(d.getFullYear()).slice(-2);
+	const hours = d.getHours();
+	const ampm = hours >= 12 ? 'PM' : 'AM';
+	const hh = String(hours % 12 || 12).padStart(2, '0');
+	const mm = String(d.getMinutes()).padStart(2, '0');
+	const ss = String(d.getSeconds()).padStart(2, '0');
+	return `${day}/${month}/${year}, ${hh}:${mm}:${ss} ${ampm}`;
 }
 
 export function cutieFilename(sessionStartMs: number): string {

@@ -20,6 +20,7 @@ import {
 	formatCutieFile,
 	downloadCutieFile,
 	parseCutieFile,
+	formatLocalDateTime,
 	type SessionBounds,
 	type SessionFileData
 } from '$lib/session-file';
@@ -166,6 +167,7 @@ export async function connectToServer(): Promise<void> {
 	webrtcState.update((current) => ({
 		...current,
 		isConnecting: true,
+		connectionId: null,
 		errorMessage: '',
 		collectionStatusMessage: null,
 		collectionStartAt: null,
@@ -404,7 +406,6 @@ export async function disconnect(
 	webrtcState.update((current) => ({
 		...current,
 		connection: null,
-		connectionId: null,
 		connectionState: 'disconnected',
 		iceConnectionState: 'new',
 		dataChannelState: 'closed',
@@ -465,10 +466,14 @@ export async function saveSession(bounds: SessionBounds, version: string): Promi
 		totalPacketLossPercent
 	);
 
+	const backendAddress =
+		typeof window !== 'undefined' && window.location.host ? window.location.host : null;
+
 	const data: SessionFileData = {
 		version,
 		sessionStartMs: state.collectionStartAt,
 		connectionId: state.connectionId,
+		backendAddress,
 		durationMs,
 		latencyStats: state.latencyStats,
 		bounds,
@@ -517,8 +522,9 @@ export async function loadSession(content: string): Promise<SessionFileData | nu
 	// Synthetic "Reloaded" message
 	const reloadedPayload = JSON.stringify({
 		type: 'Reloaded',
-		sessionStart: new Date(data.sessionStartMs).toISOString(),
+		sessionStart: formatLocalDateTime(data.sessionStartMs),
 		connectionId: data.connectionId,
+		backendAddress: data.backendAddress,
 		durationMs: data.durationMs
 	});
 
