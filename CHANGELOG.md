@@ -4,6 +4,13 @@
 
 ---
 
+## Version 0.2.23 - 2026-03-09
+
+- Adding Cmd/Ctl-S to save data; then reload by drag and drop
+- Or use Save / Reload Session buttons
+- Update README to show new screen shot with improved narrative
+- Bump version to 02.23
+
 ## Version 0.2.22 - 2026-03-08
 
 - Remove untested code designed to collect samples to produce test data set

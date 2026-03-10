@@ -9,8 +9,7 @@
 		sendMessage as sendWebrtcMessage,
 		webrtcState,
 		saveSession,
-		loadSession,
-		getRawProbes
+		loadSession
 	} from '$lib/webrtc';
 	import type { WebRtcState } from '$lib/webrtc';
 	import { decompressCutieFile } from '$lib/session-file';
@@ -151,8 +150,11 @@
 	$: isChartTestMode = page.url.searchParams.get('chartTest') === '1';
 
 	async function handleSave() {
-		if (!panelBounds) return;
+		if (!panelBounds || collectionStartAt === null) return;
 		await saveSession(panelBounds, buildVersion);
+		if (connection) {
+			await disconnect('manual');
+		}
 	}
 
 	async function handleLoad(file: File) {
@@ -221,7 +223,7 @@
 			if (textInputTags.has(tag)) return;
 			if ((e.metaKey || e.ctrlKey) && e.key === 's') {
 				e.preventDefault();
-				if (getRawProbes().length > 0) void handleSave();
+				if (collectionStartAt !== null) void handleSave();
 			}
 		};
 		window.addEventListener('keydown', handleCmdS);
@@ -369,8 +371,10 @@
 
 	<section class="panel">
 		<div class="save-reload-buttons">
-			<button on:click={handleSave} disabled={getRawProbes().length === 0}> Save Session </button>
-			<label class="reload-button">
+			<button class="session-btn" on:click={handleSave} disabled={collectionStartAt === null}
+				>Save Session</button
+			>
+			<label class="session-btn reload-button">
 				Reload Session
 				<input type="file" accept=".cutie" style="display:none" on:change={handleFileInput} />
 			</label>
@@ -639,16 +643,38 @@
 	.save-reload-buttons {
 		display: flex;
 		gap: 0.75rem;
-		align-items: center;
+		align-items: flex-end;
+	}
+
+	.session-btn {
+		background: #fff;
+		border: 1px solid #d1d5db;
+		border-radius: 0.5rem;
+		color: #374151;
+		cursor: pointer;
+		padding: 0.65rem 1.2rem;
+		font-size: 1rem;
+		font-weight: 500;
+		transition:
+			transform 0.1s ease,
+			box-shadow 0.1s ease,
+			opacity 0.2s ease;
+	}
+
+	.session-btn:hover:not(:disabled) {
+		transform: translateY(-1px);
+		box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+	}
+
+	.session-btn:disabled {
+		background: #f3f4f6;
+		color: #9ca3af;
+		cursor: not-allowed;
+		opacity: 0.7;
 	}
 
 	.reload-button {
-		display: inline-block;
-		padding: 0.4rem 0.9rem;
-		background: #fff;
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		font-size: inherit;
+		display: inline-flex;
+		align-items: center;
 	}
 </style>

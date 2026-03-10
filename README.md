@@ -1,26 +1,34 @@
 # Cutie - Network Quality Test
 
-The Cutie test measures the quality of the network
-by establishing a WebRTC connection to its backend server
-and sending short messages containing
-a sequence number and timestamp.
-The backend immediately echoes those messages, so the GUI can measure
-latency, jitter, and packet loss to
-produce charts of the performance of the network.
-See the screen shot below:
+Cutie makes a Quality Test of the network path from your browser through your ISP to the Cutie server, and back. It continually tests **Network Quality** (MOS - a measure of the quality of a voice or video call), **Packet Loss**, and **Latency/Jitter**.
 
-<img src="./docs/images/Cutie-screenshot.png" width="80%">
+Any problem with these measurements can impair the
+network connection - the graphs show when performance is bad.
+Cutie hardly uses any resources -
+a little less than two kilobytes per second.
+Here's a screenshot with description below:
 
-As shown in the screen shots,
-the user instructions are straightforward:
+<img src="./docs/images/Cutie-with-impairments.png" width="90%">
 
-> Open this page before beginning a call or videoconference
-> and let it run in the background.
-> Cutie detects intervals of high packet loss, latency and jitter
-> that impair the quality and stability of the network.
-> The test runs for at most two hours,
-> and consumes a bit of bandwidth,
-> under two kilobytes per second.
+_The charts above were created using a cell phone hotspot:
+its relatively low speed link magnifies any impairments.
+Here are the highlights._
+
+- _The first few minutes (up to 10:37) show no-load conditions:
+  no packet loss and stable latency of about 90msec.
+  This leads to excellent Network Quality._
+- _Around 10:39, begin a lively video on another computer.
+  Note the brief packet loss
+  (likely caused when starting the Youtube video)
+  leads to dips in Network Quality.
+  The latency and jitter remained fairly stable._
+- _Around 10:42, run a speed test on that other computer.
+  Notice that latency jumps up very high (over 250msec)
+  for the duration of the speed test
+  with a couple brief instances of packet loss.
+  These cause the MOS Quality to plummet during the test._
+
+## How it works
 
 Cutie's WebRTC connection sends 10 probes per second,
 (every 100 ms) to produce fine-grained measurements.
@@ -32,8 +40,8 @@ the values below:
   is an industry standard that expresses the quality of a voice call
   (and by extension, of a videoconference call).
   The MOS calculation produces values between
-  4.5 (excellent) and 1.0 (bad)
-  from the packet loss, latency, and jitter measurements.
+  4.5 (excellent) and 1.0 (bad) and is computed using
+  the packet loss, latency, and jitter measurements.
 
 - **Packet Loss (%)** Cutie determines packet loss by detecting
   missing sequence numbers from the stream of echoed messages.
@@ -43,6 +51,12 @@ the values below:
   to determine the latency for each message.
   It computes the jitter from the differences between
   arrival times of subsequent messages.
+
+Note that Cutie measures the performance of the _entire_
+network.
+As noted above, traffic from other computers can affect
+the Cutie measurements.
+This displays the _actual_ performance of the entire network.
 
 ## Demo site
 
@@ -81,18 +95,13 @@ To start a **production server**, read the
 [CHECKLIST](./docs/CHECKLIST.md) for details.
 
 As noted in the [Theory of Operation](./docs/Theory%20of%20Operation.md),
-this was developed in VSCode with the Codex LLM plugin.
+this was initially developed in VSCode with the Codex LLM plugin.
+Subsequent versions were developed using `obra/superpowers`
+in the Warp terminal emulator.
 
 ## Known bugs
 
-- Sometimes, Cutie fails to connect to the backend.
-  Refreshing the page typically solves the problem.
-  Please let me know in the Issues if this problem bites you.
-- Cutie currently relies on being able to create a WebRTC
-  connection between the GUI and the backend.
-  It seems to work with single NAT.
-  Multiple NATs will require a TURN server.
-- I envision bundling `coturn` in a Docker container
+- I envision bundling `coturn` into a Docker container
   at some point to create a turnkey server
   along with netperf, iperf, iperf3, Crusader server, etc.
   This container could run on something small

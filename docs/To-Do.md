@@ -4,7 +4,8 @@ Ideas that have occurred to me. Some might be good ones...
 
 ## Features
 
-- Email/save results of a test before restarting/reloading
+- Force all figures (all ms readings?) in the LatencyMonitor panel
+  to be at least xxx.xx wide without change.
 - Change client to detect changes & stop test when
   laptop lid closes; etc.
 - Change server code to observe navigator.sendBeacon()
@@ -12,7 +13,7 @@ Ideas that have occurred to me. Some might be good ones...
 - Aggregate the traffic volume of latency probes
   received & sent plus a measure of traffic rate
   and add to `/api/stats`
-- Figure out how to discourage frequent flyers/abusers
+- Figure out how to better discourage frequent flyers/abusers
 - See **Testing Ideas** below
 
 ## Hosting
@@ -142,3 +143,10 @@ solves it.)_
 - Clicking Start should clear all accumulated stats
 - Change Long-term Stats to show Start time as dd/mm/yyyy hh:mm:ss
   and Elapsed Time / End Time Time as ?m ?s / dd/mm/yyyy hh:mm:ss
+- Catch Ctl/Cmd-S and save the current readings in local file - xxx.cutie
+  - Do not stop the data collection
+  - This becomes the source data for a test data set
+- WebGUI should become a drag target for a saved cutie readings file;
+  - Display the values from the file
+  - Do not connect to the Cutie backend
+- ~~Email/save results of a test before restarting/reloading~~

@@ -32,6 +32,7 @@ const makeSampleData = (): SessionFileData => ({
 		packetLossPercent: 0.07
 	},
 	tenSecondMos: 4.1,
+	mosInstant: 4.2,
 	bytesSent: 1048576,
 	probes: [
 		{ seq: 0, sentAt: 1741234500100, receivedAt: 1741234500142 },
@@ -51,8 +52,23 @@ describe('session-file', () => {
 		expect(parsed.connectionId).toBe(original.connectionId);
 		expect(parsed.durationMs).toBe(original.durationMs);
 		expect(parsed.latencyStats.lastLatencyMs).toBeCloseTo(original.latencyStats.lastLatencyMs!, 2);
+		expect(parsed.latencyStats.jitterMs).toBeCloseTo(original.latencyStats.jitterMs!, 2);
 		expect(parsed.latencyStats.totalSent).toBe(original.latencyStats.totalSent);
 		expect(parsed.latencyStats.totalLost).toBe(original.latencyStats.totalLost);
+		expect(parsed.tenSecondAverages.averageLatencyMs).toBeCloseTo(
+			original.tenSecondAverages.averageLatencyMs!,
+			2
+		);
+		expect(parsed.tenSecondAverages.averageJitterMs).toBeCloseTo(
+			original.tenSecondAverages.averageJitterMs!,
+			2
+		);
+		expect(parsed.tenSecondAverages.packetLossPercent).toBeCloseTo(
+			original.tenSecondAverages.packetLossPercent!,
+			2
+		);
+		expect(parsed.tenSecondMos).toBeCloseTo(original.tenSecondMos!, 2);
+		expect(parsed.mosInstant).toBeCloseTo(original.mosInstant!, 2);
 		expect(parsed.bounds.latencyMs.min).toBeCloseTo(original.bounds.latencyMs.min!, 2);
 		expect(parsed.bounds.mos.max).toBeCloseTo(original.bounds.mos.max!, 2);
 		expect(parsed.bytesSent).toBe(original.bytesSent);
@@ -61,9 +77,12 @@ describe('session-file', () => {
 		expect(parsed.probes[2]).toEqual({ seq: 2, sentAt: 1741234500300, receivedAt: null });
 	});
 
-	it('formatted content has correct header and CSV marker', () => {
+	it('formatted content has section headers and ISO date', () => {
 		const content = formatCutieFile(makeSampleData());
 		expect(content).toContain('# cutie v0.2.21');
+		expect(content).toContain('# session-start: ');
+		expect(content).toContain('# [latency-monitor]');
+		expect(content).toContain('# [long-term-stats]');
 		expect(content).toContain('seq,sentAt,receivedAt');
 	});
 

@@ -7,6 +7,7 @@ import {
 import { createServerConnection, type ServerConnection } from '$lib/rtc-client';
 import { startStatsReporter, type StatsSummary } from '$lib/rtc-stats';
 import {
+	calculateMosScore,
 	ingestLatencySamples,
 	resetMosData,
 	updateMosLatencyStats,
@@ -454,6 +455,15 @@ export async function saveSession(bounds: SessionBounds, version: string): Promi
 	if (!state.collectionStartAt) return;
 
 	const durationMs = (state.collectionEndAt ?? Date.now()) - state.collectionStartAt;
+	const totalPacketLossPercent =
+		state.latencyStats.totalSent > 0
+			? (state.latencyStats.totalLost / state.latencyStats.totalSent) * 100
+			: null;
+	const mosInstant = calculateMosScore(
+		state.latencyStats.lastLatencyMs,
+		state.latencyStats.jitterMs,
+		totalPacketLossPercent
+	);
 
 	const data: SessionFileData = {
 		version,
@@ -464,6 +474,7 @@ export async function saveSession(bounds: SessionBounds, version: string): Promi
 		bounds,
 		tenSecondAverages: getStore(tenSecondAverages),
 		tenSecondMos: getStore(tenSecondMos),
+		mosInstant,
 		bytesSent: state.statsSummary?.bytesSent ?? 0,
 		probes: rawProbes
 	};

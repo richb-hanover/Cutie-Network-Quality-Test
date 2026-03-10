@@ -15,6 +15,7 @@
 ### Task 1: Add `sentAt` to `LatencySample` and populate it
 
 **Files:**
+
 - Modify: `src/lib/latency-probe.ts`
 
 The `LatencySample` type needs a `sentAt` field so the raw probe accumulator (Task 2) can capture the exact send timestamp for every probe — including lost ones.
@@ -139,6 +140,7 @@ git commit -m "feat: add sentAt field to LatencySample"
 ### Task 2: Add raw probe accumulator and epoch offset to `webrtc.ts`
 
 **Files:**
+
 - Modify: `src/lib/webrtc.ts`
 
 During a live session, accumulate every probe's raw `{seq, sentAt, receivedAt}` in Unix ms. This is what gets written to the `.cutie` file. Also record the epoch offset so performance.now() values can be converted to Unix timestamps.
@@ -223,6 +225,7 @@ git commit -m "feat: accumulate raw probes and epoch offset in webrtc"
 ### Task 3: Create `src/lib/session-file.ts` with format and parse logic
 
 **Files:**
+
 - Create: `src/lib/session-file.ts`
 - Create: `tests/session-file.test.ts`
 
@@ -320,7 +323,7 @@ import type { RecentAverages } from '$lib/stores/mosStore';
 
 export type RawProbe = {
 	seq: number;
-	sentAt: number;   // Unix ms
+	sentAt: number; // Unix ms
 	receivedAt: number | null; // Unix ms, null = lost
 };
 
@@ -333,7 +336,7 @@ export type SessionBounds = {
 
 export type SessionFileData = {
 	version: string;
-	sessionStartMs: number;    // Unix ms
+	sessionStartMs: number; // Unix ms
 	connectionId: string | null;
 	durationMs: number;
 	latencyStats: LatencyStats;
@@ -442,10 +445,22 @@ export function parseCutieFile(content: string): SessionFileData {
 			history: []
 		},
 		bounds: {
-			latencyMs: { min: parseN(headers['bounds-latency-min'] ?? ''), max: parseN(headers['bounds-latency-max'] ?? '') },
-			jitterMs: { min: parseN(headers['bounds-jitter-min'] ?? ''), max: parseN(headers['bounds-jitter-max'] ?? '') },
-			packetLossPercent: { min: parseN(headers['bounds-loss-min'] ?? ''), max: parseN(headers['bounds-loss-max'] ?? '') },
-			mos: { min: parseN(headers['bounds-mos-min'] ?? ''), max: parseN(headers['bounds-mos-max'] ?? '') }
+			latencyMs: {
+				min: parseN(headers['bounds-latency-min'] ?? ''),
+				max: parseN(headers['bounds-latency-max'] ?? '')
+			},
+			jitterMs: {
+				min: parseN(headers['bounds-jitter-min'] ?? ''),
+				max: parseN(headers['bounds-jitter-max'] ?? '')
+			},
+			packetLossPercent: {
+				min: parseN(headers['bounds-loss-min'] ?? ''),
+				max: parseN(headers['bounds-loss-max'] ?? '')
+			},
+			mos: {
+				min: parseN(headers['bounds-mos-min'] ?? ''),
+				max: parseN(headers['bounds-mos-max'] ?? '')
+			}
 		},
 		tenSecondAverages: {
 			averageLatencyMs: parseN(headers['ten-second-latency-ms'] ?? ''),
@@ -480,9 +495,7 @@ export async function downloadCutieFile(content: string, sessionStartMs: number)
 }
 
 export async function decompressCutieFile(file: File): Promise<string> {
-	return new Response(
-		file.stream().pipeThrough(new DecompressionStream('gzip'))
-	).text();
+	return new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text();
 }
 ```
 
@@ -514,6 +527,7 @@ git commit -m "feat: add session-file format/parse/download functions"
 ### Task 4: Add replay functions to `mosStore.ts`
 
 **Files:**
+
 - Modify: `src/lib/stores/mosStore.ts`
 
 On reload, charts need to be populated from raw probe data. `loadSessionSummaries()` converts probes → 10-second buckets → `summaryHistoryStore`. `loadRecentAverages()` sets the 10s-avg display values directly.
@@ -607,6 +621,7 @@ git commit -m "feat: add loadRecentAverages and loadSessionSummaries to mosStore
 ### Task 5: Export `bounds` from `LatencyMonitorPanel.svelte`
 
 **Files:**
+
 - Modify: `src/lib/components/LatencyMonitorPanel.svelte`
 
 `+page.svelte` needs to read the current `bounds` (for saving) and write initial bounds (for reloading). Making `bounds` an exported `let` enables two-way binding via `bind:bounds`.
@@ -645,6 +660,7 @@ git commit -m "feat: export bounds from LatencyMonitorPanel for save/load"
 ### Task 6: Implement `saveSession()` in `webrtc.ts`
 
 **Files:**
+
 - Modify: `src/lib/webrtc.ts`
 
 **Step 1: Add imports at the top of `webrtc.ts`**
@@ -725,6 +741,7 @@ git commit -m "feat: add saveSession() to webrtc"
 ### Task 7: Implement `loadSession()` in `webrtc.ts`
 
 **Files:**
+
 - Modify: `src/lib/webrtc.ts`
 
 **Step 1: Add additional imports**
@@ -821,6 +838,7 @@ git commit -m "feat: add loadSession() to webrtc"
 ### Task 8: Wire up Save/Reload UI in `+page.svelte`
 
 **Files:**
+
 - Modify: `src/routes/+page.svelte`
 
 **Step 1: Add imports**
@@ -917,17 +935,10 @@ After the closing `</section>` of the Message Log (around line 318), add:
 ```svelte
 <section class="panel save-reload">
 	<div class="save-reload-buttons">
-		<button on:click={handleSave} disabled={getRawProbes().length === 0}>
-			Save Session
-		</button>
+		<button on:click={handleSave} disabled={getRawProbes().length === 0}> Save Session </button>
 		<label class="reload-button">
 			Reload Session
-			<input
-				type="file"
-				accept=".cutie"
-				style="display:none"
-				on:change={handleFileInput}
-			/>
+			<input type="file" accept=".cutie" style="display:none" on:change={handleFileInput} />
 		</label>
 	</div>
 </section>

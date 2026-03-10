@@ -23,6 +23,7 @@ export type SessionFileData = {
 	bounds: SessionBounds;
 	tenSecondAverages: RecentAverages;
 	tenSecondMos: number | null;
+	mosInstant: number | null;
 	bytesSent: number;
 	probes: RawProbe[];
 };
@@ -31,30 +32,27 @@ const n = (v: number | null): string => (v === null ? '' : String(v));
 const parseN = (s: string): number | null => (s === '' || s === 'null' ? null : Number(s));
 
 export function formatCutieFile(data: SessionFileData): string {
+	const totalLossPct =
+		data.latencyStats.totalSent > 0
+			? (data.latencyStats.totalLost / data.latencyStats.totalSent) * 100
+			: null;
+
 	const lines: string[] = [
 		`# cutie v${data.version}`,
-		`# session-start-ms=${data.sessionStartMs}`,
-		`# connection-id=${data.connectionId ?? ''}`,
-		`# duration-ms=${data.durationMs}`,
-		`# last-latency-ms=${n(data.latencyStats.lastLatencyMs)}`,
-		`# average-latency-ms=${n(data.latencyStats.averageLatencyMs)}`,
-		`# jitter-ms=${n(data.latencyStats.jitterMs)}`,
-		`# total-sent=${data.latencyStats.totalSent}`,
-		`# total-received=${data.latencyStats.totalReceived}`,
-		`# total-lost=${data.latencyStats.totalLost}`,
-		`# bounds-latency-min=${n(data.bounds.latencyMs.min)}`,
-		`# bounds-latency-max=${n(data.bounds.latencyMs.max)}`,
-		`# bounds-jitter-min=${n(data.bounds.jitterMs.min)}`,
-		`# bounds-jitter-max=${n(data.bounds.jitterMs.max)}`,
-		`# bounds-loss-min=${n(data.bounds.packetLossPercent.min)}`,
-		`# bounds-loss-max=${n(data.bounds.packetLossPercent.max)}`,
-		`# bounds-mos-min=${n(data.bounds.mos.min)}`,
-		`# bounds-mos-max=${n(data.bounds.mos.max)}`,
-		`# ten-second-latency-ms=${n(data.tenSecondAverages.averageLatencyMs)}`,
-		`# ten-second-jitter-ms=${n(data.tenSecondAverages.averageJitterMs)}`,
-		`# ten-second-loss=${n(data.tenSecondAverages.packetLossPercent)}`,
-		`# ten-second-mos=${n(data.tenSecondMos)}`,
-		`# bytes-sent=${data.bytesSent}`,
+		`# session-start: ${new Date(data.sessionStartMs).toISOString()}`,
+		`# connection-id: ${data.connectionId ?? ''}`,
+		`# duration-ms: ${data.durationMs}`,
+		`#`,
+		`# [latency-monitor]`,
+		`# mos-instant=${n(data.mosInstant)},mos-10s=${n(data.tenSecondMos)},mos-min=${n(data.bounds.mos.min)},mos-max=${n(data.bounds.mos.max)}`,
+		`# latency-ms=${n(data.latencyStats.lastLatencyMs)},latency-10s=${n(data.tenSecondAverages.averageLatencyMs)},latency-min=${n(data.bounds.latencyMs.min)},latency-max=${n(data.bounds.latencyMs.max)}`,
+		`# jitter-ms=${n(data.latencyStats.jitterMs)},jitter-10s=${n(data.tenSecondAverages.averageJitterMs)},jitter-min=${n(data.bounds.jitterMs.min)},jitter-max=${n(data.bounds.jitterMs.max)}`,
+		`# packet-loss=${n(totalLossPct)},loss-10s=${n(data.tenSecondAverages.packetLossPercent)},loss-min=${n(data.bounds.packetLossPercent.min)},loss-max=${n(data.bounds.packetLossPercent.max)}`,
+		`#`,
+		`# [long-term-stats]`,
+		`# total-sent=${data.latencyStats.totalSent},total-received=${data.latencyStats.totalReceived},total-lost=${data.latencyStats.totalLost}`,
+		`# bytes-sent=${data.bytesSent},elapsed-ms=${data.durationMs}`,
+		`#`,
 		`seq,sentAt,receivedAt`
 	];
 
@@ -83,17 +81,33 @@ export function parseCutieFile(content: string): SessionFileData {
 
 		if (trimmed.startsWith('#')) {
 			const body = trimmed.slice(1).trim();
+			if (!body) continue;
 
-			// Version line: "# cutie v0.2.21" (no = sign)
+			// Section headers: [latency-monitor], [long-term-stats]
+			if (body.startsWith('[') && body.endsWith(']')) continue;
+
+			// Version line: "cutie v0.2.21"
 			const versionMatch = body.match(/^cutie v(.+)$/);
 			if (versionMatch) {
 				version = versionMatch[1];
 				continue;
 			}
 
-			const eq = body.indexOf('=');
-			if (eq !== -1) {
-				headers[body.slice(0, eq).trim()] = body.slice(eq + 1).trim();
+			// "key: value" format (new top-level fields)
+			const colonIdx = body.indexOf(': ');
+			if (colonIdx !== -1) {
+				headers[body.slice(0, colonIdx).trim()] = body.slice(colonIdx + 2).trim();
+				continue;
+			}
+
+			// "key=v1,key=v2,..." format (section data — may be comma-separated pairs)
+			if (body.includes('=')) {
+				for (const pair of body.split(',')) {
+					const eq = pair.indexOf('=');
+					if (eq !== -1) {
+						headers[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
+					}
+				}
 			}
 			continue;
 		}
@@ -109,18 +123,18 @@ export function parseCutieFile(content: string): SessionFileData {
 		}
 	}
 
-	if (!headers['session-start-ms']) {
-		throw new Error('Invalid .cutie file: missing session-start-ms');
+	if (!headers['session-start']) {
+		throw new Error('Invalid .cutie file: missing session-start');
 	}
 
 	return {
 		version,
-		sessionStartMs: Number(headers['session-start-ms']),
+		sessionStartMs: new Date(headers['session-start']).getTime(),
 		connectionId: headers['connection-id'] || null,
 		durationMs: Number(headers['duration-ms'] ?? 0),
 		latencyStats: {
-			lastLatencyMs: parseN(headers['last-latency-ms'] ?? ''),
-			averageLatencyMs: parseN(headers['average-latency-ms'] ?? ''),
+			lastLatencyMs: parseN(headers['latency-ms'] ?? ''),
+			averageLatencyMs: null,
 			jitterMs: parseN(headers['jitter-ms'] ?? ''),
 			totalSent: Number(headers['total-sent'] ?? 0),
 			totalReceived: Number(headers['total-received'] ?? 0),
@@ -129,28 +143,29 @@ export function parseCutieFile(content: string): SessionFileData {
 		},
 		bounds: {
 			latencyMs: {
-				min: parseN(headers['bounds-latency-min'] ?? ''),
-				max: parseN(headers['bounds-latency-max'] ?? '')
+				min: parseN(headers['latency-min'] ?? ''),
+				max: parseN(headers['latency-max'] ?? '')
 			},
 			jitterMs: {
-				min: parseN(headers['bounds-jitter-min'] ?? ''),
-				max: parseN(headers['bounds-jitter-max'] ?? '')
+				min: parseN(headers['jitter-min'] ?? ''),
+				max: parseN(headers['jitter-max'] ?? '')
 			},
 			packetLossPercent: {
-				min: parseN(headers['bounds-loss-min'] ?? ''),
-				max: parseN(headers['bounds-loss-max'] ?? '')
+				min: parseN(headers['loss-min'] ?? ''),
+				max: parseN(headers['loss-max'] ?? '')
 			},
 			mos: {
-				min: parseN(headers['bounds-mos-min'] ?? ''),
-				max: parseN(headers['bounds-mos-max'] ?? '')
+				min: parseN(headers['mos-min'] ?? ''),
+				max: parseN(headers['mos-max'] ?? '')
 			}
 		},
 		tenSecondAverages: {
-			averageLatencyMs: parseN(headers['ten-second-latency-ms'] ?? ''),
-			averageJitterMs: parseN(headers['ten-second-jitter-ms'] ?? ''),
-			packetLossPercent: parseN(headers['ten-second-loss'] ?? '')
+			averageLatencyMs: parseN(headers['latency-10s'] ?? ''),
+			averageJitterMs: parseN(headers['jitter-10s'] ?? ''),
+			packetLossPercent: parseN(headers['loss-10s'] ?? '')
 		},
-		tenSecondMos: parseN(headers['ten-second-mos'] ?? ''),
+		tenSecondMos: parseN(headers['mos-10s'] ?? ''),
+		mosInstant: parseN(headers['mos-instant'] ?? ''),
 		bytesSent: Number(headers['bytes-sent'] ?? 0),
 		probes
 	};
