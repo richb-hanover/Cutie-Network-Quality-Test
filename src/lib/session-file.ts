@@ -19,6 +19,7 @@ export type SessionFileData = {
 	sessionStartMs: number;
 	connectionId: string | null;
 	backendAddress: string | null;
+	guiComputer: string | null;
 	durationMs: number;
 	latencyStats: LatencyStats;
 	bounds: SessionBounds;
@@ -43,6 +44,8 @@ export function formatCutieFile(data: SessionFileData): string {
 		`# session-start: ${new Date(data.sessionStartMs).toISOString()}`,
 		`# connection-id: ${data.connectionId ?? ''}`,
 		`# backend: ${data.backendAddress ?? ''}`,
+		`# gui-computer: ${data.guiComputer ?? ''}`,
+		`# rawProbes: ${data.probes.length}`,
 		`# duration-ms: ${data.durationMs}`,
 		`#`,
 		`# [latency-monitor]`,
@@ -134,6 +137,7 @@ export function parseCutieFile(content: string): SessionFileData {
 		sessionStartMs: new Date(headers['session-start']).getTime(),
 		connectionId: headers['connection-id'] || null,
 		backendAddress: headers['backend'] || null,
+		guiComputer: headers['gui-computer'] || null,
 		durationMs: Number(headers['duration-ms'] ?? 0),
 		latencyStats: {
 			lastLatencyMs: parseN(headers['latency-ms'] ?? ''),

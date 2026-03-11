@@ -11,6 +11,7 @@ const makeSampleData = (): SessionFileData => ({
 	sessionStartMs: 1741234500000,
 	connectionId: 'test-conn-123',
 	backendAddress: 'localhost:5173',
+	guiComputer: 'MacBook Pro - macOS 15.3',
 	durationMs: 300000,
 	latencyStats: {
 		lastLatencyMs: 28.3,
@@ -52,6 +53,7 @@ describe('session-file', () => {
 		expect(parsed.sessionStartMs).toBe(original.sessionStartMs);
 		expect(parsed.connectionId).toBe(original.connectionId);
 		expect(parsed.backendAddress).toBe(original.backendAddress);
+		expect(parsed.guiComputer).toBe(original.guiComputer);
 		expect(parsed.durationMs).toBe(original.durationMs);
 		expect(parsed.latencyStats.lastLatencyMs).toBeCloseTo(original.latencyStats.lastLatencyMs!, 2);
 		expect(parsed.latencyStats.jitterMs).toBeCloseTo(original.latencyStats.jitterMs!, 2);

@@ -451,6 +451,11 @@ export function getEpochOffsetMs(): number {
 	return epochOffsetMs;
 }
 
+function getClientInfo(): string | null {
+	if (typeof navigator === 'undefined') return null;
+	return navigator.userAgent || null;
+}
+
 export async function saveSession(bounds: SessionBounds, version: string): Promise<void> {
 	const state = get(webrtcState);
 	if (!state.collectionStartAt) return;
@@ -468,12 +473,14 @@ export async function saveSession(bounds: SessionBounds, version: string): Promi
 
 	const backendAddress =
 		typeof window !== 'undefined' && window.location.host ? window.location.host : null;
+	const guiComputer = getClientInfo();
 
 	const data: SessionFileData = {
 		version,
 		sessionStartMs: state.collectionStartAt,
 		connectionId: state.connectionId,
 		backendAddress,
+		guiComputer,
 		durationMs,
 		latencyStats: state.latencyStats,
 		bounds,
