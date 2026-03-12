@@ -4,6 +4,8 @@ Ideas that have occurred to me. Some might be good ones...
 
 ## Features
 
+- Make all dates in the format yyyy-mm-dd
+- Move Save/Reload buttons inside the Message Log panel
 - Force all figures (all ms readings?) in the LatencyMonitor panel
   to be at least xxx.xx wide without change.
 - Change client to detect changes & stop test when
