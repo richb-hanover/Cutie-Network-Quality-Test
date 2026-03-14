@@ -547,7 +547,7 @@ export async function loadSession(content: string): Promise<SessionFileData | nu
 				id: ++messageId,
 				direction: 'in',
 				payload: reloadedPayload,
-				at: new Date(data.sessionStartMs).toLocaleTimeString()
+				at: formatLocalDateTime(data.sessionStartMs)
 			}
 		]
 	}));

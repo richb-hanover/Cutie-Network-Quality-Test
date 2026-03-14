@@ -7,6 +7,7 @@ import {
 	finalizeConnection,
 	type ManagedConnection
 } from '$lib/server/webrtcRegistry';
+import { formatLocalDateTime } from '$lib/session-file';
 import { getLogger } from '../../../lib/logger';
 const logger = getLogger('server');
 
@@ -154,7 +155,7 @@ function registerConnection(pc: RTCPeerConnection): string {
 			const managed = connections.get(id); // get BEFORE finalizeConnection removes it
 			if (managed) {
 				const openDurationMs = managed.openedAt ? Date.now() - managed.openedAt.getTime() : null;
-				const lastMessageAt = managed.lastMessageAt?.toISOString() ?? 'never';
+				const lastMessageAt = managed.lastMessageAt ? formatLocalDateTime(managed.lastMessageAt.getTime()) : 'never';
 				if (managed.deleteReceived) {
 					logger.info(
 						`[server] Connection ${id} closed cleanly (DELETE received). ` +
@@ -360,7 +361,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const msg = {
 				type: 'welcome',
 				message: `RTC channel established with server - Connection ID: ${connectionId ?? 'pending'}`,
-				at: new Date().toLocaleString()
+				at: formatLocalDateTime(Date.now())
 			};
 			channel.send(JSON.stringify(msg));
 		};
