@@ -94,6 +94,34 @@ export function computeSummaries(probes: RawProbe[]): Summary[] {
 	return summaries;
 }
 
+const fmt = (v: number | null): string => (v === null ? '' : v.toFixed(2));
+
+export function buildCsvLines(
+	headerLines: string[],
+	probeLines: ProbeLine[],
+	summaries: Summary[]
+): string[] {
+	const summaryByIndex = new Map<number, Summary>(summaries.map((s) => [s.probeIndex, s]));
+
+	const lines: string[] = [
+		...headerLines,
+		'seq,sentAt,receivedAt,time,mos,packet_loss_pct,avg_latency_ms,avg_jitter_ms',
+	];
+
+	for (let i = 0; i < probeLines.length; i++) {
+		const s = summaryByIndex.get(i);
+		if (s) {
+			lines.push(
+				`${probeLines[i].raw},${s.time},${fmt(s.mos)},${fmt(s.packetLossPercent)},${fmt(s.avgLatencyMs)},${fmt(s.avgJitterMs)}`
+			);
+		} else {
+			lines.push(probeLines[i].raw);
+		}
+	}
+
+	return lines;
+}
+
 export function parseCutieLines(content: string): ParsedCutie {
 	const headerLines: string[] = [];
 	const probeLines: ProbeLine[] = [];

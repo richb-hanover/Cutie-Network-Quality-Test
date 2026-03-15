@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { formatTime } from '../analyze-cutie';
 import { parseCutieLines, type ProbeLine } from '../analyze-cutie';
 import { computeSummaries, type Summary } from '../analyze-cutie';
+import { buildCsvLines } from '../analyze-cutie';
 import type { RawProbe } from '../src/lib/session-file';
 
 describe('formatTime', () => {
@@ -98,5 +99,55 @@ describe('computeSummaries', () => {
 
 	it('returns empty array for empty probe list', () => {
 		expect(computeSummaries([])).toEqual([]);
+	});
+});
+
+describe('buildCsvLines', () => {
+	it('emits headers, column header, probe lines, with summaries appended at correct index', () => {
+		const headerLines = ['# cutie v0.2.25'];
+		const probeLines: ProbeLine[] = [
+			{ raw: '0,0,10',    probe: { seq: 0, sentAt: 0,   receivedAt: 10 } },
+			{ raw: '1,100,110', probe: { seq: 1, sentAt: 100, receivedAt: 110 } },
+		];
+		const summaries: Summary[] = [
+			{
+				probeIndex: 1,
+				tTick: 10000,
+				time: '20:39:11',
+				mos: 4.4,
+				packetLossPercent: 0,
+				avgLatencyMs: 10,
+				avgJitterMs: 0,
+			},
+		];
+
+		const lines = buildCsvLines(headerLines, probeLines, summaries);
+
+		expect(lines[0]).toBe('# cutie v0.2.25');
+		expect(lines[1]).toBe('seq,sentAt,receivedAt,time,mos,packet_loss_pct,avg_latency_ms,avg_jitter_ms');
+		expect(lines[2]).toBe('0,0,10');
+		expect(lines[3]).toBe('1,100,110,20:39:11,4.40,0.00,10.00,0.00');
+	});
+
+	it('outputs empty string for null summary values', () => {
+		const headerLines: string[] = [];
+		const probeLines: ProbeLine[] = [
+			{ raw: '0,0,', probe: { seq: 0, sentAt: 0, receivedAt: null } },
+		];
+		const summaries: Summary[] = [
+			{
+				probeIndex: 0,
+				tTick: 10000,
+				time: '20:39:11',
+				mos: null,
+				packetLossPercent: 100,
+				avgLatencyMs: null,
+				avgJitterMs: null,
+			},
+		];
+
+		const lines = buildCsvLines(headerLines, probeLines, summaries);
+		// lines[0] = column header, lines[1] = probe line with summary appended
+		expect(lines[1]).toBe('0,0,,20:39:11,,100.00,,');
 	});
 });
