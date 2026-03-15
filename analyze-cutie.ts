@@ -157,3 +157,30 @@ export function parseCutieLines(content: string): ParsedCutie {
 
 	return { headerLines, probeLines };
 }
+
+function main(): void {
+	const inputPath = process.argv[2];
+	if (!inputPath) {
+		console.error('Usage: analyze-cutie <file.cutie>');
+		process.exit(1);
+	}
+
+	const absInput = resolve(inputPath);
+	const compressed = readFileSync(absInput);
+	const content = gunzipSync(compressed).toString('utf8');
+
+	const { headerLines, probeLines } = parseCutieLines(content);
+	const probes = probeLines.map((pl) => pl.probe);
+	const summaries = computeSummaries(probes);
+	const lines = buildCsvLines(headerLines, probeLines, summaries);
+
+	const outputPath = absInput.replace(/\.cutie$/, '.csv');
+	writeFileSync(outputPath, lines.join('\n') + '\n');
+	console.log(`Written to ${outputPath}`);
+}
+
+// Only run when executed directly (not when imported by tests)
+import { fileURLToPath } from 'url';
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+	main();
+}
