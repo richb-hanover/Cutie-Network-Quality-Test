@@ -98,6 +98,6 @@ describe('session-file', () => {
 		// Use a fixed UTC timestamp: 2026-03-09T08:30:00Z
 		// Local time depends on timezone, so just check shape
 		const name = cutieFilename(1741513800000);
-		expect(name).toMatch(/^Cutie_Results-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.cutie$/);
+		expect(name).toMatch(/^Cutie_Results-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.cutie$/);
 	});
 });

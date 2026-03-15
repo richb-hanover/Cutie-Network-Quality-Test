@@ -41,7 +41,7 @@ export function formatCutieFile(data: SessionFileData): string {
 
 	const lines: string[] = [
 		`# cutie v${data.version}`,
-		`# session-start: ${new Date(data.sessionStartMs).toISOString()}`,
+		`# session-start: ${formatLocalDateTime(data.sessionStartMs)}`,
 		`# connection-id: ${data.connectionId ?? ''}`,
 		`# backend: ${data.backendAddress ?? ''}`,
 		`# gui-computer: ${data.guiComputer ?? ''}`,
@@ -180,22 +180,16 @@ export function parseCutieFile(content: string): SessionFileData {
 
 export function formatLocalDateTime(ms: number): string {
 	const d = new Date(ms);
-	const day = String(d.getDate()).padStart(2, '0');
-	const month = String(d.getMonth() + 1).padStart(2, '0');
-	const year = String(d.getFullYear()).slice(-2);
-	const hours = d.getHours();
-	const ampm = hours >= 12 ? 'PM' : 'AM';
-	const hh = String(hours % 12 || 12).padStart(2, '0');
-	const mm = String(d.getMinutes()).padStart(2, '0');
-	const ss = String(d.getSeconds()).padStart(2, '0');
-	return `${day}/${month}/${year}, ${hh}:${mm}:${ss} ${ampm}`;
+	const pad = (x: number) => String(x).padStart(2, '0');
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 export function cutieFilename(sessionStartMs: number): string {
 	const d = new Date(sessionStartMs);
 	const pad = (x: number) => String(x).padStart(2, '0');
-	const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
-	return `Cutie_Results-${ts}.cutie`;
+	const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+	const time = `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+	return `Cutie_Results-${date}_${time}.cutie`;
 }
 
 export async function downloadCutieFile(content: string, sessionStartMs: number): Promise<void> {

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { serverStartTime, webrtcConnections, numberVisitors } from '$lib/server/runtimeState';
 import { connections, oldConnections } from '$lib/server/webrtcRegistry';
+import { formatLocalDateTime } from '$lib/session-file';
 
 function formatDuration(milliseconds: number): string {
 	const totalSeconds = Math.floor(milliseconds / 1000);
@@ -13,17 +14,6 @@ function formatDuration(milliseconds: number): string {
 	return `${days}d ${hours}h ${minutes}m ${seconds}s`;
 }
 
-function formatDateTime(date: Date): string {
-	const pad = (value: number) => value.toString().padStart(2, '0');
-	const year = date.getFullYear();
-	const month = pad(date.getMonth() + 1);
-	const day = pad(date.getDate());
-	const hours = pad(date.getHours());
-	const minutes = pad(date.getMinutes());
-	const seconds = pad(date.getSeconds());
-	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-
 export const GET: RequestHandler = () => {
 	const now = new Date();
 	const elapsedMs = now.getTime() - serverStartTime.getTime();
@@ -31,19 +21,19 @@ export const GET: RequestHandler = () => {
 		const durationMs = now.getTime() - connection.startedAt.getTime();
 		return {
 			connectionId: connection.id,
-			startTime: formatDateTime(connection.startedAt) + ' / ' + formatDuration(durationMs),
+			startTime: formatLocalDateTime(connection.startedAt.getTime()) + ' / ' + formatDuration(durationMs),
 			reason: connection.reason
 		};
 	});
 	const recentConnectionDetails = oldConnections.map((connection) => ({
 		connectionId: connection.id,
-		startTime: formatDateTime(connection.startedAt) + ' / ' + formatDuration(connection.durationMs),
+		startTime: formatLocalDateTime(connection.startedAt.getTime()) + ' / ' + formatDuration(connection.durationMs),
 		reason: connection.reason
 	}));
 
 	return json({
-		serverStartTime: formatDateTime(serverStartTime),
-		currentTime: formatDateTime(now),
+		serverStartTime: formatLocalDateTime(serverStartTime.getTime()),
+		currentTime: formatLocalDateTime(now.getTime()),
 		runningTime: formatDuration(elapsedMs),
 		totalVisitors: numberVisitors,
 		currentConnections: connections.size,
