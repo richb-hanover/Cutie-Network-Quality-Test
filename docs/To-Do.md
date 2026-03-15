@@ -4,9 +4,11 @@ Ideas that have occurred to me. Some might be good ones...
 
 ## Features
 
-- Move Save/Reload buttons inside the Message Log panel
-- Force all figures (all ms readings?) in the LatencyMonitor panel
-  to be at least xxx.xx wide without change.
+- Remove "Return" to start and Cmd-. to stop collection
+- GUI changes
+  - Move Save/Reload buttons inside the Message Log panel
+  - Force all figures (all ms readings?) in the LatencyMonitor panel
+    to be at least xxx.xx wide without change.
 - Change client to detect changes & stop test when
   laptop lid closes; etc.
 - Change server code to observe navigator.sendBeacon()

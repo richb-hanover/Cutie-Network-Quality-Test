@@ -21,13 +21,17 @@ export const GET: RequestHandler = () => {
 		const durationMs = now.getTime() - connection.startedAt.getTime();
 		return {
 			connectionId: connection.id,
-			startTime: formatLocalDateTime(connection.startedAt.getTime()) + ' / ' + formatDuration(durationMs),
+			startTime:
+				formatLocalDateTime(connection.startedAt.getTime()) + ' / ' + formatDuration(durationMs),
 			reason: connection.reason
 		};
 	});
 	const recentConnectionDetails = oldConnections.map((connection) => ({
 		connectionId: connection.id,
-		startTime: formatLocalDateTime(connection.startedAt.getTime()) + ' / ' + formatDuration(connection.durationMs),
+		startTime:
+			formatLocalDateTime(connection.startedAt.getTime()) +
+			' / ' +
+			formatDuration(connection.durationMs),
 		reason: connection.reason
 	}));
 
