@@ -181,6 +181,7 @@ function main(): void {
 
 // Only run when executed directly (not when imported by tests)
 import { fileURLToPath } from 'url';
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+import { realpathSync } from 'fs';
+if (realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
 	main();
 }
