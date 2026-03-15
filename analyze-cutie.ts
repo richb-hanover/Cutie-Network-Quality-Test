@@ -21,6 +21,79 @@ export type ParsedCutie = {
 	probeLines: ProbeLine[];
 };
 
+export type Summary = {
+	probeIndex: number;          // index into probes array (= index into probeLines)
+	tTick: number;               // absolute Unix ms of the tick
+	time: string;                // HH:MM:SS wall-clock
+	mos: number | null;
+	packetLossPercent: number | null;
+	avgLatencyMs: number | null;
+	avgJitterMs: number | null;
+};
+
+export function computeSummaries(probes: RawProbe[]): Summary[] {
+	if (probes.length === 0) return [];
+
+	const TEN_S = 10_000;
+	const origin = probes[0].sentAt;
+	const lastSentAt = probes[probes.length - 1].sentAt;
+	const totalTicks = Math.ceil((lastSentAt - origin) / TEN_S) + 1;
+
+	const summaries: Summary[] = [];
+
+	for (let k = 1; k <= totalTicks; k++) {
+		const tTick = origin + k * TEN_S;
+
+		// Rolling window: probes sent within the previous 10 seconds
+		const window = probes.filter((p) => p.sentAt >= tTick - TEN_S && p.sentAt < tTick);
+		if (window.length === 0) continue;
+
+		// Last probe before this tick — the line we'll annotate in the CSV
+		let lastIdx = -1;
+		for (let i = probes.length - 1; i >= 0; i--) {
+			if (probes[i].sentAt < tTick) {
+				lastIdx = i;
+				break;
+			}
+		}
+		if (lastIdx === -1) continue;
+
+		// Compute stats from window
+		const received = window.filter((p) => p.receivedAt !== null);
+		const lost = window.length - received.length;
+		const packetLossPercent = (lost / window.length) * 100;
+
+		let latencySum = 0;
+		let jitterSum = 0;
+		let prevLatency: number | null = null;
+
+		for (const p of received) {
+			const latency = p.receivedAt! - p.sentAt;
+			latencySum += latency;
+			if (prevLatency !== null) {
+				jitterSum += Math.abs(latency - prevLatency);
+			}
+			prevLatency = latency;
+		}
+
+		const avgLatencyMs = received.length > 0 ? latencySum / received.length : null;
+		const avgJitterMs = received.length > 1 ? jitterSum / (received.length - 1) : null;
+		const mos = calculateMosScore(avgLatencyMs, avgJitterMs, packetLossPercent);
+
+		summaries.push({
+			probeIndex: lastIdx,
+			tTick,
+			time: formatTime(tTick),
+			mos,
+			packetLossPercent,
+			avgLatencyMs,
+			avgJitterMs,
+		});
+	}
+
+	return summaries;
+}
+
 export function parseCutieLines(content: string): ParsedCutie {
 	const headerLines: string[] = [];
 	const probeLines: ProbeLine[] = [];
