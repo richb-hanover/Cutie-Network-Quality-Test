@@ -40,6 +40,7 @@ The 5 appended fields are: `time` (wall-clock `HH:MM:SS` at tick), `mos`, `packe
 ## Task 1: Test scaffold
 
 **Files:**
+
 - Create: `tests/analyze-cutie.test.ts`
 
 **Step 1: Create minimal test**
@@ -75,6 +76,7 @@ git commit -m "test: add analyze-cutie test scaffold"
 ## Task 2: `formatTime` — format a Unix ms timestamp as HH:MM:SS
 
 **Files:**
+
 - Create: `analyze-cutie.ts` (skeleton + `formatTime`)
 - Modify: `tests/analyze-cutie.test.ts`
 
@@ -144,6 +146,7 @@ git commit -m "feat: add analyze-cutie skeleton with formatTime"
 ## Task 3: `parseCutieLines` — split file into header lines and typed probe records
 
 **Files:**
+
 - Modify: `analyze-cutie.ts`
 - Modify: `tests/analyze-cutie.test.ts`
 
@@ -163,7 +166,7 @@ describe('parseCutieLines', () => {
 			'seq,sentAt,receivedAt',
 			'0,1000,1012',
 			'1,1100,1113',
-			'2,1200,',
+			'2,1200,'
 		].join('\n');
 
 		const result = parseCutieLines(input);
@@ -171,12 +174,12 @@ describe('parseCutieLines', () => {
 		expect(result.headerLines).toEqual([
 			'# cutie v0.2.25',
 			'# session-start: 2026-03-10 20:39:01',
-			'#',
+			'#'
 		]);
 		expect(result.probeLines).toEqual([
 			{ raw: '0,1000,1012', probe: { seq: 0, sentAt: 1000, receivedAt: 1012 } },
 			{ raw: '1,1100,1113', probe: { seq: 1, sentAt: 1100, receivedAt: 1113 } },
-			{ raw: '2,1200,',     probe: { seq: 2, sentAt: 1200, receivedAt: null } },
+			{ raw: '2,1200,', probe: { seq: 2, sentAt: 1200, receivedAt: null } }
 		]);
 	});
 });
@@ -230,8 +233,8 @@ export function parseCutieLines(content: string): ParsedCutie {
 				probe: {
 					seq: Number(parts[0]),
 					sentAt: Number(parts[1]),
-					receivedAt: parts[2] ? Number(parts[2]) : null,
-				},
+					receivedAt: parts[2] ? Number(parts[2]) : null
+				}
 			});
 		}
 	}
@@ -262,6 +265,7 @@ git commit -m "feat: add parseCutieLines"
 For each virtual tick at `origin + k×10000`, compute stats over probes with `sentAt ∈ [tTick−10000, tTick)`. Attach to the last probe with `sentAt < tTick`.
 
 **Files:**
+
 - Modify: `analyze-cutie.ts`
 - Modify: `tests/analyze-cutie.test.ts`
 
@@ -277,8 +281,8 @@ describe('computeSummaries', () => {
 		// 10 probes/s, all received 10ms after sent
 		const probes: RawProbe[] = Array.from({ length: 100 }, (_, i) => ({
 			seq: i,
-			sentAt: i * 100,        // 0ms … 9900ms
-			receivedAt: i * 100 + 10,
+			sentAt: i * 100, // 0ms … 9900ms
+			receivedAt: i * 100 + 10
 		}));
 
 		const summaries = computeSummaries(probes);
@@ -293,9 +297,9 @@ describe('computeSummaries', () => {
 	it('attaches summary to last probe before tick (throttling gap case)', () => {
 		// probe at 9s, next at 13s — gap due to browser throttling
 		const probes: RawProbe[] = [
-			{ seq: 0, sentAt: 0,     receivedAt: 10 },
-			{ seq: 1, sentAt: 9000,  receivedAt: 9010 }, // last before tick at 10000
-			{ seq: 2, sentAt: 13000, receivedAt: 13010 },
+			{ seq: 0, sentAt: 0, receivedAt: 10 },
+			{ seq: 1, sentAt: 9000, receivedAt: 9010 }, // last before tick at 10000
+			{ seq: 2, sentAt: 13000, receivedAt: 13010 }
 		];
 
 		const summaries = computeSummaries(probes);
@@ -309,16 +313,16 @@ describe('computeSummaries', () => {
 	it('skips ticks whose window contains no probes', () => {
 		// gap from 5s to 25s — tick at 10s has probes, tick at 20s is empty
 		const probes: RawProbe[] = [
-			{ seq: 0, sentAt: 0,     receivedAt: 10 },
-			{ seq: 1, sentAt: 5000,  receivedAt: 5010 },
-			{ seq: 2, sentAt: 25000, receivedAt: 25010 },
+			{ seq: 0, sentAt: 0, receivedAt: 10 },
+			{ seq: 1, sentAt: 5000, receivedAt: 5010 },
+			{ seq: 2, sentAt: 25000, receivedAt: 25010 }
 		];
 
 		const summaries = computeSummaries(probes);
 
 		expect(summaries).toHaveLength(2);
-		expect(summaries[0].tTick).toBe(10000);  // origin=0, k=1
-		expect(summaries[1].tTick).toBe(30000);  // k=3; k=2 window is empty
+		expect(summaries[0].tTick).toBe(10000); // origin=0, k=1
+		expect(summaries[1].tTick).toBe(30000); // k=3; k=2 window is empty
 	});
 
 	it('returns empty array for empty probe list', () => {
@@ -339,9 +343,9 @@ Expected: FAIL — `computeSummaries` not exported.
 
 ```typescript
 export type Summary = {
-	probeIndex: number;          // index into probeLines / probes array
-	tTick: number;               // absolute Unix ms of the tick
-	time: string;                // HH:MM:SS
+	probeIndex: number; // index into probeLines / probes array
+	tTick: number; // absolute Unix ms of the tick
+	time: string; // HH:MM:SS
 	mos: number | null;
 	packetLossPercent: number | null;
 	avgLatencyMs: number | null;
@@ -404,7 +408,7 @@ export function computeSummaries(probes: RawProbe[]): Summary[] {
 			mos,
 			packetLossPercent,
 			avgLatencyMs,
-			avgJitterMs,
+			avgJitterMs
 		});
 	}
 
@@ -432,6 +436,7 @@ git commit -m "feat: add computeSummaries with rolling 10s window"
 ## Task 5: `buildCsvLines` — assemble final output lines
 
 **Files:**
+
 - Modify: `analyze-cutie.ts`
 - Modify: `tests/analyze-cutie.test.ts`
 
@@ -446,8 +451,8 @@ describe('buildCsvLines', () => {
 	it('emits headers, column header, probe lines, with summaries appended at correct index', () => {
 		const headerLines = ['# cutie v0.2.25'];
 		const probeLines: ProbeLine[] = [
-			{ raw: '0,0,10',    probe: { seq: 0, sentAt: 0,   receivedAt: 10 } },
-			{ raw: '1,100,110', probe: { seq: 1, sentAt: 100, receivedAt: 110 } },
+			{ raw: '0,0,10', probe: { seq: 0, sentAt: 0, receivedAt: 10 } },
+			{ raw: '1,100,110', probe: { seq: 1, sentAt: 100, receivedAt: 110 } }
 		];
 		const summaries: Summary[] = [
 			{
@@ -457,14 +462,16 @@ describe('buildCsvLines', () => {
 				mos: 4.4,
 				packetLossPercent: 0,
 				avgLatencyMs: 10,
-				avgJitterMs: 0,
-			},
+				avgJitterMs: 0
+			}
 		];
 
 		const lines = buildCsvLines(headerLines, probeLines, summaries);
 
 		expect(lines[0]).toBe('# cutie v0.2.25');
-		expect(lines[1]).toBe('seq,sentAt,receivedAt,time,mos,packet_loss_pct,avg_latency_ms,avg_jitter_ms');
+		expect(lines[1]).toBe(
+			'seq,sentAt,receivedAt,time,mos,packet_loss_pct,avg_latency_ms,avg_jitter_ms'
+		);
 		expect(lines[2]).toBe('0,0,10');
 		expect(lines[3]).toBe('1,100,110,20:39:11,4.40,0.00,10.00,0.00');
 	});
@@ -472,7 +479,7 @@ describe('buildCsvLines', () => {
 	it('outputs empty string for null summary values', () => {
 		const headerLines: string[] = [];
 		const probeLines: ProbeLine[] = [
-			{ raw: '0,0,', probe: { seq: 0, sentAt: 0, receivedAt: null } },
+			{ raw: '0,0,', probe: { seq: 0, sentAt: 0, receivedAt: null } }
 		];
 		const summaries: Summary[] = [
 			{
@@ -482,8 +489,8 @@ describe('buildCsvLines', () => {
 				mos: null,
 				packetLossPercent: 100,
 				avgLatencyMs: null,
-				avgJitterMs: null,
-			},
+				avgJitterMs: null
+			}
 		];
 
 		const lines = buildCsvLines(headerLines, probeLines, summaries);
@@ -515,7 +522,7 @@ export function buildCsvLines(
 
 	const lines: string[] = [
 		...headerLines,
-		'seq,sentAt,receivedAt,time,mos,packet_loss_pct,avg_latency_ms,avg_jitter_ms',
+		'seq,sentAt,receivedAt,time,mos,packet_loss_pct,avg_latency_ms,avg_jitter_ms'
 	];
 
 	for (let i = 0; i < probeLines.length; i++) {
@@ -561,6 +568,7 @@ git commit -m "feat: add buildCsvLines"
 ## Task 6: `main()` — wire it all together
 
 **Files:**
+
 - Modify: `analyze-cutie.ts`
 
 **Step 1: Append `main()` to `analyze-cutie.ts`**
@@ -603,6 +611,7 @@ Expected: `Written to ~/Downloads/Cutie_Results-*.csv`
 **Step 3: Spot-check the CSV**
 
 Open the `.csv` and verify:
+
 - All `#` header lines at the top
 - Column header line present
 - Raw probe lines pass through (most with 3 fields only)

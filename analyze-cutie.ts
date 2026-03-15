@@ -22,9 +22,9 @@ export type ParsedCutie = {
 };
 
 export type Summary = {
-	probeIndex: number;          // index into probes array (= index into probeLines)
-	tTick: number;               // absolute Unix ms of the tick
-	time: string;                // HH:MM:SS wall-clock
+	probeIndex: number; // index into probes array (= index into probeLines)
+	tTick: number; // absolute Unix ms of the tick
+	time: string; // HH:MM:SS wall-clock
 	mos: number | null;
 	packetLossPercent: number | null;
 	avgLatencyMs: number | null;
@@ -87,7 +87,7 @@ export function computeSummaries(probes: RawProbe[]): Summary[] {
 			mos,
 			packetLossPercent,
 			avgLatencyMs,
-			avgJitterMs,
+			avgJitterMs
 		});
 	}
 
@@ -105,7 +105,7 @@ export function buildCsvLines(
 
 	const lines: string[] = [
 		...headerLines,
-		'seq,sentAt,receivedAt,time,mos,packet_loss_pct,avg_latency_ms,avg_jitter_ms',
+		'seq,sentAt,receivedAt,time,mos,packet_loss_pct,avg_latency_ms,avg_jitter_ms'
 	];
 
 	for (let i = 0; i < probeLines.length; i++) {
@@ -149,8 +149,8 @@ export function parseCutieLines(content: string): ParsedCutie {
 				probe: {
 					seq: Number(parts[0]),
 					sentAt: Number(parts[1]),
-					receivedAt: parts[2] ? Number(parts[2]) : null,
-				},
+					receivedAt: parts[2] ? Number(parts[2]) : null
+				}
 			});
 		}
 	}

@@ -155,7 +155,9 @@ function registerConnection(pc: RTCPeerConnection): string {
 			const managed = connections.get(id); // get BEFORE finalizeConnection removes it
 			if (managed) {
 				const openDurationMs = managed.openedAt ? Date.now() - managed.openedAt.getTime() : null;
-				const lastMessageAt = managed.lastMessageAt ? formatLocalDateTime(managed.lastMessageAt.getTime()) : 'never';
+				const lastMessageAt = managed.lastMessageAt
+					? formatLocalDateTime(managed.lastMessageAt.getTime())
+					: 'never';
 				if (managed.deleteReceived) {
 					logger.info(
 						`[server] Connection ${id} closed cleanly (DELETE received). ` +
