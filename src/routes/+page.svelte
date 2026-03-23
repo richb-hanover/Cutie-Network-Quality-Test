@@ -250,7 +250,7 @@
 		<h1>Cutie &mdash; Network Quality Test</h1>
 		<p>
 			Open this page before beginning a call or videoconference and let it run in the background.
-			Cutie detects impairments to the quality of your network and shows them in the charts.
+			Cutie's charts show when problems affect the quality of your network.
 		</p>
 
 		<div class="controls">
