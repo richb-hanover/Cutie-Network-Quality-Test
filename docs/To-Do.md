@@ -4,13 +4,15 @@ Ideas that have occurred to me. Some might be good ones...
 
 ## Features
 
-- Remove "Return" to start and Cmd-. to stop collection
 - GUI changes
+  - Remove "Return" to start and Cmd-. to stop collection
   - Move Save/Reload buttons inside the Message Log panel
   - Force all figures (all ms readings?) in the LatencyMonitor panel
     to be at least xxx.xx wide without change.
+  - Drop reliance on USParser.js; remove mention in license
+- Why do many (not anywhere near all) sessions stop about 1h 20-30m?
 - Change client to detect changes & stop test when
-  laptop lid closes; etc.
+  laptop lid closes, session saved, etc and put up appropriate error
 - Change server code to observe navigator.sendBeacon()
   messages that the window/connectionID has closed/changed/etc.
 - Aggregate the traffic volume of latency probes
@@ -59,7 +61,7 @@ Ideas that have occurred to me. Some might be good ones...
 
 ## Done
 
-All these items had been in the "to-do" section, but have been completed:
+All these items started life in the "to-do" section, but have been completed:
 
 - Re-cast the entire project in SvelteKit.
   Use `npx sv create WebRTC-SvelteKit` to create.
@@ -120,7 +122,7 @@ solves it.)_
 - Create a deploy-cutie.sh that pulls from repo, issues required build commands, then `npm run preview` (or somesuch)
 - Make `npm run build` work
   - Need to understand @sveltejs/adapter-auto, adapter-node, adapter-cloudflare...
-- If server fails, WebRTC connection seems to remain live which causes browser to restart? ~~This is likely due to npm run dev automagically restarting web sessions~~
+- ~~If server fails, WebRTC connection seems to remain live which causes browser to restart?~~ This is likely due to npm run dev automagically restarting web sessions
 - `npm run build` then `npm run preview` seem to work, but GUI cannot start a WebRTC connection.
 - Also other connections aren't released?
 - (Same bug?) After running overnight (working or not), coming back to the page on Firefox (other browsers too), the page reloads (starting a new run) instead of displaying the results of the completed test run
@@ -144,14 +146,17 @@ solves it.)_
 - Change to "End Time / Elapsed Time"
 - Move "Message" to the Message Log panel; then remove remainder of Connection panel
 - Clicking Start should clear all accumulated stats
-- Change Long-term Stats to show Start time as dd/mm/yyyy hh:mm:ss
-  and Elapsed Time / End Time Time as ?m ?s / dd/mm/yyyy hh:mm:ss
+- Change Long-term Stats to show Start time as ~~dd/mm/yyyy~~ hh:mm:ss (see below)  
+  and Elapsed Time / End Time Time as ?m ?s / ~~dd/mm/yyyy~~ hh:mm:ss
 - Catch Ctl/Cmd-S and save the current readings in local file - xxx.cutie
-  - Do not stop the data collection
+  - Stop the data collection
   - This becomes the source data for a test data set
 - WebGUI should become a drag target for a saved cutie readings file;
-  - Display the values from the file
+  - Restore the values from the file
+  - Replay the saved latency probe values into the chart
   - Do not connect to the Cutie backend
 - ~~Email/save results of a test before restarting/reloading~~
   No - just save and reload session file
 - Make all dates in the format yyyy-mm-dd
+- Drop Cloudflare adapter for SvelteKit because of vulnerability
+  and the fact that we're not using it
