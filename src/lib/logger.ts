@@ -37,3 +37,16 @@ const rootLogger = new Logger({
 export function getLogger(name: string) {
 	return rootLogger.getSubLogger({ name });
 }
+
+/**
+ * Returns a short client identifier from the last two octets of an IPv4 address,
+ * formatted as "(XXYY) " for use as a log message prefix.
+ * e.g. 12.34.56.78 → "(5678) ", 127.0.0.1 → "(01) "
+ */
+export function ipTag(ip: string): string {
+	const parts = ip.split('.');
+	if (parts.length === 4) {
+		return `(${parts[2]}${parts[3]}) `;
+	}
+	return '';
+}

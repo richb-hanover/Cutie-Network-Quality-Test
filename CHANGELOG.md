@@ -4,6 +4,13 @@
 
 ---
 
+## Version 0.2.29 - 2026-04-08
+
+- Add new apple...png files to supplement favicon.ico
+- Enhance logging to make it easier to track sessions
+- Improve main page and About... text;
+- Bump to version 0.2.29
+
 ## Version 0.2.24 - 2026-03-09
 
 - Adding Cmd/Ctl-S to save data; then reload by drag and drop

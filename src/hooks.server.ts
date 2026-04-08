@@ -7,7 +7,7 @@ import { incrementVisitors, serverStartTime } from '$lib/server/runtimeState';
 /**
  * Start of the main server process
  */
-import { getLogger } from '$lib/logger';
+import { getLogger, ipTag } from '$lib/logger';
 const logger = getLogger('http');
 
 import version from '../package.json';
@@ -73,18 +73,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (!agent) agent = '';
 	const { browser } = await UAParser(agent).withFeatureCheck();
 
+	const tag = ipTag(clientAddress);
+
 	if (path === '/') {
 		incrementVisitors();
 		logger.info(
-			`=== New connection (running for ${formatDuration(Date.now() - serverStartTime.getTime())}) ===`
+			`${tag}=== New connection (running for ${formatDuration(Date.now() - serverStartTime.getTime())}) ===`
 		);
 	}
-	logger.info(`  Received http ${method} from ${clientAddress} for ${path} (${browser})`);
+	logger.info(`${tag}Received http ${method} from ${clientAddress} for ${path} (${browser})`);
 
 	const response = await resolve(event);
 
 	const status = response.status;
-	logger.debug(`Completed http ${method} from ${clientAddress} for ${path} status ${status}`);
+	logger.debug(`${tag}Completed http ${method} from ${clientAddress} for ${path} status ${status}`);
 
 	return response;
 };

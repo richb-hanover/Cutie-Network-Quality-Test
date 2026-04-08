@@ -2,23 +2,30 @@
 
 Ideas that have occurred to me. Some might be good ones...
 
-## Features
+## GUI changes
 
-- GUI changes
-  - Remove "Return" to start and Cmd-. to stop collection
-  - Move Save/Reload buttons inside the Message Log panel
-  - Force all figures (all ms readings?) in the LatencyMonitor panel
-    to be at least xxx.xx wide without change.
-  - Drop reliance on USParser.js; remove mention in license
-- Why do many (not anywhere near all) sessions stop about 1h 20-30m?
+- Remove "Return" to start and Cmd-. to stop collection
+- Move Save/Reload buttons inside the Message Log panel
+- Force all figures (all ms readings?) in the LatencyMonitor panel
+  to be at least xxx.xx wide without change.
+- Drop reliance on USParser.js; remove mention in license
 - Change client to detect changes & stop test when
   laptop lid closes, session saved, etc and put up appropriate error
+
+## Server changes
+
 - Change server code to observe navigator.sendBeacon()
   messages that the window/connectionID has closed/changed/etc.
 - Aggregate the traffic volume of latency probes
   received & sent plus a measure of traffic rate
   and add to `/api/stats`
+- Give a count of 404s
 - Figure out how to better discourage frequent flyers/abusers
+- Add server version to `/api/stats`
+- Server should disconnect sessions (with appropriate log msg)
+  longer than 2h10m
+- Display obfuscated representation of IP address of the client to the
+  server logs
 - See **Testing Ideas** below
 
 ## Hosting
@@ -29,17 +36,16 @@ Ideas that have occurred to me. Some might be good ones...
   its own domain name from the `dist` directory using Apache)
 - Create a Docker container with _docker-compose.yml_
   for ease of remote installation
-  - Add TURN server capability.
-    Maybe bundle `coturn`.
+  - Add TURN server capability.cMaybe bundle `coturn`.
     Is it possible to do it in a single container?
-  - Also add netperf, iperf, iperf3,
-    Crusader (client and server)
+  - Also add netperf, iperf, iperf3, Crusader (client and server)
     to the Docker container
   - Install Docker container on atl.richb-hanover.com
-  - Install on some external server site. Can it be free?
+  - Install on some other external server site. Can it be free?
 
 ## Bugs
 
+- Why do many (not anywhere near all) sessions stop about 1h 20-30m?
 - Why do some oldConnections on the server end with "failed / complete"?
 - Why do Android tablets seem to take longer to establish connections?
 - Why are dots sometimes spaced out when the browser tab is in the background?

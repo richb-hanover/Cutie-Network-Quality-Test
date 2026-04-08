@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-import { getLogger } from '../../../lib/logger';
+import { getLogger, ipTag } from '../../../lib/logger';
 const logger = getLogger('server-beacon');
 
 /**
@@ -12,7 +12,8 @@ const logger = getLogger('server-beacon');
  * @param param0
  * @returns
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const tag = ipTag(getClientAddress());
 	let payload;
 	try {
 		payload = await request.json();
@@ -21,7 +22,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			reason: payload.reason,
 			state: payload.visibilityState
 		};
-		logger.info(`${JSON.stringify(summary)}`);
+		logger.info(`${tag}${JSON.stringify(summary)}`);
 	} catch {
 		logger.info(`Expected JSON body with valid WebRTC offer: ${JSON.stringify(payload)}`);
 		throw error(400, 'Expected JSON body with valid WebRTC offer');
