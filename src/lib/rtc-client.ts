@@ -431,7 +431,7 @@ export async function createServerConnection(
 			})`
 		);
 		if (peer.connectionState === 'failed') {
-			onError?.(new Error('WebRTC connection failed'));
+			onError?.(new Error('Lost connection to Cutie server...'));
 		}
 	};
 
@@ -442,7 +442,7 @@ export async function createServerConnection(
 		onDataChannelClose: onError
 			? (_channel) => {
 					logger.info(`datachannel onError: ${JSON.stringify(_channel)}`);
-					onError(new Error('Data channel closed'));
+					onError(new Error('Lost connection to Cutie server...'));
 				}
 			: undefined
 	});
