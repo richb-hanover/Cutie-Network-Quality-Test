@@ -366,9 +366,6 @@
 				{/each}
 			</ul>
 		{/if}
-	</section>
-
-	<section class="panel">
 		<div class="save-reload-buttons">
 			<button class="session-btn" on:click={handleSave} disabled={collectionStartAt === null}
 				>Save Session</button
@@ -408,6 +405,8 @@
 		border-radius: 0.75rem;
 		padding: 1.5rem;
 		box-shadow: 0 10px 20px rgba(0, 0, 0, 0.03);
+		display: flex;
+		flex-direction: column;
 	}
 
 	.main-panel {
@@ -551,6 +550,8 @@
 		list-style: none;
 		margin: 0;
 		padding: 0;
+		flex: 1;
+		min-height: 0;
 	}
 
 	.messages li {
@@ -643,6 +644,10 @@
 		display: flex;
 		gap: 0.75rem;
 		align-items: flex-end;
+		margin-top: 0.75rem;
+		margin-bottom: 0.75rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid #e5e7eb;
 	}
 
 	.session-btn {
@@ -654,6 +659,7 @@
 		padding: 0.65rem 1.2rem;
 		font-size: 1rem;
 		font-weight: 500;
+		text-align: center;
 		transition:
 			transform 0.1s ease,
 			box-shadow 0.1s ease,
@@ -675,5 +681,6 @@
 	.reload-button {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 	}
 </style>
