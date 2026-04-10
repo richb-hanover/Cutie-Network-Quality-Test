@@ -8,7 +8,9 @@
 
 - Make friendlier error messages (don't use "WebRTC")
 - Drop ua-parser for discovering browser vendor; wasn't useful
-- Add hashed IP address to connectionID
+- Move Save session and Reload session
+  buttons into the Message Log pane
+- Add hashed IP address to displayed connectionID
 - Update and pin dependencies (Can't go to Vite 8 because a
   sveltekit package isn't there yet.)
 - Update deploy.sh script
