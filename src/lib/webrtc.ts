@@ -215,7 +215,10 @@ export async function connectToServer(): Promise<void> {
 				}));
 			},
 			onError: (err: unknown) => {
-				const message = err instanceof Error ? err.message : String(err);
+				const raw = err instanceof Error ? err.message : String(err);
+				const message = raw.includes('network is down')
+					? "Can't connect to the server when the network is down"
+					: raw;
 				webrtcState.update((current) => ({ ...current, errorMessage: message }));
 				latencyProbe.stop();
 				const { activeDisconnectReason } = get(webrtcState);
@@ -331,7 +334,10 @@ export async function connectToServer(): Promise<void> {
 		});
 	} catch (err) {
 		logger.info(`dataChannel caught error: ${err}`);
-		const message = err instanceof Error ? err.message : String(err);
+		const raw = err instanceof Error ? err.message : String(err);
+		const message = raw.includes('network is down')
+			? "Can't connect to the server when the network is down"
+			: raw;
 		webrtcState.update((current) => ({
 			...current,
 			errorMessage: message,

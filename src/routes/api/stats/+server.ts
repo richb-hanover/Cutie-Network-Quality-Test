@@ -3,6 +3,12 @@ import type { RequestHandler } from './$types';
 import { serverStartTime, webrtcConnections, numberVisitors } from '$lib/server/runtimeState';
 import { connections, oldConnections } from '$lib/server/webrtcRegistry';
 import { formatLocalDateTime } from '$lib/session-file';
+import { createHash } from 'crypto';
+import { version } from '../../../../package.json';
+
+function ipHash8(ip: string): string {
+	return createHash('sha256').update(ip).digest('hex').slice(0, 8);
+}
 
 function formatDuration(milliseconds: number): string {
 	const totalSeconds = Math.floor(milliseconds / 1000);
@@ -20,14 +26,14 @@ export const GET: RequestHandler = () => {
 	const connectionDetails = Array.from(connections.values()).map((connection) => {
 		const durationMs = now.getTime() - connection.startedAt.getTime();
 		return {
-			connectionId: connection.id,
+			connectionId: `${connection.id} ${ipHash8(connection.clientIp)}`,
 			startTime:
 				formatLocalDateTime(connection.startedAt.getTime()) + ' / ' + formatDuration(durationMs),
 			reason: connection.reason
 		};
 	});
 	const recentConnectionDetails = oldConnections.map((connection) => ({
-		connectionId: connection.id,
+		connectionId: `${connection.id} ${ipHash8(connection.clientIp)}`,
 		startTime:
 			formatLocalDateTime(connection.startedAt.getTime()) +
 			' / ' +
@@ -36,6 +42,7 @@ export const GET: RequestHandler = () => {
 	}));
 
 	return json({
+		cutieVersion: version,
 		serverStartTime: formatLocalDateTime(serverStartTime.getTime()),
 		currentTime: formatLocalDateTime(now.getTime()),
 		runningTime: formatDuration(elapsedMs),

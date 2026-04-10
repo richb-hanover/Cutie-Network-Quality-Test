@@ -4,10 +4,21 @@
 
 ---
 
+## Version 0.3.0 - 2026-04-10
+
+- Make friendlier error messages (don't use "WebRTC")
+- Drop ua-parser for discovering browser vendor; wasn't useful
+- Add hashed IP address to connectionID
+- Update and pin dependencies (Can't go to Vite 8 because a
+  sveltekit package isn't there yet.)
+- Update deploy.sh script
+- Update DEVELOPMENT.md
+- Bump version to 0.3.0
+
 ## Version 0.2.29 - 2026-04-08
 
 - Add new apple...png files to supplement favicon.ico
-- Enhance logging to make it easier to track sessions
+- Enhance server log files to make it easier to track sessions
 - Improve main page and About... text;
 - Bump to version 0.2.29
 

@@ -100,8 +100,11 @@ branch="${1:-main}"
 log_and_run "git checkout $branch" git checkout "$branch"
 log_and_run "git pull origin $branch" git pull origin "$branch"
 
-# pull all the dependencies
+# pull in all the dependencies
 log_and_run "npm install" npm install
+
+# clean install:  use package-lock.json as reference to replace node_modules
+log_and_run "npm ci" npm ci
 
 # build the app
 log_and_run "npm run build" npm run "build"

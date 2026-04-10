@@ -1,6 +1,5 @@
 // src/hooks.server.ts
 import type { Handle } from '@sveltejs/kit';
-import { UAParser } from '@ua-parser-js/pro-personal';
 import { dev } from '$app/environment';
 import { execSync } from 'node:child_process';
 import { incrementVisitors, serverStartTime } from '$lib/server/runtimeState';
@@ -69,10 +68,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	const method = event.request.method;
 	const path = event.url.pathname;
-	let agent = event.request.headers.get('user-agent');
-	if (!agent) agent = '';
-	const { browser } = await UAParser(agent).withFeatureCheck();
-
 	const tag = ipTag(clientAddress);
 
 	if (path === '/') {
@@ -81,7 +76,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			`${tag}=== New connection (running for ${formatDuration(Date.now() - serverStartTime.getTime())}) ===`
 		);
 	}
-	logger.info(`${tag}Received http ${method} from ${clientAddress} for ${path} (${browser})`);
+	logger.info(`${tag}Received http ${method} from ${clientAddress} for ${path}`);
 
 	const response = await resolve(event);
 

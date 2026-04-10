@@ -10,6 +10,7 @@ export type ManagedConnection = {
 	deleteReceived: boolean; // true when DELETE request received for this connection
 	openedAt: Date | null; // when the server's data channel opened
 	lastMessageAt: Date | null; // when the last message was received
+	clientIp: string;
 };
 
 export type ClosedConnection = {
@@ -18,6 +19,7 @@ export type ClosedConnection = {
 	endedAt: Date;
 	durationMs: number;
 	reason: string;
+	clientIp: string;
 };
 
 // Tracks active WebRTC connections keyed by connection id.
@@ -43,7 +45,8 @@ export function finalizeConnection(
 		startedAt: managed.startedAt,
 		endedAt,
 		durationMs,
-		reason
+		reason,
+		clientIp: managed.clientIp
 	});
 
 	if (oldConnections.length > 10) {

@@ -134,7 +134,7 @@ function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidat
  * After wiring that cleanup hook, it stores the new ManagedConnection in the
  * connections map keyed by its UUID and returns the ID so the rest of the handler can reference it.
  */
-function registerConnection(pc: RTCPeerConnection, tag: string): string {
+function registerConnection(pc: RTCPeerConnection, tag: string, clientIp: string): string {
 	const id = crypto.randomUUID();
 	const managed: ManagedConnection = {
 		id,
@@ -143,7 +143,8 @@ function registerConnection(pc: RTCPeerConnection, tag: string): string {
 		reason: '',
 		deleteReceived: false,
 		openedAt: null,
-		lastMessageAt: null
+		lastMessageAt: null,
+		clientIp
 	};
 
 	pc.onconnectionstatechange = () => {
@@ -281,7 +282,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 	pc.onicecandidateerror = (_event: unknown) => {
 		const ev = _event as { address?: string; errorCode?: number; errorText?: string };
-		logger.debug(`${tag}Server ICE candidate error ${ev.address} ${ev.errorCode} "${ev.errorText}"`);
+		logger.debug(
+			`${tag}Server ICE candidate error ${ev.address} ${ev.errorCode} "${ev.errorText}"`
+		);
 	};
 
 	pc.ondatachannel = (event) => {
@@ -420,7 +423,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	await pc.setLocalDescription(answer);
 	await waitForServerIceGathering(pc, () => localCandidates.length);
 
-	connectionId = registerConnection(pc, tag);
+	connectionId = registerConnection(pc, tag, getClientAddress());
 
 	logger.debug(
 		`${tag}WebRTC answer ready: ${connectionId} ${pc.iceConnectionState} ${pc.iceGatheringState} (${localCandidates.length} candidates)`

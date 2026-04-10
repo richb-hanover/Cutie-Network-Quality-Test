@@ -10,11 +10,24 @@ npm run dev
 npm run dev -- --open
 ```
 
+## Testing
+
+Before committing new code, ensure that
+there are no errors or warnings when you run:
+
+- `npm run check`
+- `npm run lint`
+- `npm test` #_not yet_
+
 ## Building for production
 
-To create a production version of your app:
+To create a production version of the app:
 
 ```sh
+npm install # install new dependencies; update package-lock.json
+npm ci # clean install - uses package-lock.json to replace node-modules
+# run all tests (above)
+# fix any problems
 npm run build
 npm run preview
 # to run the production build on port 5173 to mimic "npm run dev"
@@ -25,14 +38,13 @@ npm run preview
 > [adapter](https://svelte.dev/docs/kit/adapters)
 > for your target environment.
 
-## Testing
+## Bringing dependencies up to date
 
-Before committing new code, ensure that
-there are no errors or warnings when you run:
+`npx npm-check-updates` reviews the package.json file to display
+updated packages. Adding `-u` brings them up to date.
 
-- `npm run check`
-- `npm run lint`
-- (soon) `npm test`
+**This is a big deal.** Only do this prior to making a major change
+when you're willling to deal with breakage.
 
 ## Debugging tips
 

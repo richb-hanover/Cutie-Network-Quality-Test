@@ -431,7 +431,7 @@ export async function createServerConnection(
 			})`
 		);
 		if (peer.connectionState === 'failed') {
-			onError?.(new Error('Lost connection to Cutie server...'));
+			onError?.(new Error('Lost connection to the server...'));
 		}
 	};
 
@@ -442,7 +442,7 @@ export async function createServerConnection(
 		onDataChannelClose: onError
 			? (_channel) => {
 					logger.info(`datachannel onError: ${JSON.stringify(_channel)}`);
-					onError(new Error('Lost connection to Cutie server...'));
+					onError(new Error('Lost connection to the server...'));
 				}
 			: undefined
 	});
