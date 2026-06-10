@@ -43,6 +43,43 @@ Ideas that have occurred to me. Some might be good ones...
   - Install Docker container on atl.richb-hanover.com
   - Install on some other external server site. Can it be free?
 
+## Update Vite from 6.2.4 to 8.0
+
+Step 1: Verify dependency compatibility first
+Before touching anything, check if these key packages support Vite 8:
+
+npm info @sveltejs/kit peerDependencies
+npm info @sveltejs/vite-plugin-svelte peerDependencies
+npm info @tailwindcss/vite peerDependencies
+npm info vitest peerDependencies
+The critical packages are @sveltejs/kit, @sveltejs/vite-plugin-svelte, vitest, and @tailwindcss/vite — all declare vite as a peer dependency and must list ^8.0.0 there.
+
+Step 2: Update packages
+If they support Vite 8, update together (Vitest must match Vite major):
+
+npm install --save-dev vite@^8.0.0 vitest@^5.0.0
+Also check for updated versions of:
+
+@sveltejs/kit — likely needs a bump
+@sveltejs/vite-plugin-svelte — tracks Vite majors closely
+@tailwindcss/vite
+Step 3: Review the official migration guide
+Check the Vite 8 migration guide at vitejs.dev/guide/migration. Common breaking changes between major Vite versions include:
+
+Node.js minimum version bumps
+Changes to resolve.conditions defaults
+SSR externalization changes (relevant since this uses @roamhq/wrtc server-side)
+Plugin API changes
+Step 4: Validate
+
+npm run check
+npm run lint
+npm test
+npm run build
+The main risk for this project is the SvelteKit + server-side WebRTC path. The @roamhq/wrtc dependency runs in the SvelteKit server context, so any SSR externalization changes in Vite 8 could affect it. Watch for errors around src/lib/server/webrtcRegistry.ts during the build.
+
+If you run into the sveltekit compatibility issue that previously blocked this upgrade, check the SvelteKit changelog for a Vite 8 support entry.
+
 ## Bugs
 
 - Why do many (not anywhere near all) sessions stop about 1h 20-30m?
