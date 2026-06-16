@@ -1,17 +1,16 @@
 # About Cutie
 
 Cutie makes a Quality Test _(QT - "Cutie", get it?)_
-of the network path from your browser through your ISP
-to the Cutie server, and back.
+of your network.
 It continually tests:
 _MOS Quality_ (a measure of the quality of a voice or video call),
 _Packet Loss_, and
 _Latency/Jitter_.
 
-The graphs on the page show when measured impairments affect
+The graphs on the page show when impairments affect
 the quality of the network connection.
 Cutie hardly uses any resources -
-a little less than two kilobytes per second.
+a bit less than two kilobytes per second.
 Read more at the
 [Github repo](https://github.com/richb-hanover/Cutie-Network-Quality-Test).
 
