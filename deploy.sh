@@ -144,10 +144,10 @@ if [ -z "$ip_address" ]; then
 	ip_address="127.0.0.1"
 fi
 
-ip_port=5173
+ip_port=4173
 
 ensure_no_existing_preview "$ip_port"
 
-nohup env LOG_LEVEL=2 npm run "preview" -- --host "$ip_address" --port "$ip_port" >> "$logfile" 2>&1 &
+nohup env LOG_LEVEL=2 npm run "preview" -- --host localhost --port "$ip_port" >> "$logfile" 2>&1 &
 
 echo "All set! Check at http://$ip_address:$ip_port" | tee -a "$logfile"

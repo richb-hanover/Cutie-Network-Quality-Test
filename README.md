@@ -1,9 +1,9 @@
 # Cutie - Network Quality Test
 
-Cutie makes a Quality Test of the network path from your browser through your ISP to the Cutie server, and back. It continually tests **Network Quality** (MOS - a measure of the quality of a voice or video call), **Packet Loss**, and **Latency/Jitter**.
+Cutie makes a Quality Test of your network.
+It continually tests **Network Quality** (MOS - a measure of the quality of a voice or video call), **Packet Loss**, and **Latency/Jitter**.
 
-Any problem with these measurements can impair the
-network connection - the graphs show when performance is bad.
+Any impairments to the network appear in the graphs.
 Cutie hardly uses any resources -
 a little less than two kilobytes per second.
 Here's a screenshot with description below:
@@ -30,8 +30,8 @@ Here are the highlights._
 
 ## How it works
 
-Cutie's WebRTC connection sends 10 probes per second,
-(every 100 ms) to produce fine-grained measurements.
+Cutie's WebRTC connection creates fine-grained measurements
+by sending 10 probes per second, (every 100 ms).
 The three charts display the 10-second average of
 the values below:
 
@@ -59,15 +59,16 @@ the measurements in the charts.
 ## Demo site
 
 You can try Cutie from the demo site at
-[http://netperf.bufferbloat.net:5173](http://netperf.bufferbloat.net:5173)
+[https://cutie.richb-hanover.com](https://cutie.richb-hanover.com)
 
 Notes:
 
 - The base ICMP ping time to that server is about 35 ms
   (it's a pretty slow VPS).
-  Consequently, Cutie's lowest latency tends to be a bit higher than 35 ms.
-- You could also install a Cutie server on a local computer
-  to test your local network's abilities.
+  Consequently, Cutie's lowest latency tends to be
+  about 35 ms.
+- You could also install a Cutie server on a nearby
+  computer to test your local network's abilities.
 
 ## Development and Testing
 
@@ -123,7 +124,7 @@ However, they pronounce it "cute"._
 
 ## Questions & Feedback
 
-This is version 0.2.24, and is beta-test quality code.
+This is version 0.3.1, and is beta-test quality code.
 Read the
 [Provenance - Vibe Engineering](./docs/Theory%20of%20Operation.md#provenance---vibe-engineering)
 information to see how this was derived,

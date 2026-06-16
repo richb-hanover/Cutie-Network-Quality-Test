@@ -1,10 +1,11 @@
-# Developing WebRTC Network Stability Test
+# Developing Cutie Network Quality Test
 
-Install dependencies with `npm install`
+Install dependencies
 then start a development server:
 
 ```sh
-npm run dev
+npm install
+npm run dev # Start develpment server on port 5173
 
 # or start the server and open the app in a new browser tab
 npm run dev -- --open
@@ -17,26 +18,32 @@ there are no errors or warnings when you run:
 
 - `npm run check`
 - `npm run lint`
-- `npm test` #_not yet_
+- `npm test` #_This isn't implemented yet_
 
 ## Building for production
 
-To create a production version of the app:
+**Use the `deploy.sh` script:** that is designed
+to run the build steps (below)
+that is designed to recover from errors.
+It also detects running instances of Cutie and asks if they
+should be terminated.
+To run the script:
 
-```sh
-npm install # install new dependencies; update package-lock.json
-npm ci # clean install - uses package-lock.json to replace node-modules
-# run all tests (above)
-# fix any problems
-npm run build
-npm run preview
-# to run the production build on port 5173 to mimic "npm run dev"
-# npm run preview --port 5173
+```bash
+sh deploy.sh
+... or...
+sh deploy.sh branch-to-checkout
 ```
 
-> To deploy your app, you may need to install an
-> [adapter](https://svelte.dev/docs/kit/adapters)
-> for your target environment.
+This starts the `npm run preview` server running on
+port 4173.
+
+The Apache server is configured to run a proxy
+(with Let's Encrypt handling SSL)
+to listen for https://cutie.richb-hanover.com
+(or whatever DNS name) and proxy it to port 4173.
+
+See _docs/cutie-server-config.md_ for Apache details.
 
 ## Bringing dependencies up to date
 
