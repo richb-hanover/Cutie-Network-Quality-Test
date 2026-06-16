@@ -138,16 +138,16 @@ detect_host_ip() {
 	fi
 }
 
-ip_address="$(detect_host_ip)"
-if [ -z "$ip_address" ]; then
-	echo "Warning: Could not determine host IP; defaulting to 127.0.0.1" | tee -a "$logfile"
-	ip_address="127.0.0.1"
-fi
+ip_address=l"ocalhost"
+# if [ -z "$ip_address" ]; then
+# 	echo "Warning: Could not determine host IP; defaulting to 127.0.0.1" | tee -a "$logfile"
+# 	ip_address="127.0.0.1"
+# fi
 
 ip_port=4173
 
 ensure_no_existing_preview "$ip_port"
 
-nohup env LOG_LEVEL=2 npm run "preview" -- --host localhost --port "$ip_port" >> "$logfile" 2>&1 &
+nohup env LOG_LEVEL=2 npm run "preview" -- --host "$ip_address" --port "$ip_port" >> "$logfile" 2>&1 &
 
 echo "All set! Check at http://$ip_address:$ip_port" | tee -a "$logfile"
