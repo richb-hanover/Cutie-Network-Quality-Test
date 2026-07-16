@@ -4,11 +4,8 @@ Ideas that have occurred to me. Some might be good ones...
 
 ## GUI changes
 
-- Remove "Return" to start and Cmd-. to stop collection
-- Move Save/Reload buttons inside the Message Log panel
 - Force all figures (all ms readings?) in the LatencyMonitor panel
   to be at least xxx.xx wide without change.
-- Drop reliance on USParser.js; remove mention in license
 - Change client to detect changes & stop test when
   laptop lid closes, session saved, etc and put up appropriate error
 
@@ -30,10 +27,6 @@ Ideas that have occurred to me. Some might be good ones...
 
 ## Hosting
 
-- Use [Caddy reverse proxy?](https://caddyserver.com/docs/quick-starts/reverse-proxy) for HTTPS server?
-- Set up cutie.bufferbloat.net to redirect to port 4173
-  (Or set up cutie.bufferbloat.net to serve out
-  its own domain name from the `dist` directory using Apache)
 - Create a Docker container with _docker-compose.yml_
   for ease of remote installation
   - Add TURN server capability.cMaybe bundle `coturn`.
@@ -86,6 +79,7 @@ If you run into the sveltekit compatibility issue that previously blocked this u
 - Why do some oldConnections on the server end with "failed / complete"?
 - Why do Android tablets seem to take longer to establish connections?
 - Why are dots sometimes spaced out when the browser tab is in the background?
+- Why are some server sessions multi-days long?
 
 ## Testing ideas
 
