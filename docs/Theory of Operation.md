@@ -177,8 +177,6 @@ For R >= 100.0:
 
 This is a completely new implementation
 using SvelteKit, ChatGPT, and native network knowledge.
-The project was inspired by the WebRTC capabilities of
-[VSee Network Stability Test](https://test.vsee.com/network/index.html).
 
 I am warming to the term
 [Vibe Engineering](https://simonwillison.net/2025/Oct/7/vibe-engineering/)
@@ -267,3 +265,6 @@ Some thoughts:
   `##s`, then `##m ##s` without my instruction.
 
 Will I ever "just start hacking code" again? I don't think so.
+
+NB: This project was inspired by the WebRTC capabilities of
+[VSee Network Stability Test](https://test.vsee.com/network/index.html).

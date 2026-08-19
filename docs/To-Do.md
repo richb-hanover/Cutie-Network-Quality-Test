@@ -8,6 +8,12 @@ Ideas that have occurred to me. Some might be good ones...
   to be at least xxx.xx wide without change.
 - Change client to detect changes & stop test when
   laptop lid closes, session saved, etc and put up appropriate error
+- Change Start button to show "Connecting..." with a spinner, then
+  Initializing... with a spinner, then "Stop" so that people don't
+  wonder about the first 10 seconds when nothing appears to be happening.
+  (It's collecting the first 10 seconds of samples...)
+- Add " - location, wifi name, etc." to "Type a message"
+- Save button should also save all the items in the Message Log
 
 ## Server changes
 
