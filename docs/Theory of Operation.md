@@ -268,3 +268,88 @@ Will I ever "just start hacking code" again? I don't think so.
 
 NB: This project was inspired by the WebRTC capabilities of
 [VSee Network Stability Test](https://test.vsee.com/network/index.html).
+
+## AWDL / Wi-Fi Latency Investigation — Summary
+
+**Symptom observed in Cutie (WebRTC network quality test app)**
+
+Latency probes (100 samples per 10s, at 0.1s intervals) showed a wavy pattern when plotted: adjacent 10-second averages alternated lower/higher with growing amplitude, then the amplitude collapsed to near-zero after 60–90 seconds, and the cycle repeated. Occurred on macOS, more often after connecting Bluetooth devices, after months of not seeing it.
+
+**Root cause: AWDL (Apple Wireless Direct Link)**
+
+- AWDL is macOS's peer-to-peer protocol underlying AirDrop, Handoff, Sidecar, AirPlay, and Continuity features.
+- It shares the single Wi-Fi radio — when active, it periodically hops the radio off your normal network channel (~every 10–15s) to scan for/communicate with nearby Apple devices, causing brief Wi-Fi latency spikes (tens to hundreds of ms).
+- AWDL is *not* always running. It's woken up when AirDrop is actively used, or when some process requests peer-to-peer networking (a `NetService`) — often triggered by Bluetooth LE discovery of a nearby Apple device (iPhone, AirPods, etc.) via Continuity/Handoff.
+- This explains the BT connection: Bluetooth itself doesn't directly cause the delay — it's the discovery trigger that wakes AWDL, which then steals the Wi-Fi radio.
+
+**Why the pattern looks like a "beat frequency"**
+
+- AWDL's own activation period (~15–30s) isn't synced to Cutie's 10-second averaging window.
+- Sampling a periodic disturbance with a non-matching averaging period causes aliasing: adjacent buckets alternately capture more/less disruption.
+- The alternation amplitude itself oscillates (grows then collapses) at a beat frequency between AWDL's period and the 20-second bucket-pair period — matching the observed 60–90s envelope cycle.
+
+**Testing / reproducing it**
+
+- Ground truth control: `sudo ifconfig awdl0 down` / `up` to force AWDL off/on for calibration.
+- Reliable trigger (positive control): open the AirDrop pane in Finder (Cmd+Shift+R) and leave it open — keeps AWDL continuously active.
+- Realistic trigger (real-world case): unlock an iPhone and keep it nearby — triggers Handoff/Continuity discovery, which wakes AWDL more intermittently/weakly than the AirDrop case. Good for testing detector sensitivity to the subtler real-world scenario.
+- Suggested protocol: alternate ~5-minute baseline / triggered / baseline segments, repeated once, verifying AWDL state via `ifconfig awdl0` throughout.
+
+**Detection approach for Cutie (browser-only, no OS access)**
+Since a web page can't query `ifconfig`, use autocorrelation on the raw 0.1s latency samples (not the 10s-averaged view, which aliases the signal). Look for a correlation peak around 10–15 seconds of lag; a sharp, narrow peak there is a good AWDL fingerprint, distinct from broadband/aperiodic generic Wi-Fi congestion. Run on a rolling window (~60–90s of raw samples); flag "possible AWDL interference" above a tuned correlation threshold (start ~0.3–0.4).
+
+```javascript
+// Autocorrelation-based AWDL interference detector
+// Feed raw RTT samples (e.g. 0.1s interval), not pre-averaged buckets.
+function autocorrelate(samples, maxLagSamples) {
+  const n = samples.length;
+  const mean = samples.reduce((a, b) => a + b, 0) / n;
+  const centered = samples.map(s => s - mean);
+  const variance = centered.reduce((a, b) => a + b * b, 0) / n;
+
+  const result = [];
+  for (let lag = 1; lag <= maxLagSamples; lag++) {
+    let sum = 0;
+    for (let i = 0; i < n - lag; i++) {
+      sum += centered[i] * centered[i + lag];
+    }
+    result.push({ lag, correlation: sum / (n - lag) / variance });
+  }
+  return result;
+}
+
+// Example usage: rolling window of ~90s at 0.1s sampling = 900 samples
+// Look for a peak in the 10-15s lag range (100-150 samples at 0.1s interval)
+function detectAwdlPattern(rawSamples, sampleIntervalSec = 0.1) {
+  const minLagSec = 8;
+  const maxLagSec = 18;
+  const minLag = Math.round(minLagSec / sampleIntervalSec);
+  const maxLag = Math.round(maxLagSec / sampleIntervalSec);
+
+  const acf = autocorrelate(rawSamples, maxLag);
+  const windowed = acf.filter(r => r.lag >= minLag && r.lag <= maxLag);
+  const peak = windowed.reduce((best, r) => r.correlation > best.correlation ? r : best, windowed[0]);
+
+  const THRESHOLD = 0.35; // tune against known AWDL-on/off calibration sessions
+  return {
+    detected: peak.correlation > THRESHOLD,
+    peakLagSeconds: peak.lag * sampleIntervalSec,
+    peakCorrelation: peak.correlation
+  };
+}
+```
+
+Optional: a small local helper process could expose real `ifconfig awdl0` ground truth over localhost for calibration/dev use only — not needed for the deployed public page.
+
+**Planned user-facing mitigation (for end users of Cutie)**
+In-app explanation: note that a wavy latency pattern is common on Macs, caused by background Apple device-discovery features, not a real network problem.
+
+Mitigation steps, easiest to most effective:
+
+1. Finder → AirDrop → set to "No One" (or System Settings → General → AirDrop & Handoff → Receiving Off)
+2. Turn off Handoff (System Settings → General → AirDrop & Handoff)
+3. Move other Apple devices (iPhone, iPad, AirPods) further away or enable Airplane Mode during the test
+4. Turn off Bluetooth temporarily
+5. Use wired Ethernet instead of Wi-Fi
+
+Optionally surface this messaging only when the autocorrelation detector actually fires, rather than always showing it.

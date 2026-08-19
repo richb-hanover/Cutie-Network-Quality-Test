@@ -14,6 +14,7 @@ Ideas that have occurred to me. Some might be good ones...
   (It's collecting the first 10 seconds of samples...)
 - Add " - location, wifi name, etc." to "Type a message"
 - Save button should also save all the items in the Message Log
+- Address AWDL problem (oscillating latency readings)
 
 ## Server changes
 
