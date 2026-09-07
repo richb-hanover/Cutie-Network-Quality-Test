@@ -26,6 +26,14 @@ packet loss, reaching 100 received samples takes a bit longer than 10 real
 seconds — that's intentional, since the button should reflect actual data
 availability, not elapsed time.
 
+During "Initializing…" the button is disabled (not wired to `disconnect()`),
+matching today's disabled "Connecting…" behavior — clicking it can't
+re-trigger `connectToServer()` mid-setup. This means the mouse has no way to
+abort during Initializing; `Ctrl+C` remains available as the keyboard escape
+hatch (`src/routes/+page.svelte` already handles this independently of button
+state). This is a deliberate choice to keep the state machine simple and
+consistent with the existing Connecting behavior, not an oversight.
+
 The 100-sample threshold is extracted as a named constant
 (`INITIALIZING_SAMPLE_THRESHOLD`) alongside `LATENCY_INTERVAL_MS` in
 [`src/lib/latency-probe.ts`](../../../src/lib/latency-probe.ts), and imported
