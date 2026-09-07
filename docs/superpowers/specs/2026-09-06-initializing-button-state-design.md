@@ -45,17 +45,17 @@ into [`src/routes/+page.svelte`](../../../src/routes/+page.svelte).
 
 ```svelte
 {#if connectionState === 'connected' && latencyStats.totalReceived >= INITIALIZING_SAMPLE_THRESHOLD}
-  <button on:click={() => disconnect('manual')}>Stop</button>
+	<button on:click={() => disconnect('manual')}>Stop</button>
 {:else}
-  <button on:click={connectToServer} disabled={isConnecting || connectionState === 'connected'}>
-    {#if connectionState === 'connected'}
-      Initializing…
-    {:else if isConnecting}
-      Connecting…
-    {:else}
-      Start
-    {/if}
-  </button>
+	<button on:click={connectToServer} disabled={isConnecting || connectionState === 'connected'}>
+		{#if connectionState === 'connected'}
+			Initializing…
+		{:else if isConnecting}
+			Connecting…
+		{:else}
+			Start
+		{/if}
+	</button>
 {/if}
 ```
 

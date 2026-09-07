@@ -1,7 +1,7 @@
 {
 	"name": "cutie-network-quality-test",
 	"private": true,
-	"version": "0.3.2",
+	"version": "0.3.3",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev --host 0.0.0.0 --port 5173",
@@ -20,14 +20,14 @@
 		"@eslint/js": "10.0.1",
 		"@sveltejs/adapter-auto": "7.0.1",
 		"@sveltejs/adapter-node": "5.5.4",
-		"@sveltejs/kit": "2.57.1",
+		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/vite-plugin-svelte": "6.2.4",
 		"@tailwindcss/typography": "0.5.19",
 		"@tailwindcss/vite": "4.2.2",
 		"@testing-library/jest-dom": "6.9.1",
 		"@testing-library/svelte": "5.3.1",
 		"@types/node": "25",
-		"@vitest/browser": "4.1.4",
+		"@vitest/browser": "^4.1.11",
 		"eslint": "10.2.0",
 		"eslint-config-prettier": "10.1.8",
 		"eslint-plugin-svelte": "3.17.0",
@@ -38,12 +38,12 @@
 		"prettier": "3.8.2",
 		"prettier-plugin-svelte": "3.5.1",
 		"prettier-plugin-tailwindcss": "0.7.2",
-		"svelte": "5.55.2",
+		"svelte": "^5.57.0",
 		"svelte-check": "4.4.6",
 		"tailwindcss": "4.2.2",
 		"typescript": "6.0.2",
 		"typescript-eslint": "8.58.1",
-		"vite": "6.4.2",
+		"vite": "^6.4.3",
 		"vite-plugin-devtools-json": "1.0.0",
 		"vitest": "4.1.4",
 		"vitest-browser-svelte": "2.1.0"
@@ -51,7 +51,7 @@
 	"dependencies": {
 		"@roamhq/wrtc": "0.10.0",
 		"chart.js": "4.5.1",
-		"marked": "18.0.0",
+		"marked": "^18.0.11",
 		"tslog": "4.10.2"
 	},
 	"overrides": {

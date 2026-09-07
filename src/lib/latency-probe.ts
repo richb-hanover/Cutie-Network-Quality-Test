@@ -5,6 +5,7 @@ export const LATENCY_INTERVAL_MS = 100; // msec
 export const LOSS_TIMEOUT_MS = 2000; // msec
 export const LOSS_CHECK_INTERVAL_MS = 250; // msec
 export const MAX_LATENCY_HISTORY = 1000; // depth of history
+export const INITIALIZING_SAMPLE_THRESHOLD = 100; // received probes (~10s) before charts have data
 
 // the wire format for the probes sent/received
 export type LatencyProbe = {

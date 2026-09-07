@@ -14,6 +14,7 @@
 	import type { WebRtcState } from '$lib/webrtc';
 	import { decompressCutieFile, formatLocalDateTime } from '$lib/session-file';
 	import type { SessionBounds } from '$lib/session-file';
+	import { INITIALIZING_SAMPLE_THRESHOLD } from '$lib/latency-probe';
 	import { marked } from 'marked';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import NetworkHistoryChart from '$lib/components/NetworkHistoryChart.svelte';
@@ -255,11 +256,16 @@
 
 		<div class="controls">
 			<div class="button-group">
-				{#if connectionState === 'connected'}
+				{#if connectionState === 'connected' && latencyStats.totalReceived >= INITIALIZING_SAMPLE_THRESHOLD}
 					<button on:click={() => disconnect('manual')}>Stop</button>
 				{:else}
-					<button on:click={connectToServer} disabled={isConnecting}>
-						{#if isConnecting}
+					<button
+						on:click={connectToServer}
+						disabled={isConnecting || connectionState === 'connected'}
+					>
+						{#if connectionState === 'connected'}
+							Initializing…
+						{:else if isConnecting}
 							Connecting…
 						{:else}
 							Start

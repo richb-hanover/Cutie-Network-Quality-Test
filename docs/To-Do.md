@@ -15,6 +15,11 @@ Ideas that have occurred to me. Some might be good ones...
 - Add " - location, wifi name, etc." to "Type a message"
 - Save button should also save all the items in the Message Log
 - Address AWDL problem (oscillating latency readings)
+- Is the value shown for Now packet loss average of the
+  bin, or over time?
+  When LymeFiber had huge packet loss, "Now" was counting
+  down from ~20% when things were good,
+  jumping back up when bad.
 
 ## Server changes
 
