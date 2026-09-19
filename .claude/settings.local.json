@@ -1,14 +1,24 @@
 {
-	"permissions": {
-		"allow": [
-			"Bash(git push -u origin claude-code-experiment)",
-			"Bash(npm test -- tests/rtc-client-timeout.test.ts 2>&1)",
-			"Bash(npm test 2>&1 | head -30)",
-			"Bash(npm test 2>&1)",
-			"Bash(npm run check 2>&1)",
-			"Bash(npm test -- tests/rtc-client-late-candidates.test.ts 2>&1)",
-			"Bash(npx vitest run tests/rtc-client-late-candidates.test.ts 2>&1)",
-			"Bash(npx vitest run 2>&1)"
-		]
-	}
+  "permissions": {
+    "allow": [
+      "Bash(git push -u origin claude-code-experiment)",
+      "Bash(npm test -- tests/rtc-client-timeout.test.ts 2>&1)",
+      "Bash(npm test 2>&1 | head -30)",
+      "Bash(npm test 2>&1)",
+      "Bash(npm run check 2>&1)",
+      "Bash(npm test -- tests/rtc-client-late-candidates.test.ts 2>&1)",
+      "Bash(npx vitest run tests/rtc-client-late-candidates.test.ts 2>&1)",
+      "Bash(npx vitest run 2>&1)",
+      "Skill(update-config)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git -C /Users/richb/github/Cutie-Network-Quality-Test stash)",
+      "Bash(git -C /Users/richb/github/Cutie-Network-Quality-Test stash pop)",
+      "Bash(git -C /Users/richb/github/Cutie-Network-Quality-Test branch)",
+      "Bash(git -C /Users/richb/github/Cutie-Network-Quality-Test log --oneline -4)",
+      "Bash(git -C /Users/richb/github/Cutie-Network-Quality-Test add src/lib/webrtc.ts)",
+      "Bash(git -C /Users/richb/github/Cutie-Network-Quality-Test commit -m \"fix: complete guard consistency for sleep/auto disconnect reasons in catch block\")",
+      "Bash(python3 -m json.tool)"
+    ]
+  }
 }

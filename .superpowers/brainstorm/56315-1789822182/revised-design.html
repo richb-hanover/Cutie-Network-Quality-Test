@@ -1,0 +1,104 @@
+<h2>Revised Design: Detect Sleep vs. Tab Switch</h2>
+<p class="subtitle">The key insight: on desktop/laptop, JS timers keep running during a tab switch — probes still flow. Sleep freezes everything. We can use this to tell them apart.</p>
+
+<div class="section">
+  <div class="label">What actually happens per platform</div>
+  <div class="mockup">
+    <div class="mockup-header">JS timer behaviour when page is hidden</div>
+    <div class="mockup-body" style="font-size:0.85rem; padding:1rem">
+      <table style="width:100%; border-collapse:collapse; line-height:1.9">
+        <tr style="background:#f3f4f6">
+          <th style="padding:0.4rem 0.75rem; text-align:left">Scenario</th>
+          <th style="padding:0.4rem 0.75rem; text-align:left">JS timers</th>
+          <th style="padding:0.4rem 0.75rem; text-align:left">Probes received?</th>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb"><strong>Desktop/laptop — tab switch</strong></td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">Keep running</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">Yes — connection is fine</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb"><strong>Desktop/laptop — lid close / sleep</strong></td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#991b1b">Frozen</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#991b1b">No — everything is frozen</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem"><strong>Mobile — tab switch</strong></td>
+          <td style="padding:0.4rem 0.75rem; color:#991b1b">Frozen by browser</td>
+          <td style="padding:0.4rem 0.75rem; color:#991b1b">No — JS is frozen</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">The revised approach: detect on wake, not on hide</div>
+  <div class="mockup">
+    <div class="mockup-header">How it works</div>
+    <div class="mockup-body" style="font-size:0.85rem; padding:1rem; line-height:1.8">
+      <p style="margin:0 0 0.75rem">Instead of starting a timer when the page hides, we <strong>check on wake</strong>:</p>
+      <ol style="margin:0; padding-left:1.2rem">
+        <li>When page hides: record <code>hiddenAt</code> (wall clock) and <code>probeCountAtHide</code> (probes received so far)</li>
+        <li>When page shows again: compare current probe count to <code>probeCountAtHide</code></li>
+        <li>If probes increased → tab switch on desktop, JS was running → <strong>continue</strong></li>
+        <li>If probes unchanged AND hidden for &gt;30s → JS was frozen (sleep or mobile) → <strong>stop</strong></li>
+      </ol>
+      <p style="margin:0.75rem 0 0; color:#6b7280">No setTimeout needed. The probe count is the signal.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Outcome by scenario</div>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.85rem; padding:1rem">
+      <table style="width:100%; border-collapse:collapse; line-height:1.8">
+        <tr style="background:#f3f4f6">
+          <th style="padding:0.4rem 0.75rem; text-align:left">Scenario</th>
+          <th style="padding:0.4rem 0.75rem; text-align:left">Result</th>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">Desktop/laptop — tab switch (any duration)</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">Continue — probes flowed during hide</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">Desktop/laptop — lid closed / sleep &gt;30s</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#92400e">Stop on wake — "computer went to sleep" (green)</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">Mobile — tab switch &gt;30s</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#92400e">Stop on return — "Cutie only works when visible" (green)</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">Mobile — brief tab switch &lt;30s</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">Continue — grace period not exceeded</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">User clicks Stop while hidden</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">Manual stop wins</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem">Device sleeps while already in another tab</td>
+          <td style="padding:0.4rem 0.75rem; color:#92400e">Stop on wake — same logic, probes didn't flow</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Code changes (still all in webrtc.ts)</div>
+  <div class="mockup">
+    <div class="mockup-body" style="font-size:0.85rem; padding:1rem; line-height:1.8">
+      <ul style="margin:0; padding-left:1.2rem">
+        <li>Two module variables: <code>hiddenAt: number | null</code>, <code>probeCountAtHide: number | null</code></li>
+        <li><code>visibilityChangeHandler</code>: on hide → record values; on show → compare and maybe <code>disconnect('sleep')</code></li>
+        <li>No <code>setTimeout</code> — simpler than before</li>
+        <li>Same listener attach/remove lifecycle as the previous design</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1rem">Does this revised design look right?</p>

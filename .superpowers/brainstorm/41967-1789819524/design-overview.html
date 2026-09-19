@@ -1,0 +1,96 @@
+<h2>Design: Sleep & Background Detection</h2>
+<p class="subtitle">Full design for review — does this match what you have in mind?</p>
+
+<div class="section">
+  <div class="label">How it works</div>
+  <div class="mockup">
+    <div class="mockup-header">Behaviour flow</div>
+    <div class="mockup-body" style="font-size:0.85rem; padding:1rem; line-height:1.8">
+      <ol style="margin:0; padding-left:1.2rem">
+        <li>When collection starts, Cutie attaches a <code>visibilitychange</code> listener</li>
+        <li>The moment the page is hidden (lid closes / screen locks / tab switch), a <strong>30-second countdown</strong> starts</li>
+        <li>If the page becomes visible again within 30s → countdown cancelled, collection continues normally</li>
+        <li>If still hidden after 30s → <code>disconnect('sleep')</code> fires, probes stop cleanly</li>
+        <li>The listener is removed when collection stops (any reason)</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">What the user sees</div>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">Mobile (phone / tablet)</div>
+      <div class="mockup-body" style="padding:1rem">
+        <div style="background:#2563eb;color:white;border-radius:0.5rem;padding:0.65rem 1.2rem;display:inline-block;font-weight:500;margin-bottom:1rem">Start</div>
+        <div style="background:#dcfce7;color:#166534;border-radius:0.5rem;padding:0.75rem;font-size:0.9rem">
+          Collection stopped — Cutie only works when visible
+        </div>
+        <p style="margin:0.75rem 0 0; color:#6b7280; font-size:0.8rem">Triggered when: tab switches to another app/browser window</p>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">Non-mobile (desktop / laptop)</div>
+      <div class="mockup-body" style="padding:1rem">
+        <div style="background:#2563eb;color:white;border-radius:0.5rem;padding:0.65rem 1.2rem;display:inline-block;font-weight:500;margin-bottom:1rem">Start</div>
+        <div style="background:#dcfce7;color:#166534;border-radius:0.5rem;padding:0.75rem;font-size:0.9rem">
+          Collection stopped — computer went to sleep
+        </div>
+        <p style="margin:0.75rem 0 0; color:#6b7280; font-size:0.8rem">Triggered when: lid closes, screen locks, or computer sleeps</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Code changes — all in webrtc.ts</div>
+  <div class="mockup">
+    <div class="mockup-header">What changes</div>
+    <div class="mockup-body" style="font-size:0.85rem; padding:1rem; line-height:1.8">
+      <ul style="margin:0; padding-left:1.2rem">
+        <li>Add <code>'sleep'</code> to the <code>DisconnectReason</code> type</li>
+        <li>Add <code>isMobile()</code> helper — checks <code>navigator.maxTouchPoints &gt; 0</code> + user agent</li>
+        <li>Add <code>scheduleVisibilityStop()</code> — 30s timer on hide, cancelled on show</li>
+        <li>Attach listener in <code>beginCollectionSession()</code>, remove in <code>disconnect()</code></li>
+        <li>Handle <code>'sleep'</code> in the message block of <code>disconnect()</code></li>
+      </ul>
+      <p style="margin:0.75rem 0 0; color:#6b7280">No changes needed to the UI, charts, stores, or probe logic.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Edge cases handled</div>
+  <div class="mockup">
+    <div class="mockup-header">Scenarios</div>
+    <div class="mockup-body" style="font-size:0.85rem; padding:1rem">
+      <table style="width:100%; border-collapse:collapse; line-height:1.8">
+        <tr style="background:#f3f4f6">
+          <th style="padding:0.4rem 0.75rem; text-align:left">Scenario</th>
+          <th style="padding:0.4rem 0.75rem; text-align:left">Result</th>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">Brief tab switch (&lt;30s)</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">Collection continues</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">Lid closed / screen locked &gt;30s</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#92400e">Clean stop, green banner</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">User clicks Stop before 30s elapses</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">Manual stop wins, timer cancelled</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb">2-hour auto-stop fires while hidden</td>
+          <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">Auto-stop wins, existing message shown</td>
+        </tr>
+        <tr>
+          <td style="padding:0.4rem 0.75rem">Connection error while hidden</td>
+          <td style="padding:0.4rem 0.75rem; color:#166534">Error stop wins, red banner</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>

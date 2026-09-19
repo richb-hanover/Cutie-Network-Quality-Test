@@ -1,0 +1,90 @@
+<h2>Can Cutie keep testing on a phone when another tab is in front?</h2>
+<p class="subtitle">Short answer: on iOS, no. On Android, maybe — with caveats.</p>
+
+<div class="section">
+  <div class="label">Why it's hard</div>
+  <div class="mockup">
+    <div class="mockup-header">What mobile browsers do when you switch tabs</div>
+    <div class="mockup-body" style="font-size:0.85rem; padding:1rem">
+      <table style="width:100%; border-collapse:collapse; line-height:1.8">
+        <thead>
+          <tr style="background:#f3f4f6; text-align:left">
+            <th style="padding:0.4rem 0.75rem">Browser</th>
+            <th style="padding:0.4rem 0.75rem">JS timers</th>
+            <th style="padding:0.4rem 0.75rem">WebRTC data channel</th>
+            <th style="padding:0.4rem 0.75rem">Web Workers</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb"><strong>iOS Safari</strong></td>
+            <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#991b1b">Frozen immediately</td>
+            <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#991b1b">Often closed</td>
+            <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#991b1b">Also frozen</td>
+          </tr>
+          <tr>
+            <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb"><strong>Chrome / Android</strong></td>
+            <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#92400e">Throttled ~1/min</td>
+            <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#92400e">Usually stays open</td>
+            <td style="padding:0.4rem 0.75rem; border-bottom:1px solid #e5e7eb; color:#166534">May keep running</td>
+          </tr>
+          <tr>
+            <td style="padding:0.4rem 0.75rem"><strong>Firefox / Android</strong></td>
+            <td style="padding:0.4rem 0.75rem; color:#92400e">Throttled</td>
+            <td style="padding:0.4rem 0.75rem; color:#92400e">Usually stays open</td>
+            <td style="padding:0.4rem 0.75rem; color:#92400e">Throttled</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin:0.75rem 0 0; color:#6b7280; font-size:0.8rem">The probe sender uses <code>setInterval</code> — it cannot run reliably in a background tab on any mobile browser. Even if the data channel stays open, Cutie cannot send probes.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Options</div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Same as desktop — Detect &amp; Stop on hide</h3>
+      <p>When the tab goes to background, stop collection. Show: <em>"Collection stopped — Cutie needs to stay in the foreground."</em> Consistent behavior everywhere. Simple.</p>
+      <div class="pros-cons" style="margin-top:0.5rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Zero extra complexity</li><li>Honest message to user</li><li>Consistent across all platforms</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Can't run speed test alongside</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>PWA / Add to Home Screen hint</h3>
+      <p>Same as A, but show a one-time banner on mobile: <em>"Tip: Add Cutie to your home screen — it gets its own window and stays visible while you use the browser."</em> On Android, a PWA in its own window doesn't compete with the browser tab.</p>
+      <div class="pros-cons" style="margin-top:0.5rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Practical workaround on Android</li><li>No code changes to core logic</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Doesn't help iOS</li><li>Requires PWA manifest setup</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Screen Wake Lock (keep-awake, no tab switch)</h3>
+      <p>Use <code>navigator.wakeLock.request('screen')</code> while collecting. This prevents the screen from going to sleep while Cutie is the active tab. It does <em>not</em> help when switching tabs — but it means the phone won't auto-sleep while Cutie is running.</p>
+      <div class="pros-cons" style="margin-top:0.5rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Keeps screen on during collection</li><li>Small, self-contained addition</li><li>Supported on Chrome/Android &amp; Safari 16.4+</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Drains battery faster</li><li>Doesn't help tab-switch scenario</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">Options are independent — you can do A + B, A + C, or all three. Click all that interest you.</p>
+<script>
+// Override to allow multi-select
+document.querySelectorAll('.options').forEach(el => el.dataset.multiselect = '');
+</script>

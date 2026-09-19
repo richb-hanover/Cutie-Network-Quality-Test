@@ -271,6 +271,11 @@ NB: This project was inspired by the WebRTC capabilities of
 
 ## AWDL / Wi-Fi Latency Investigation — Summary
 
+**13Sep2026:** `sudo ipconfig awdl0 down` doesn't affect it - still shows beat frequency plot.
+Settings -> Privacy & Security -> Location Services seems to affect things. Turning off Location Services fixes it; turning it on, then turning off Significant locations ("System Services") fixed it in a one-out-of-one test. But turning it back on didn't reproduce.
+New info: Setting Airdrop to "No One" drops latency to zero. Turning it back on gives oscillation.
+Opening Photos-> Share -> Airdop induces oscillation; canceling and moving phone away makes it better after 30 seconds (?). _Still can't drop photo to my laptop._
+
 **Symptom observed in Cutie (WebRTC network quality test app)**
 
 Latency probes (100 samples per 10s, at 0.1s intervals) showed a wavy pattern when plotted: adjacent 10-second averages alternated lower/higher with growing amplitude, then the amplitude collapsed to near-zero after 60–90 seconds, and the cycle repeated. Occurred on macOS, more often after connecting Bluetooth devices, after months of not seeing it.
@@ -282,7 +287,7 @@ Latency probes (100 samples per 10s, at 0.1s intervals) showed a wavy pattern wh
 - AWDL is *not* always running. It's woken up when AirDrop is actively used, or when some process requests peer-to-peer networking (a `NetService`) — often triggered by Bluetooth LE discovery of a nearby Apple device (iPhone, AirPods, etc.) via Continuity/Handoff.
 - This explains the BT connection: Bluetooth itself doesn't directly cause the delay — it's the discovery trigger that wakes AWDL, which then steals the Wi-Fi radio.
 
-**Why the pattern looks like a "beat frequency"**
+**Why does the pattern looks like a "beat frequency"?**
 
 - AWDL's own activation period (~15–30s) isn't synced to Cutie's 10-second averaging window.
 - Sampling a periodic disturbance with a non-matching averaging period causes aliasing: adjacent buckets alternately capture more/less disruption.

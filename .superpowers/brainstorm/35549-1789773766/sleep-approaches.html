@@ -1,0 +1,61 @@
+<h2>Handling Sleep, Lid Close & Tab Switch</h2>
+<p class="subtitle">Three approaches to the core problem: browsers freeze JS when a device sleeps or the tab is hidden. Choose the strategy that fits best — or mix them.</p>
+
+<div class="section">
+  <div class="label">The problem</div>
+  <div class="mockup">
+    <div class="mockup-header">What happens today (no handling)</div>
+    <div class="mockup-body" style="font-size:0.85rem; padding: 1rem;">
+      <p style="margin:0 0 0.5rem">When the lid closes or screen locks:</p>
+      <ul style="margin:0; padding-left:1.2rem; line-height:1.8">
+        <li>JS timers freeze — probes stop sending</li>
+        <li>Pending probes all time out at once when it wakes up → spurious loss spike</li>
+        <li>The 2-hour auto-stop timer is also frozen → session runs past 2 hours</li>
+        <li>The "Now" stats panel updates from stale data; charts show a gap</li>
+        <li>On phone: switching tabs produces the same freeze effect</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Choose an approach</div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Detect &amp; Pause</h3>
+      <p>When the screen locks / lid closes / tab hides, pause probes and show a yellow "Paused" banner. Resume automatically on wake. Gap is visible in charts as flat line. No data is lost or fabricated.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Session survives sleep</li><li>Honest gap in charts</li><li>Auto-resumes</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Charts have visible holes</li><li>Elapsed time includes sleep time</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Detect &amp; Stop</h3>
+      <p>When the page hides for more than ~5 seconds, stop collection with a specific message: "Paused — lid closed" or "Paused — switched tabs". User clicks Start to begin a new session.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Clean session boundaries</li><li>No misleading data</li><li>Simple to understand</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Loses data on wake</li><li>Must click Start again</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Detect &amp; Annotate</h3>
+      <p>Pause probes on hide, resume on show. Mark the gap on the charts with a shaded region or vertical line labeled "Sleeping 14m" so the viewer can interpret the chart correctly.</p>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Pros</h4><ul><li>Session survives sleep</li><li>Chart gap is explained</li><li>Most informative</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More complex to build</li><li>Chart annotation is fiddly</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
