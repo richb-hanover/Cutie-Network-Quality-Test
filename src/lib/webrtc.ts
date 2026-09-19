@@ -29,7 +29,12 @@ import { getLogger } from './logger';
 
 const logger = getLogger('webrtc');
 
-export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload';
+export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload' | 'sleep';
+
+export function isMobile(): boolean {
+	if (typeof navigator === 'undefined') return false;
+	return navigator.maxTouchPoints > 0 && /Mobi|Android/i.test(navigator.userAgent);
+}
 
 export type MessageEntry = {
 	id: number;
@@ -75,6 +80,7 @@ const initialState: WebRtcState = {
 };
 
 const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
+const VISIBILITY_STOP_DELAY_MS = 30_000;
 
 export const webrtcState = writable<WebRtcState>(initialState);
 
@@ -86,6 +92,9 @@ let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
 let messageId = 0;
 let rawProbes: Array<{ seq: number; sentAt: number; receivedAt: number | null }> = [];
 let epochOffsetMs = 0; // Date.now() - performance.now() at session start
+let hiddenAt: number | null = null;
+let probeCountAtHide: number | null = null;
+let visibilityChangeHandler: (() => void) | null = null;
 
 const latencyProbe = initializeLatencyMonitor({
 	onStats: (stats) => {
@@ -135,6 +144,33 @@ function beginCollectionSession(dataChannel: RTCDataChannel): void {
 	}));
 	scheduleCollectionAutoStop();
 	latencyProbe.start(dataChannel);
+
+	if (typeof document !== 'undefined') {
+		visibilityChangeHandler = () => {
+			if (document.hidden) {
+				hiddenAt = Date.now();
+				probeCountAtHide = get(webrtcState).latencyStats.totalReceived;
+			} else {
+				if (
+					hiddenAt !== null &&
+					probeCountAtHide !== null &&
+					Date.now() - hiddenAt > VISIBILITY_STOP_DELAY_MS &&
+					get(webrtcState).latencyStats.totalReceived === probeCountAtHide
+				) {
+					hiddenAt = null;
+					probeCountAtHide = null;
+					const { connection, isDisconnecting } = get(webrtcState);
+					if (connection && !isDisconnecting) {
+						void disconnect('sleep');
+					}
+				} else {
+					hiddenAt = null;
+					probeCountAtHide = null;
+				}
+			}
+		};
+		document.addEventListener('visibilitychange', visibilityChangeHandler);
+	}
 }
 
 async function normaliseDataMessage(data: unknown): Promise<string> {
@@ -375,6 +411,13 @@ export async function disconnect(
 	stopStats = null;
 	clearCollectionAutoStopTimer();
 
+	hiddenAt = null;
+	probeCountAtHide = null;
+	if (typeof document !== 'undefined' && visibilityChangeHandler) {
+		document.removeEventListener('visibilitychange', visibilityChangeHandler);
+		visibilityChangeHandler = null;
+	}
+
 	if (state.connection) {
 		try {
 			await state.connection.close();
@@ -398,6 +441,10 @@ export async function disconnect(
 			}`;
 		} else if (reason === 'auto') {
 			collectionStatusMessage = 'Collection stopped after two hours.';
+		} else if (reason === 'sleep') {
+			collectionStatusMessage = isMobile()
+				? 'Collection stopped — Cutie only works when visible'
+				: 'Collection stopped — computer went to sleep';
 		}
 	}
 
