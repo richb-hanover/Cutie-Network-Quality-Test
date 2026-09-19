@@ -384,9 +384,14 @@ export async function connectToServer(): Promise<void> {
 		}));
 		latencyProbe.stop();
 		const { activeDisconnectReason } = get(webrtcState);
-		if (activeDisconnectReason !== 'manual' && activeDisconnectReason !== 'error') {
-			await disconnect('error', { message });
-		}
+		if (
+				activeDisconnectReason !== 'manual' &&
+				activeDisconnectReason !== 'error' &&
+				activeDisconnectReason !== 'sleep' &&
+				activeDisconnectReason !== 'auto'
+			) {
+				await disconnect('error', { message });
+			}
 	} finally {
 		webrtcState.update((current) => ({ ...current, isConnecting: false }));
 	}
