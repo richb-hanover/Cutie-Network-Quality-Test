@@ -261,6 +261,7 @@ export async function connectToServer(): Promise<void> {
 				if (
 					activeDisconnectReason !== 'manual' &&
 					activeDisconnectReason !== 'error' &&
+					activeDisconnectReason !== 'sleep' &&
 					activeDisconnectReason !== 'auto'
 				) {
 					void disconnect('error', { message });
@@ -327,6 +328,7 @@ export async function connectToServer(): Promise<void> {
 			if (
 				activeDisconnectReason !== 'manual' &&
 				activeDisconnectReason !== 'error' &&
+				activeDisconnectReason !== 'sleep' &&
 				activeDisconnectReason !== 'auto'
 			) {
 				const snap = get(webrtcState);
@@ -354,6 +356,7 @@ export async function connectToServer(): Promise<void> {
 				activeDisconnectReason !== 'manual' &&
 				activeDisconnectReason !== 'timeout' &&
 				activeDisconnectReason !== 'error' &&
+				activeDisconnectReason !== 'sleep' &&
 				activeDisconnectReason !== 'auto'
 			) {
 				void disconnect('error', { message });
