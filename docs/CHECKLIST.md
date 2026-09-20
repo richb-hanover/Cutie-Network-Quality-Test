@@ -20,4 +20,7 @@ Do these steps before a final push to the production server
   `npm install`, `npm run build`, and `npm run preview`
   with the proper set of options for a long-running server.
 - NB: The `deploy.sh` script also can take a parameter that is
-  the name of a branch to checkout, instead of the default `main`
+  the name of a branch to checkout, instead of the default `main`.
+  A second, optional parameter is the address to listen on
+  (default `localhost`; use `0.0.0.0` on a test box that other
+  machines on the network should reach directly)

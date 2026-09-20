@@ -33,10 +33,18 @@ To run the script:
 sh deploy.sh
 ... or...
 sh deploy.sh branch-to-checkout
+... or...
+sh deploy.sh branch-to-checkout 0.0.0.0
 ```
 
 This starts the `npm run preview` server running on
 port 4173.
+By default it listens only on `localhost`,
+so only this machine (and the Apache proxy below) can reach it.
+The optional second argument is the address to listen on.
+Use `0.0.0.0` on a test machine that browsers elsewhere on the
+local network should reach directly (`http://<that machine's IP>:4173`).
+The default is right for production.
 
 The Apache server is configured to run a proxy
 (with Let's Encrypt handling SSL)

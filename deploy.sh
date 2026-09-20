@@ -7,7 +7,14 @@
 # To run this script:
 #   ssh deploy@...
 #   cd /src/Cutie-network-
-#   sudo bash deploy.sh
+#   sudo bash deploy.sh [branch [host]]
+#
+#   branch  the branch to deploy (default: main)
+#   host    the address the app listens on (default: localhost). With localhost only
+#           this machine can connect, which is what the production site wants: Apache
+#           is the reverse proxy in front of it. For a test box that browsers on the
+#           local network should reach directly, use 0.0.0.0, for example:
+#             sudo bash deploy.sh handle-lid-sleep 0.0.0.0
 
 # add NVM so that yarn can find node (oh the tangled we we weave...)
 # export NVM_DIR="$HOME/.nvm"
@@ -138,7 +145,8 @@ detect_host_ip() {
 	fi
 }
 
-ip_address=l"ocalhost"
+# Second argument overrides the listen address; the default keeps production on localhost.
+ip_address="${2:-localhost}"
 # if [ -z "$ip_address" ]; then
 # 	echo "Warning: Could not determine host IP; defaulting to 127.0.0.1" | tee -a "$logfile"
 # 	ip_address="127.0.0.1"
@@ -150,4 +158,11 @@ ensure_no_existing_preview "$ip_port"
 
 nohup env LOG_LEVEL=2 npm run "preview" -- --host "$ip_address" --port "$ip_port" >> "$logfile" 2>&1 &
 
-echo "All set! Check at http://$ip_address:$ip_port" | tee -a "$logfile"
+# 0.0.0.0 means "every interface"; show an address that a browser can actually use
+display_host="$ip_address"
+if [ "$ip_address" = "0.0.0.0" ]; then
+	display_host=$(detect_host_ip || true)
+	display_host="${display_host:-$ip_address}"
+fi
+
+echo "All set! Check at http://$display_host:$ip_port" | tee -a "$logfile"

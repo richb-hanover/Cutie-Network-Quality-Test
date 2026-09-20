@@ -175,11 +175,9 @@ If you get a 503 on the HTTPS site, check in this order:
   browsers. Programmatic/API clients hardcoded to `http://IP:5173` may not follow the
   redirect — if any old users are scripts rather than browsers, they need to be told
   the new URL directly.
-- **Why Apache and not Caddy:** this box already runs Virtualmin with other working
-  sites; Apache owns 80/443. Bringing in Caddy would mean demoting Apache off those
-  ports and proxying every existing site through Caddy — unnecessary risk for one app.
-  Apache's `mod_proxy` does the same reverse-proxy job. Virtualmin keeps managing the
-  vhost and the Let's Encrypt cert normally.
+- **Why Apache:** this box already runs Virtualmin with other working sites; Apache
+  owns 80/443. Apache's `mod_proxy` does the reverse-proxy job, and Virtualmin keeps
+  managing the vhost and the Let's Encrypt cert normally.
 - **Websockets:** if the app uses websockets (Vite HMR in dev, or live features),
   also `sudo a2enmod proxy_wstunnel` and add an upgrade rule to the SSL vhost:
   ```apache
