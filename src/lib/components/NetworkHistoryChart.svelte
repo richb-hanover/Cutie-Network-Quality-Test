@@ -16,6 +16,7 @@
 		type TenSecondSummary
 	} from '$lib/stores/mosStore';
 	import { buildTimeTooltipTitle, ensureVerticalAlignTooltipPositioner } from '$lib/chartTooltip';
+	import { gapAwareSegment } from '$lib/chart-gaps';
 	import type { Readable } from 'svelte/store';
 
 	Chart.register(...registerables);
@@ -408,7 +409,8 @@
 				fill: false,
 				tension: 0.3,
 				clip: false,
-				spanGaps: spec.spanGaps ?? false
+				spanGaps: spec.spanGaps ?? false,
+				segment: gapAwareSegment
 			};
 		});
 	}

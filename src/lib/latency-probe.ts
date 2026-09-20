@@ -101,6 +101,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 	let activeChannel: RTCDataChannel | null = null;
 	let sendInterval: ReturnType<typeof setInterval> | null = null;
 	let lossInterval: ReturnType<typeof setInterval> | null = null;
+	let lastLossCheckAt = 0; // when recordLostProbes last ran; a long gap means the page was frozen
 
 	/**
 	 * appendHistory() - add new samples into the latencyStats.history
@@ -188,6 +189,12 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 	 */
 	const recordLostProbes = () => {
 		const currentTime = now();
+		// If this check itself was stalled for longer than the loss timeout (page hidden and
+		// frozen, computer asleep), probes did not time out on the network: nothing was running
+		// to answer them. Forgive those instead of counting them lost.
+		const stalledMs = currentTime - lastLossCheckAt;
+		const stalled = stalledMs > lossTimeoutMs;
+		lastLossCheckAt = currentTime;
 		const lost: number[] = [];
 
 		// push probes that been timed out into lost array
@@ -198,6 +205,17 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		}
 
 		if (lost.length === 0) {
+			return;
+		}
+
+		if (stalled) {
+			for (const seq of lost) {
+				pendingProbes.delete(seq);
+			}
+			logger.info(
+				`Forgave ${lost.length} pending probe(s) after a ${(stalledMs / 1000).toFixed(1)}s stall ` +
+					`(page hidden or suspended); not counted as lost`
+			);
 			return;
 		}
 
@@ -249,6 +267,7 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 		resetCollection();
 
 		// actually send the LatencyProbe and schedule the time to re-send
+		lastLossCheckAt = now();
 		sendProbe();
 		sendInterval = setInterval(sendProbe, intervalMs);
 		lossInterval = setInterval(recordLostProbes, lossCheckIntervalMs);

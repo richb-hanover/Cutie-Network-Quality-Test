@@ -6,6 +6,7 @@ import {
 	connections,
 	finalizeConnection,
 	handleConnectionStateChange,
+	startConnectionReaper,
 	type ManagedConnection
 } from '$lib/server/webrtcRegistry';
 import { formatLocalDateTime } from '$lib/session-file';
@@ -128,10 +129,12 @@ function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidat
  * together with the timestamp (startedAt).
  *
  * It then installs an onconnectionstatechange handler (handleConnectionStateChange()):
- * when the peer reaches a terminal state (closed or failed) the handler logs it and
- * calls finalizeConnection() to remove it from the active connections map and record
- * its duration for /api/stats. A 'disconnected' peer is only logged, because it can
- * recover (a hidden Safari tab did).
+ * when the peer is closed the handler logs it and calls finalizeConnection() to remove
+ * it from the active connections map and record its duration for /api/stats. A
+ * 'disconnected' or 'failed' peer is only logged, because it can recover (a hidden
+ * Safari tab did). Connections that never come back are closed 2 h 10 min after they
+ * started by the reaper (startConnectionReaper()), which /api/stats reports as
+ * "Server timeout after 2h10m".
  *
  * After wiring that cleanup hook, it stores the new ManagedConnection in the
  * connections map keyed by its UUID and returns the ID so the rest of the handler can reference it.
@@ -154,6 +157,7 @@ function registerConnection(pc: RTCPeerConnection, tag: string, clientIp: string
 		handleConnectionStateChange(id, pc, tag, (message) => logger.info(message));
 
 	connections.set(id, managed);
+	startConnectionReaper((message) => logger.info(message));
 	return id;
 }
 

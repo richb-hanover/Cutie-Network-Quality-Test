@@ -156,18 +156,9 @@ With the visibility beacons on, a 37.9 s tab hide produced this in the server lo
   recovered twice, and the second flap went unlogged because the record was gone.
 - On a reload, the old page sends a `visibility-hidden` beacon between `beforeunload`
   and `unload`. That is not a real hide.
-- Fixed 2026-09-20: `handleConnectionStateChange()` in
-  `src/lib/server/webrtcRegistry.ts` now only ends a connection on `failed` or
-  `closed`. `disconnected` logs "Connection disconnected (may recover)" and keeps the
-  connection registered; the return to `connected` logs "Connection recovered ... after
-  N ms disconnected". Watch for these lines to see how long a hidden Safari
-  connection survives, and when it finally fails.
-- Risk: a peer stuck in `disconnected` that never reaches `failed` would now stay in the
-  server's active-connection list. No such case has been seen. Earlier logs show a
-  vanished client reaching `failed` about 15 to 16 s later.
-
-Still unknown: how long a hidden Safari connection can stay `disconnected` before it
-fails for good (the 20:53 run failed within 3 minutes).
+- Corrected 2026-09-20: the server first ended a connection on `disconnected`, then (in a
+  first fix) only on `failed` or `closed`. The LAN test below showed that `failed` is
+  recoverable too, so now only `closed` ends a connection (see "What Cutie does now").
 
 What the earlier Safari runs now suggest (needs the unfiltered logs to confirm):
 
@@ -204,6 +195,45 @@ lastMessageAt=... openDurationMs=...` (`src/routes/api/webrtc/+server.ts`,
   `UNEXPECTED connection close ... state=failed iceState=failed` about 15 to 16
   seconds later, so that is the expected ICE failure delay.
 
+### LAN test: Safari with the server on another machine (2026-09-20)
+
+Server on a second Mac (`deploy.sh handle-lid-sleep 0.0.0.0`, `LOG_LEVEL=2`), Safari on the
+laptop. Five tab hides: 30.5 s, 32.5 s, 68.5 s, 197 s and 2,155 s (36 minutes). The
+connection survived all five. Probes received while hidden: 9, 10, 8, 7 and 9.
+
+What the server saw, in seconds after the tab was hidden (the same in every hide long
+enough to reach each step):
+
+| After hide  | Server sees                                                            |
+| ----------- | ---------------------------------------------------------------------- |
+| +9 to +11 s | last probe from Safari, then the page freezes                          |
+| +18 s       | ICE `disconnected`                                                     |
+| +27 s       | `connected` again: Safari wakes the page briefly and one probe arrives |
+| +34 s       | `disconnected` again                                                   |
+| +44 s       | `failed`                                                               |
+| on return   | `connected` again                                                      |
+
+- Hides shorter than 44 s returned before `failed`. In the 36-minute hide Safari woke the
+  page once more about 16 minutes in (10:45:23): the connection recovered to `connected`,
+  went `disconnected` 7 s later and `failed` 17 s later, and stayed `failed` for about 20
+  minutes until the tab was shown at 11:05:31 (the server saw `connected` 38 ms before
+  the visible beacon).
+- So `failed` is not final: the connection came back from `failed` three times. A server
+  that finalized on `failed` recorded a close for a connection that was still alive.
+- The client only saw `disconnected` then `connected` flicker (41, 92 and 206 ms) when it
+  woke, and never `failed`. In the same-machine 20:53 run the client did reach `failed`.
+  What decides that is still unknown. The candidates were the same in both setups (a
+  public `srflx` address on both sides), so a different network path is not supported.
+- The charts showed two problems. (1) The 10-second timer that makes chart points does not
+  run while Safari freezes the page, so there were no points from 10:30 to 11:05 and Chart.js
+  joined the last point before with the first after: a flat "Excellent" MOS line and a
+  packet-loss line ramping to 20%. (2) The first point after each long hide showed a small
+  loss blip (1%, 2%, 20% after the 68 s, 197 s and 36-minute hides). Probes in flight when
+  the page froze were counted lost as soon as it woke, and were stamped with the current
+  time while the received samples in the 10-second window were stale, so the first window
+  held mostly lost samples. The lost count was not logged, so this mechanism comes from
+  reading the code and matching the timing, not from a measured count.
+
 ## What Cutie does now (implemented 2026-09-20)
 
 Cutie never stops itself because the page was hidden. Code: `src/lib/background-gap.ts`
@@ -229,22 +259,37 @@ Cutie never stops itself because the page was hidden. Code: `src/lib/background-
   visible less than 10 s earlier.
 - **No auto-reconnect.** A dropped connection (Safari after a few minutes hidden)
   ends the session; the user clicks Start.
+- **Chart gaps.** The chart line is not drawn between two points more than 30 s apart
+  (`src/lib/chart-gaps.ts`); the dots stay. A hidden period shows as a gap, not as flat
+  "Excellent" or a loss ramp.
+- **No false loss on wake-up.** When the loss check itself has been stalled for more than
+  its 2 s timeout, the probes that expired in the meantime are dropped, not counted lost
+  (`latency-probe.ts`). The log says "Forgave N pending probe(s) after a Xs stall".
+  Probes that time out while the page is running still count as lost.
+- **Server connection state.** Only `closed` ends a connection. `disconnected` and
+  `failed` are logged as "may recover" / "may still recover" and the connection stays
+  registered; `connected` afterwards is logged as "Connection recovered".
+- **Server timeout.** Every connection is closed 2 h 10 min after it started, whatever its
+  state, checked once a minute (`reapExpiredConnections()` in `webrtcRegistry.ts`). A
+  Cutie session stops itself at 2 h, and the longest recovery seen was 35 minutes. Earlier
+  versions left sessions alive for days. `/api/stats` lists such a connection under
+  `oldConnections` with the reason `Server timeout after 2h10m`.
 
 The server log also shows when a window is hidden or shown: `lifecycle-beacon.ts` sends
 `visibility-hidden` and `visibility-visible` beacons to `/api/beacon`, which the server
 logs as `{"connectionId":...,"reason":"visibility-hidden","state":"hidden"}`. Compare
-those times with `UNEXPECTED connection close` lines to see how long a hidden window
-kept its connection. These beacons had been commented out since 2025-12-15 and were
+those times with the `Connection disconnected`, `Connection failed` and `Connection
+recovered` lines to see how long a hidden window kept its connection. These beacons had been commented out since 2025-12-15 and were
 turned back on on 2026-09-20.
 
 Removed: the `sleep` stop reason and its messages, `isMobile()`, and the diagnostic
 logging used to collect the measurements above. Cutie now logs one line each time the
 page becomes visible ("Visible again after N s hidden: received M probes ...").
 
-Deliberately not done: drawing the gap differently in the charts (they show what
-arrived), and flagging hidden-period samples despite their small upward latency bias.
+Deliberately not done: flagging hidden-period samples despite their small upward latency
+bias.
 
 Still untested: Windows and Linux; Chrome and Edge with the lid closed; Edge with a
-page hidden for 2 hours; minimized windows; mobile browsers; how long Safari can stay
-hidden before the connection is lost (the server log for the 20:53 run was not
-captured).
+page hidden for 2 hours; minimized windows; mobile browsers; what decides whether
+Safari's client ends up `failed` on return; the chart gap and the loss forgiveness in a
+real browser (both are covered by unit tests only).

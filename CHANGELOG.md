@@ -4,6 +4,24 @@
 
 ---
 
+## Version 0.3.4 - 2026-09-20
+
+- Major research into browser behavior when hidden or when the computer sleeps.
+- Keep collecting when the Cutie page is hidden (other tab, covered window, closed lid)
+  instead of stopping; show a yellow notice for 15 seconds on return if probes were missed
+- Check the two-hour limit when the page becomes visible
+- Do not draw chart lines across gaps of more than 30 seconds
+- Do not count probes as lost that only expired while the page was frozen
+- Server: a `disconnected` or `failed` connection may recover, so only `closed` ends it;
+  log the recovery
+- Server: close every connection 2 h 10 min after it started; `/api/stats` shows
+  "Server timeout after 2h10m" as the reason
+- Log `visibility-hidden` / `visibility-visible` beacons again
+- deploy.sh: optional second argument for the address to listen on
+- See docs/Browser Background Behavior.md for the measurements behind these changes
+
+---
+
 ## Version 0.3.0 - 2026-04-10
 
 - Make friendlier error messages (don't use "WebRTC")

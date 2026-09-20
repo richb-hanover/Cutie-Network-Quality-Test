@@ -6,8 +6,10 @@ import {
 	type ManagedConnection
 } from '../src/lib/server/webrtcRegistry';
 
-// WebRTC reports 'disconnected' when connectivity checks fail. The connection can still
-// recover (a hidden Safari tab did, twice), so only 'failed' and 'closed' end it.
+// WebRTC reports 'disconnected' and then 'failed' when connectivity checks stop being
+// answered. A frozen Safari tab went disconnected, then failed about 45 s after being
+// hidden, and came back to 'connected' when the tab woke up (35 minutes later, once).
+// So neither state ends a connection; 'closed' does, and the server timeout reaps the rest.
 const ID = 'test-connection';
 const TAG = '(01) ';
 
@@ -60,16 +62,29 @@ describe('server connection state changes', () => {
 		expect(logged[0]).not.toContain('UNEXPECTED');
 	});
 
-	it("finalizes a 'failed' connection and logs it as unexpected", () => {
+	it("keeps a 'failed' connection registered and says it may still recover", () => {
 		register();
 
-		stateChange('failed', 'failed');
+		stateChange('disconnected');
+		stateChange('failed');
+
+		expect(connections.has(ID)).toBe(true);
+		expect(oldConnections).toHaveLength(0);
+		expect(logged[1]).toContain('failed');
+		expect(logged[1]).toContain('may still recover');
+		expect(logged.join('\n')).not.toContain('UNEXPECTED');
+	});
+
+	it("finalizes a 'closed' connection and logs it as unexpected", () => {
+		register();
+
+		stateChange('closed');
 
 		expect(connections.has(ID)).toBe(false);
 		expect(oldConnections).toHaveLength(1);
 		expect(oldConnections[0].id).toBe(ID);
 		expect(logged.join('\n')).toContain('UNEXPECTED connection close');
-		expect(logged.join('\n')).toContain('state=failed');
+		expect(logged.join('\n')).toContain('state=closed');
 	});
 
 	it('logs a close after a client DELETE as clean, not unexpected', () => {
@@ -82,7 +97,7 @@ describe('server connection state changes', () => {
 		expect(logged.join('\n')).not.toContain('UNEXPECTED');
 	});
 
-	it('logs recovery, and still ends the connection if it later fails', () => {
+	it('logs recovery from disconnected, and again after a later failure', () => {
 		register();
 
 		stateChange('disconnected');
@@ -92,8 +107,9 @@ describe('server connection state changes', () => {
 
 		stateChange('disconnected');
 		stateChange('failed');
-		expect(connections.has(ID)).toBe(false);
-		expect(logged.join('\n')).toContain('UNEXPECTED connection close');
+		stateChange('connected');
+		expect(connections.has(ID)).toBe(true);
+		expect(logged[logged.length - 1]).toContain('recovered');
 	});
 
 	it("reports a first 'connected' as a plain state change, not a recovery", () => {
