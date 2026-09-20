@@ -20,7 +20,7 @@ Read it before changing the sleep/background detection in `src/lib/webrtc.ts`.
   probes/s; Safari ran at ~0.013 probes/s (21 probes in 28 minutes).
 - **Safari can lose the WebRTC connection while a tab is hidden.** In a clean run
   (new tab opened, left alone) only 8 probes arrived in 185 s, and the connection
-  was `failed` when the page thawed. The server had already dropped it (see "Safari
+  was `failed` when the page thawed. The server's records no longer listed it (see "Safari
   drops the connection when hidden" below). Short Safari hides (up to about 27 s)
   were survived repeatedly.
 - **Latency measured while hidden is biased upward** in every browser tested with
@@ -133,13 +133,41 @@ captured (Safari 26.6.2, 2026-09-19):
 - The console then showed `Failed to load resource: 404`. That is the client's
   `DELETE /api/webrtc?id=...` (`rtc-client.ts` `close()`), which the server answers
   with 404 "Connection not found or already closed" when the connection has
-  already been finalized (`src/routes/api/webrtc/+server.ts`, DELETE handler). So the
-  server had already dropped the connection while the page was frozen. The client
-  only learned about it on thaw.
+  already been finalized (`src/routes/api/webrtc/+server.ts`, DELETE handler). The
+  server had removed it from its records while the page was frozen. As the next
+  section shows, that happened when the peer became `disconnected`, which is not
+  the same as the connection being closed. The client learned the outcome on thaw.
 
-Still unknown: when during the 185 s the connection died. The server log line for
-that connection id (`UNEXPECTED connection close: ... lastMessageAt=...
-openDurationMs=...`) would say.
+### What the server log shows (Safari, 2026-09-20)
+
+With the visibility beacons on, a 37.9 s tab hide produced this in the server log:
+
+| Time        | Server log                                                                                                |
+| ----------- | --------------------------------------------------------------------------------------------------------- |
+| 08:20:16.7  | `visibility-hidden` beacon                                                                                |
+| 08:20:24    | last probe from this client (the `lastMessageAt` value): Safari ran the page for about 8 s, then froze it |
+| 08:20:34.4  | `UNEXPECTED connection close ... state=disconnected`                                                      |
+| 08:20:42.2  | `Connection state changed ... connected`                                                                  |
+| 08:20:54.57 | `Connection state changed ... connected`                                                                  |
+| 08:20:54.58 | `visibility-visible` beacon                                                                               |
+
+- The server then treated `disconnected` like a close: it logged UNEXPECTED and removed
+  the connection from its records, but never closed the peer connection. The connection
+  recovered twice, and the second flap went unlogged because the record was gone.
+- On a reload, the old page sends a `visibility-hidden` beacon between `beforeunload`
+  and `unload`. That is not a real hide.
+- Fixed 2026-09-20: `handleConnectionStateChange()` in
+  `src/lib/server/webrtcRegistry.ts` now only ends a connection on `failed` or
+  `closed`. `disconnected` logs "Connection disconnected (may recover)" and keeps the
+  connection registered; the return to `connected` logs "Connection recovered ... after
+  N ms disconnected". Watch for these lines to see how long a hidden Safari
+  connection survives, and when it finally fails.
+- Risk: a peer stuck in `disconnected` that never reaches `failed` would now stay in the
+  server's active-connection list. No such case has been seen. Earlier logs show a
+  vanished client reaching `failed` about 15 to 16 s later.
+
+Still unknown: how long a hidden Safari connection can stay `disconnected` before it
+fails for good (the 20:53 run failed within 3 minutes).
 
 What the earlier Safari runs now suggest (needs the unfiltered logs to confirm):
 

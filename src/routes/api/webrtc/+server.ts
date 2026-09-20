@@ -5,6 +5,7 @@ import { incrementWebrtcConnections } from '$lib/server/runtimeState';
 import {
 	connections,
 	finalizeConnection,
+	handleConnectionStateChange,
 	type ManagedConnection
 } from '$lib/server/webrtcRegistry';
 import { formatLocalDateTime } from '$lib/session-file';
@@ -126,10 +127,11 @@ function normaliseLocalCandidate(candidate: RTCIceCandidateInit): RTCIceCandidat
  * generates a UUID for it, and wraps the pair of {id, pc}
  * together with the timestamp (startedAt).
  *
- * It then installs an onconnectionstatechange handler:
- * whenever the peer enters a terminal state (closed, failed, or disconnected)
- * the helper logs the state and calls finalizeConnection() to remove it
- * from the active connections map and record its duration for /api/stats.
+ * It then installs an onconnectionstatechange handler (handleConnectionStateChange()):
+ * when the peer reaches a terminal state (closed or failed) the handler logs it and
+ * calls finalizeConnection() to remove it from the active connections map and record
+ * its duration for /api/stats. A 'disconnected' peer is only logged, because it can
+ * recover (a hidden Safari tab did).
  *
  * After wiring that cleanup hook, it stores the new ManagedConnection in the
  * connections map keyed by its UUID and returns the ID so the rest of the handler can reference it.
@@ -144,47 +146,12 @@ function registerConnection(pc: RTCPeerConnection, tag: string, clientIp: string
 		deleteReceived: false,
 		openedAt: null,
 		lastMessageAt: null,
+		disconnectedAt: null,
 		clientIp
 	};
 
-	pc.onconnectionstatechange = () => {
-		if (
-			pc.connectionState === 'closed' ||
-			pc.connectionState === 'failed' ||
-			pc.connectionState === 'disconnected'
-		) {
-			const managed = connections.get(id); // get BEFORE finalizeConnection removes it
-			if (managed) {
-				const openDurationMs = managed.openedAt ? Date.now() - managed.openedAt.getTime() : null;
-				const lastMessageAt = managed.lastMessageAt
-					? formatLocalDateTime(managed.lastMessageAt.getTime())
-					: 'never';
-				if (managed.deleteReceived) {
-					logger.info(
-						`${tag}Connection ${id} closed cleanly (DELETE received). ` +
-							`openDurationMs=${openDurationMs}`
-					);
-				} else {
-					logger.info(
-						`${tag}UNEXPECTED connection close: id=${id} ` +
-							`state=${pc.connectionState} iceState=${pc.iceConnectionState} ` +
-							`lastMessageAt=${lastMessageAt} openDurationMs=${openDurationMs}`
-					);
-				}
-				finalizeConnection(
-					id,
-					managed.deleteReceived
-						? 'Client DELETE'
-						: `${pc.iceConnectionState} / ${pc.iceGatheringState}`
-				);
-			} else {
-				// Already finalized by DELETE handler
-				logger.debug(`${tag}Connection ${id} state=${pc.connectionState} (already finalized)`);
-			}
-		} else {
-			logger.info(`${tag}Connection state changed: id: ${id} state: ${pc.connectionState}`);
-		}
-	};
+	pc.onconnectionstatechange = () =>
+		handleConnectionStateChange(id, pc, tag, (message) => logger.info(message));
 
 	connections.set(id, managed);
 	return id;
