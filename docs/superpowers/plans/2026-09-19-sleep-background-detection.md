@@ -1,5 +1,7 @@
 # Sleep & Background Detection Implementation Plan
 
+> **Superseded on 2026-09-20.** The `sleep` stop path this plan builds was removed. Hidden pages no longer stop the session; see `docs/Browser Background Behavior.md`.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stop data collection cleanly when the page wakes from a sleep/freeze (lid close, screen lock, mobile tab switch), while leaving desktop/laptop tab switches untouched.

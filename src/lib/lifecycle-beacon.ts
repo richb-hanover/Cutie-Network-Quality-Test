@@ -65,13 +65,15 @@ function sendLifecycleBeacon(reason: BeaconReason, extra: Record<string, unknown
 
 sendLifecycleBeacon('init');
 
-// document.addEventListener('visibilitychange', () => {
-// 	if (document.visibilityState === 'hidden') {
-// 		sendLifecycleBeacon('visibility-hidden');
-// 	} else {
-// 		sendLifecycleBeacon('visibility-visible');
-// 	}
-// });
+// Lets the server log show when this window was hidden and when it became visible again,
+// e.g. to see when a hidden Safari tab lost its connection.
+document.addEventListener('visibilitychange', () => {
+	if (document.visibilityState === 'hidden') {
+		sendLifecycleBeacon('visibility-hidden');
+	} else {
+		sendLifecycleBeacon('visibility-visible');
+	}
+});
 
 window.addEventListener('pagehide', (event) => {
 	const e = event as PageTransitionEvent;

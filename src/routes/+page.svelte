@@ -283,6 +283,8 @@
 			<div class="error">{errorMessage}</div>
 		{:else if collectionStatusMessage}
 			<div class="status">{collectionStatusMessage}</div>
+		{:else if $webrtcState.samplesNotice}
+			<div class="notice">{$webrtcState.samplesNotice}</div>
 		{/if}
 	</section>
 
@@ -473,6 +475,7 @@
 	}
 
 	.status,
+	.notice,
 	.error {
 		margin-top: 1rem;
 		border-radius: 0.5rem;
@@ -483,6 +486,11 @@
 	.status {
 		background: #dcfce7;
 		color: #166534;
+	}
+
+	.notice {
+		background: #fef9c3;
+		color: #854d0e;
 	}
 
 	.error {

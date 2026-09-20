@@ -1,7 +1,7 @@
 # Sleep & Background Detection Design
 
 **Date:** 2026-09-19  
-**Status:** Approved
+**Status:** Superseded on 2026-09-20. Its central assumption (hidden desktop pages keep sending probes at the full rate, and only sleep stops them) was disproved by measurements. See `docs/Browser Background Behavior.md` for the data and the design that replaced it.
 
 ## Problem
 

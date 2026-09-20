@@ -26,15 +26,19 @@ import {
 } from '$lib/session-file';
 import { get as getStore } from 'svelte/store';
 import { getLogger } from './logger';
+import {
+	NOTICE_DURATION_MS,
+	SAMPLES_NOTICE_TEXT,
+	applyTwoHourRule,
+	createTransientNotice,
+	shouldShowSamplesNotice,
+	wasInBackground,
+	withBackgroundContext
+} from './background-gap';
 
 const logger = getLogger('webrtc');
 
-export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload' | 'sleep';
-
-export function isMobile(): boolean {
-	if (typeof navigator === 'undefined') return false;
-	return navigator.maxTouchPoints > 0 && /Mobi|Android/i.test(navigator.userAgent);
-}
+export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload';
 
 export type MessageEntry = {
 	id: number;
@@ -55,6 +59,7 @@ export type WebRtcState = {
 	messages: MessageEntry[];
 	latencyStats: LatencyStats;
 	collectionStatusMessage: string | null;
+	samplesNotice: string | null; // yellow, temporary: probes were missed while hidden
 	collectionStartAt: number | null;
 	collectionEndAt: number | null;
 	activeDisconnectReason: DisconnectReason | null;
@@ -73,6 +78,7 @@ const initialState: WebRtcState = {
 	messages: [],
 	latencyStats: createEmptyLatencyStats(),
 	collectionStatusMessage: null,
+	samplesNotice: null,
 	collectionStartAt: null,
 	collectionEndAt: null,
 	activeDisconnectReason: null,
@@ -80,7 +86,6 @@ const initialState: WebRtcState = {
 };
 
 const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;
-const VISIBILITY_STOP_DELAY_MS = 30_000;
 
 export const webrtcState = writable<WebRtcState>(initialState);
 
@@ -92,9 +97,16 @@ let collectionAutoStopTimer: ReturnType<typeof setTimeout> | null = null;
 let messageId = 0;
 let rawProbes: Array<{ seq: number; sentAt: number; receivedAt: number | null }> = [];
 let epochOffsetMs = 0; // Date.now() - performance.now() at session start
-let hiddenAt: number | null = null;
-let probeCountAtHide: number | null = null;
-let visibilityChangeHandler: (() => void) | null = null;
+// Page visibility bookkeeping (see handleVisibilityChange)
+let hiddenAt: number | null = null; // when the page was hidden; null while visible
+let receivedAtHide: number | null = null; // totalReceived at that moment
+let lastShownAt: number | null = null; // when the page last became visible again
+
+// Yellow "some samples were not collected" notice; removes itself after 15 s.
+const samplesNoticeControl = createTransientNotice(
+	(text) => webrtcState.update((state) => ({ ...state, samplesNotice: text })),
+	NOTICE_DURATION_MS
+);
 
 const latencyProbe = initializeLatencyMonitor({
 	onStats: (stats) => {
@@ -132,6 +144,46 @@ function scheduleCollectionAutoStop(): void {
 	}, COLLECTION_DURATION_MS);
 }
 
+/**
+ * handleVisibilityChange() - remember when the page is hidden; on return, apply the
+ * two-hour limit and tell the user if so few probes arrived that the charts have a gap.
+ * Hidden pages are throttled or frozen (see docs/Browser Background Behavior.md), so
+ * this never stops the session just because the page was hidden.
+ */
+function handleVisibilityChange(): void {
+	const now = Date.now();
+	const { latencyStats } = get(webrtcState);
+
+	if (document.hidden) {
+		hiddenAt = now;
+		receivedAtHide = latencyStats.totalReceived;
+		return;
+	}
+
+	const hiddenMs = hiddenAt !== null ? now - hiddenAt : 0;
+	const receivedWhileHidden =
+		receivedAtHide !== null ? latencyStats.totalReceived - receivedAtHide : 0;
+	logger.info(
+		`Visible again after ${(hiddenMs / 1000).toFixed(1)}s hidden: ` +
+			`received ${receivedWhileHidden} probes (about ${Math.round(hiddenMs / 1000)} expected when throttled)`
+	);
+	hiddenAt = null;
+	receivedAtHide = null;
+	lastShownAt = now;
+
+	const { connection, isDisconnecting, collectionStartAt } = get(webrtcState);
+	if (!connection || isDisconnecting) {
+		return;
+	}
+	if (collectionStartAt !== null && now - collectionStartAt >= COLLECTION_DURATION_MS) {
+		void disconnect('auto');
+		return;
+	}
+	if (shouldShowSamplesNotice(hiddenMs, receivedWhileHidden)) {
+		samplesNoticeControl.show(SAMPLES_NOTICE_TEXT);
+	}
+}
+
 function beginCollectionSession(dataChannel: RTCDataChannel): void {
 	epochOffsetMs = Date.now() - performance.now();
 	const startAt = Date.now();
@@ -145,31 +197,11 @@ function beginCollectionSession(dataChannel: RTCDataChannel): void {
 	scheduleCollectionAutoStop();
 	latencyProbe.start(dataChannel);
 
+	hiddenAt = null;
+	receivedAtHide = null;
+	lastShownAt = null;
 	if (typeof document !== 'undefined') {
-		visibilityChangeHandler = () => {
-			if (document.hidden) {
-				hiddenAt = Date.now();
-				probeCountAtHide = get(webrtcState).latencyStats.totalReceived;
-			} else {
-				if (
-					hiddenAt !== null &&
-					probeCountAtHide !== null &&
-					Date.now() - hiddenAt > VISIBILITY_STOP_DELAY_MS &&
-					get(webrtcState).latencyStats.totalReceived === probeCountAtHide
-				) {
-					hiddenAt = null;
-					probeCountAtHide = null;
-					const { connection, isDisconnecting } = get(webrtcState);
-					if (connection && !isDisconnecting) {
-						void disconnect('sleep');
-					}
-				} else {
-					hiddenAt = null;
-					probeCountAtHide = null;
-				}
-			}
-		};
-		document.addEventListener('visibilitychange', visibilityChangeHandler);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
 	}
 }
 
@@ -252,16 +284,18 @@ export async function connectToServer(): Promise<void> {
 			},
 			onError: (err: unknown) => {
 				const raw = err instanceof Error ? err.message : String(err);
-				const message = raw.includes('network is down')
-					? "Can't connect to the server when the network is down"
-					: raw;
+				const message = withBackgroundContext(
+					raw.includes('network is down')
+						? "Can't connect to the server when the network is down"
+						: raw,
+					wasInBackground({ hiddenAt, lastShownAt, now: Date.now() })
+				);
 				webrtcState.update((current) => ({ ...current, errorMessage: message }));
 				latencyProbe.stop();
 				const { activeDisconnectReason } = get(webrtcState);
 				if (
 					activeDisconnectReason !== 'manual' &&
 					activeDisconnectReason !== 'error' &&
-					activeDisconnectReason !== 'sleep' &&
 					activeDisconnectReason !== 'auto'
 				) {
 					void disconnect('error', { message });
@@ -328,7 +362,6 @@ export async function connectToServer(): Promise<void> {
 			if (
 				activeDisconnectReason !== 'manual' &&
 				activeDisconnectReason !== 'error' &&
-				activeDisconnectReason !== 'sleep' &&
 				activeDisconnectReason !== 'auto'
 			) {
 				const snap = get(webrtcState);
@@ -356,7 +389,6 @@ export async function connectToServer(): Promise<void> {
 				activeDisconnectReason !== 'manual' &&
 				activeDisconnectReason !== 'timeout' &&
 				activeDisconnectReason !== 'error' &&
-				activeDisconnectReason !== 'sleep' &&
 				activeDisconnectReason !== 'auto'
 			) {
 				void disconnect('error', { message });
@@ -385,26 +417,30 @@ export async function connectToServer(): Promise<void> {
 		latencyProbe.stop();
 		const { activeDisconnectReason } = get(webrtcState);
 		if (
-				activeDisconnectReason !== 'manual' &&
-				activeDisconnectReason !== 'error' &&
-				activeDisconnectReason !== 'sleep' &&
-				activeDisconnectReason !== 'auto'
-			) {
-				await disconnect('error', { message });
-			}
+			activeDisconnectReason !== 'manual' &&
+			activeDisconnectReason !== 'error' &&
+			activeDisconnectReason !== 'auto'
+		) {
+			await disconnect('error', { message });
+		}
 	} finally {
 		webrtcState.update((current) => ({ ...current, isConnecting: false }));
 	}
 }
 
 export async function disconnect(
-	reason: DisconnectReason = 'timeout',
+	requestedReason: DisconnectReason = 'timeout',
 	options: { message?: string; suppressMessage?: boolean } = {}
 ): Promise<void> {
 	const state = get(webrtcState);
 	if (state.isDisconnecting) {
 		return;
 	}
+
+	// A stop after the two-hour limit is reported as the two-hour stop, whichever
+	// event (failed connection, closed channel, page shown) reached us first on wake-up.
+	const elapsedMs = state.collectionStartAt !== null ? Date.now() - state.collectionStartAt : null;
+	const reason = applyTwoHourRule(requestedReason, elapsedMs, COLLECTION_DURATION_MS);
 
 	logger.info(`Clicked Stop button - reason: ${reason}`);
 
@@ -420,10 +456,11 @@ export async function disconnect(
 	clearCollectionAutoStopTimer();
 
 	hiddenAt = null;
-	probeCountAtHide = null;
-	if (typeof document !== 'undefined' && visibilityChangeHandler) {
-		document.removeEventListener('visibilitychange', visibilityChangeHandler);
-		visibilityChangeHandler = null;
+	receivedAtHide = null;
+	lastShownAt = null;
+	samplesNoticeControl.clear();
+	if (typeof document !== 'undefined') {
+		document.removeEventListener('visibilitychange', handleVisibilityChange);
 	}
 
 	if (state.connection) {
@@ -449,10 +486,6 @@ export async function disconnect(
 			}`;
 		} else if (reason === 'auto') {
 			collectionStatusMessage = 'Collection stopped after two hours.';
-		} else if (reason === 'sleep') {
-			collectionStatusMessage = isMobile()
-				? 'Collection stopped — Cutie only works when visible'
-				: 'Collection stopped — computer went to sleep';
 		}
 	}
 
