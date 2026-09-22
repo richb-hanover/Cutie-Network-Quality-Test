@@ -292,7 +292,10 @@ Code: `src/lib/background-gap.ts` (the rules), `handleVisibilityChange()` and
   also turns an `error`, `timeout` or `background` stop into that same stop when the
   session is past two hours, because the failed-connection or background-stop event
   can reach the page before the visibility event. The two-hour `setTimeout` is still
-  there for pages that are not throttled.
+  there for pages that are not throttled. The two-hour message always wins over the
+  background one, but if the hide leading into it was itself useless (the same
+  30 s / 50%-of-throttled-rate check as a background stop), the data is trimmed the
+  same way before disconnecting — see "Real lid-close case" below.
 - **No auto-reconnect.** A background stop, or any other dropped connection, ends the
   session; the user clicks Start.
 - **Chart gaps.** The chart line is not drawn between two points more than 30 s apart
@@ -326,9 +329,34 @@ page becomes visible ("Visible again after N s hidden: received M probes ...").
 Deliberately not done: flagging hidden-period samples despite their small upward latency
 bias.
 
+## Real lid-close case, all four browsers (2026-09-21, 0.3.5)
+
+First real-world test of the 2026-09-21 behavior above, run against the 0.3.5 server on
+another machine, all four browsers open at once, lid closed about 22:40.
+
+- Chrome and Edge: "Lost connection to the server..." — the connection failed outright,
+  as expected.
+- Firefox: stopped cleanly at the two-hour mark.
+- Safari: also stopped with "Collection stopped after two hours.", but the chart showed
+  one extra point about a minute after the otherwise-clean cutoff. The saved `.cutie`
+  file showed why: probing ran normally until 22:39:50, then two ~21 s gaps, then one
+  last probe at 22:40:36 (an 11 ms round trip — a real reading, not a glitch) right as
+  the lid finished closing, then nothing for hours until the lid reopened.
+- Root cause: the two-hour check in `handleVisibilityChange()` returns immediately once
+  it decides to stop, before the background-stop trim check ever runs. A session that
+  ends via the two-hour rule was never trimmed, even when (as here) it had actually been
+  hidden and useless for hours beforehand.
+- Fix (implemented 2026-09-22): the two-hour branch now also runs the background-stop
+  threshold check against the hide that preceded it, and trims (`trimBackgroundData()`,
+  the same code `stopForBackground()` uses) before disconnecting if it says the hide was
+  useless. The reported reason and message are unchanged — still `'auto'` / "Collection
+  stopped after two hours." — only the trimmed data and `collectionEndAt` change. A
+  two-hour stop reached from the foreground, or after only a short hide, is unaffected.
+  This does not retroactively fix an already-saved `.cutie` file.
+
 Still untested: Windows and Linux; Edge with a page hidden for 2 hours; minimized
 windows; mobile browsers; what decides whether Safari's client ends up `failed` on
 return; the chart gap and the loss forgiveness in a real browser (both are covered by
 unit tests only). The background-stop, data-trim and Safari-header-notice behavior
 above (2026-09-21) is likewise covered by unit tests only, not yet exercised against a
-real hide/sleep in each of the four browsers.
+real hide/sleep in each of the four browsers, apart from the Safari case just above.

@@ -115,6 +115,25 @@ describe('page hidden and shown again', () => {
 		expect(state.connection).toBeNull();
 	});
 
+	it('trims the sparse tail when the two-hour limit fires after a long, mostly-empty hide', async () => {
+		// Reproduces a real Safari lid-close: the page goes hidden and stays nearly
+		// frozen for hours (no probes arrive), and by the time it wakes the two-hour
+		// limit has long since passed. The two-hour message still wins, but the
+		// probes/charts should be trimmed back to the hide, same as a 'background' stop.
+		await startSession();
+		const hideStartAt = Date.now();
+		setHidden(true);
+		vi.setSystemTime(Date.now() + TWO_HOURS_MS + 60_000);
+		setHidden(false);
+		await vi.advanceTimersByTimeAsync(0);
+
+		const state = get(webrtcState);
+		expect(state.activeDisconnectReason).toBe('auto');
+		expect(state.collectionStatusMessage).toBe('Collection stopped after two hours.');
+		expect(getRawProbes().length).toBeGreaterThan(0);
+		expect(getRawProbes().every((p) => p.sentAt < hideStartAt)).toBe(true);
+	});
+
 	it('reports the two-hour stop, not a background stop, when the lost connection is noticed first on wake-up', async () => {
 		await startSession();
 		setHidden(true);

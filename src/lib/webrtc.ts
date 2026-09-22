@@ -140,17 +140,24 @@ function scheduleCollectionAutoStop(): void {
 }
 
 /**
- * stopForBackground() - stop collection because Cutie was in the background: too few
- * probes arrived while hidden, or the connection itself failed while hidden (or just
- * after waking, within the background grace window). Discards everything from
- * cutoffMs (when the responsible hide started) onward — the raw probes behind the
- * .cutie save file and the chart history — so only the good, pre-hide data is shown
- * or saved. The running totals in the Latency Monitor panel are left alone; they are
- * diagnostic, not part of the trimmed story.
+ * trimBackgroundData() - discard everything from cutoffMs (when the responsible hide
+ * started) onward: the raw probes behind the .cutie save file and the chart history.
+ * So only the good, pre-hide data is shown or saved. The running totals in the
+ * Latency Monitor panel are left alone; they are diagnostic, not part of the trimmed
+ * story.
  */
-function stopForBackground(cutoffMs: number): void {
+function trimBackgroundData(cutoffMs: number): void {
 	rawProbes = rawProbes.filter((probe) => probe.sentAt < cutoffMs);
 	trimSessionDataAfter(cutoffMs, cutoffMs - epochOffsetMs);
+}
+
+/**
+ * stopForBackground() - stop collection because Cutie was in the background: too few
+ * probes arrived while hidden, or the connection itself failed while hidden (or just
+ * after waking, within the background grace window).
+ */
+function stopForBackground(cutoffMs: number): void {
+	trimBackgroundData(cutoffMs);
 	void disconnect('background', { message: BACKGROUND_STOP_MESSAGE, endAt: cutoffMs });
 }
 
@@ -222,7 +229,16 @@ function handleVisibilityChange(): void {
 		return;
 	}
 	if (collectionStartAt !== null && now - collectionStartAt >= COLLECTION_DURATION_MS) {
-		void disconnect('auto');
+		// The two-hour message always wins over the background one, but a hide that was
+		// itself useless (e.g. a lid closed for hours before the page ever woke up to
+		// notice) should still be trimmed, the same as an ordinary background stop.
+		if (shouldStopForBackground(hiddenMs, receivedWhileHidden)) {
+			const cutoffMs = backgroundStopCutoffMs();
+			trimBackgroundData(cutoffMs);
+			void disconnect('auto', { endAt: cutoffMs });
+		} else {
+			void disconnect('auto');
+		}
 		return;
 	}
 	if (shouldStopForBackground(hiddenMs, receivedWhileHidden)) {
