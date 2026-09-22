@@ -40,6 +40,10 @@ Cutie is a SvelteKit full-stack app that measures network quality (latency, jitt
 
 `src/lib/server/webrtcRegistry.ts` tracks open `RTCPeerConnection` instances. The server echoes every message it receives back over the data channel. Stale connections are timed out.
 
+### Hidden pages, sleep and connection state
+
+Browsers throttle or freeze a hidden Cutie page (another tab, a covered window, a closed lid), and a WebRTC connection can flap to `disconnected` or `failed` and then recover. **Read `docs/Browser Background Behavior.md` before changing** the visibility handling (`src/lib/webrtc.ts`, `src/lib/background-gap.ts`), the chart gaps (`src/lib/chart-gaps.ts`), the loss check in `src/lib/latency-probe.ts`, or the server's connection-state handling and 2 h 10 min timeout (`src/lib/server/webrtcRegistry.ts`). It has the measurements for Firefox, Chrome, Edge and Safari, what Cutie does now, and the open questions. Record new browser observations there.
+
 ## Debugging
 
 - `?chartTest=1` — injects synthetic test data into the charts

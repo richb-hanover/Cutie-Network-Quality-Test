@@ -59,9 +59,8 @@ const calculatePacketLossPercent = (lost: number, total: number): number | null 
 	return (lost / total) * 100;
 };
 
-const computeRecentAverages = (history: LatencySample[]): RecentAverages => {
-	const cutoff = performanceNow() - TEN_SECONDS_MS;
-
+/** Average a batch of samples as-is, with no time-window filtering of its own. */
+const computeAverages = (history: LatencySample[]): RecentAverages => {
 	let lost = 0;
 	let total = 0;
 	let latencySum = 0;
@@ -70,10 +69,6 @@ const computeRecentAverages = (history: LatencySample[]): RecentAverages => {
 	let jitterCount = 0;
 
 	for (const sample of history) {
-		if (sample.timestampMs < cutoff) {
-			continue;
-		}
-
 		if (sample.status === 'lost' || sample.status === 'received') {
 			total += 1;
 			if (sample.status === 'lost') {
@@ -97,6 +92,11 @@ const computeRecentAverages = (history: LatencySample[]): RecentAverages => {
 		averageLatencyMs: latencyCount ? latencySum / latencyCount : null,
 		averageJitterMs: jitterCount ? jitterSum / jitterCount : null
 	};
+};
+
+const computeRecentAverages = (history: LatencySample[]): RecentAverages => {
+	const cutoff = performanceNow() - TEN_SECONDS_MS;
+	return computeAverages(history.filter((sample) => sample.timestampMs >= cutoff));
 };
 
 export const calculateMosScore = (
@@ -234,6 +234,42 @@ export const resetMosData = (options?: { clearHistory?: boolean }) => {
 export const loadRecentAverages = (averages: RecentAverages, mos: number | null): void => {
 	recentAveragesStore.set(averages);
 	mosAverageStore.set(mos);
+};
+
+/**
+ * trimSessionDataAfter() - discard everything from the cutoff onward: chart summaries
+ * and the raw samples backing the "recent" 10-second averages. Used when collection
+ * stops because Cutie was in the background, so the live tiles and the chart history
+ * agree with the trimmed probes saved to the .cutie file, rather than freezing on a
+ * stale or hidden-period-biased reading.
+ *
+ * Two cutoffs are needed because the two stores use different clocks: chart summaries
+ * are stamped with `Date.now()` (wall-clock epoch ms), while latency samples are
+ * stamped with the same clock latency-probe uses internally (`performance.now()` when
+ * available). Pass the same clock each cutoff is compared against.
+ * @param cutoffAtMs - wall-clock epoch ms; chart summaries at or after this are dropped
+ * @param cutoffSampleMs - the sample clock's ms; samples at or after this are dropped
+ */
+export const trimSessionDataAfter = (cutoffAtMs: number, cutoffSampleMs: number): void => {
+	summaryHistoryStore.update((history) => history.filter((summary) => summary.at < cutoffAtMs));
+
+	sampleHistory = sampleHistory.filter((sample) => sample.timestampMs < cutoffSampleMs);
+	// sampleHistory is only pruned to a 10 s window by the periodic tick(), so a trim
+	// landing between ticks can find much more than 10 s sitting there. Match what
+	// computeRecentAverages() does for the live tiles: only the last 10 s counts,
+	// just anchored at the cutoff instead of "now".
+	const windowStart = cutoffSampleMs - TEN_SECONDS_MS;
+	const averages = computeAverages(
+		sampleHistory.filter((sample) => sample.timestampMs >= windowStart)
+	);
+	recentAveragesStore.set(averages);
+	mosAverageStore.set(
+		calculateMosScore(
+			averages.averageLatencyMs,
+			averages.averageJitterMs,
+			averages.packetLossPercent
+		)
+	);
 };
 
 export const loadSessionSummaries = (probes: RawProbe[]): void => {

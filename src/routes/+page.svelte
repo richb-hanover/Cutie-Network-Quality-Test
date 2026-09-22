@@ -15,9 +15,12 @@
 	import { decompressCutieFile, formatLocalDateTime } from '$lib/session-file';
 	import type { SessionBounds } from '$lib/session-file';
 	import { INITIALIZING_SAMPLE_THRESHOLD } from '$lib/latency-probe';
+	import { isSafari } from '$lib/browser-detect';
 	import { marked } from 'marked';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
 	import NetworkHistoryChart from '$lib/components/NetworkHistoryChart.svelte';
+
+	const showSafariNotice = typeof navigator !== 'undefined' && isSafari(navigator.userAgent);
 
 	let showAbout = false;
 	let aboutHtml = '';
@@ -45,9 +48,9 @@
 
 	let outgoingMessage = '';
 	let panelBounds: SessionBounds | undefined;
-	let isChartTestMode = false;
-	let elapsedMs: number | null = null;
-	let bytesPerSecond: number | null = null;
+	// let isChartTestMode = false;
+	// let elapsedMs: number | null = null;
+	// let bytesPerSecond: number | null = null;
 
 	let webrtcSnapshot: WebRtcState = get(webrtcState);
 	let {
@@ -249,6 +252,9 @@
 >
 	<section class="panel main-panel">
 		<h1>Cutie &mdash; Network Quality Test</h1>
+		{#if showSafariNotice}
+			<p class="safari-notice">Cutie window must remain visible</p>
+		{/if}
 		<p>
 			Open this page before beginning a call or videoconference and let it run in the background.
 			Cutie's charts show when problems affect the quality of your network.
@@ -283,8 +289,6 @@
 			<div class="error">{errorMessage}</div>
 		{:else if collectionStatusMessage}
 			<div class="status">{collectionStatusMessage}</div>
-		{:else if $webrtcState.samplesNotice}
-			<div class="notice">{$webrtcState.samplesNotice}</div>
 		{/if}
 	</section>
 
@@ -434,6 +438,13 @@
 		font-weight: 600;
 	}
 
+	.safari-notice {
+		margin: 0 0 0.75rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: #854d0e;
+	}
+
 	.controls {
 		display: flex;
 		flex-wrap: wrap;
@@ -475,7 +486,6 @@
 	}
 
 	.status,
-	.notice,
 	.error {
 		margin-top: 1rem;
 		border-radius: 0.5rem;
@@ -486,11 +496,6 @@
 	.status {
 		background: #dcfce7;
 		color: #166534;
-	}
-
-	.notice {
-		background: #fef9c3;
-		color: #854d0e;
 	}
 
 	.error {

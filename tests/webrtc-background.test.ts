@@ -6,10 +6,10 @@ vi.mock('$lib/rtc-client', () => ({ createServerConnection: vi.fn() }));
 vi.mock('$lib/rtc-stats', () => ({ startStatsReporter: () => () => {} }));
 
 import { createServerConnection } from '$lib/rtc-client';
-import { connectToServer, disconnect, webrtcState } from '$lib/webrtc';
+import { connectToServer, disconnect, webrtcState, getRawProbes } from '$lib/webrtc';
+import { BACKGROUND_STOP_MESSAGE } from '$lib/background-gap';
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-const NOTICE_TEXT = 'Some samples were not collected while Cutie was in the background';
 
 type ConnectionOptions = {
 	onMessage?: (event: MessageEvent) => void | Promise<void>;
@@ -71,7 +71,7 @@ describe('page hidden and shown again', () => {
 		vi.useRealTimers();
 	});
 
-	it('keeps collecting and shows no notice when probes kept arriving while hidden', async () => {
+	it('keeps collecting when probes kept arriving while hidden', async () => {
 		await startSession();
 		setHidden(true);
 		await vi.advanceTimersByTimeAsync(120_000);
@@ -80,45 +80,25 @@ describe('page hidden and shown again', () => {
 		const state = get(webrtcState);
 		expect(state.connection).not.toBeNull();
 		expect(state.activeDisconnectReason).toBeNull();
-		expect(state.samplesNotice).toBeNull();
+		// Nothing was trimmed: probes sent well after the hide are still there.
+		expect(getRawProbes().some((p) => p.sentAt > Date.now() - 60_000)).toBe(true);
 	});
 
-	it('keeps the session and shows the notice when the page was frozen while hidden', async () => {
+	it('stops with the background message and trims probes sent after the hide, when the page was frozen while hidden', async () => {
 		await startSession();
+		const hideStartAt = Date.now();
 		setHidden(true);
 		channel.frozen = true;
 		await vi.advanceTimersByTimeAsync(120_000);
 		setHidden(false);
+		await vi.advanceTimersByTimeAsync(0);
 
 		const state = get(webrtcState);
-		expect(state.connection).not.toBeNull();
-		expect(state.activeDisconnectReason).toBeNull();
-		expect(state.samplesNotice).toBe(NOTICE_TEXT);
-	});
-
-	it('removes the notice 15 s after it appeared', async () => {
-		await startSession();
-		setHidden(true);
-		channel.frozen = true;
-		await vi.advanceTimersByTimeAsync(120_000);
-		setHidden(false);
-
-		await vi.advanceTimersByTimeAsync(14_999);
-		expect(get(webrtcState).samplesNotice).toBe(NOTICE_TEXT);
-		await vi.advanceTimersByTimeAsync(1);
-		expect(get(webrtcState).samplesNotice).toBeNull();
-	});
-
-	it('removes the notice when the user stops the session', async () => {
-		await startSession();
-		setHidden(true);
-		channel.frozen = true;
-		await vi.advanceTimersByTimeAsync(120_000);
-		setHidden(false);
-		expect(get(webrtcState).samplesNotice).toBe(NOTICE_TEXT);
-
-		await disconnect('manual');
-		expect(get(webrtcState).samplesNotice).toBeNull();
+		expect(state.connection).toBeNull();
+		expect(state.activeDisconnectReason).toBe('background');
+		expect(state.errorMessage).toBe(BACKGROUND_STOP_MESSAGE);
+		expect(getRawProbes().length).toBeGreaterThan(0);
+		expect(getRawProbes().every((p) => p.sentAt < hideStartAt)).toBe(true);
 	});
 
 	it('stops with the two-hour message when shown again after two hours, even if timers were frozen', async () => {
@@ -135,7 +115,7 @@ describe('page hidden and shown again', () => {
 		expect(state.connection).toBeNull();
 	});
 
-	it('reports the two-hour stop, not an error, when the lost connection is noticed first on wake-up', async () => {
+	it('reports the two-hour stop, not a background stop, when the lost connection is noticed first on wake-up', async () => {
 		await startSession();
 		setHidden(true);
 		vi.setSystemTime(Date.now() + TWO_HOURS_MS + 60_000);
@@ -147,25 +127,49 @@ describe('page hidden and shown again', () => {
 		expect(state.errorMessage).toBe('');
 	});
 
-	it('says the connection was lost in the background when it fails while hidden', async () => {
+	it('stops with the background message when the connection fails while hidden', async () => {
 		await startSession();
+		const hideStartAt = Date.now();
 		setHidden(true);
 		vi.setSystemTime(Date.now() + 185_000);
 		options.onError?.(new Error('Lost connection to the server...'));
 		await vi.advanceTimersByTimeAsync(0);
 
 		const state = get(webrtcState);
-		expect(state.errorMessage).toBe(
-			'Lost connection to the server while Cutie was in the background'
-		);
-		expect(state.collectionStatusMessage).toBeNull();
+		expect(state.activeDisconnectReason).toBe('background');
+		expect(state.errorMessage).toBe(BACKGROUND_STOP_MESSAGE);
+		expect(getRawProbes().every((p) => p.sentAt < hideStartAt)).toBe(true);
 	});
 
-	it('keeps the plain message when the connection fails while the page is visible', async () => {
+	it('trims back to when the hide began, not to when it became visible again, if the connection fails shortly after waking', async () => {
+		await startSession();
+		const hideStartAt = Date.now();
+		setHidden(true);
+		// Not frozen: probes keep arriving well above the stop threshold, so becoming
+		// visible again does not trigger a stop on its own — this mirrors "kept
+		// collecting" above, except the connection then fails a few seconds later.
+		await vi.advanceTimersByTimeAsync(35_000);
+		setHidden(false);
+		await vi.advanceTimersByTimeAsync(0);
+		expect(get(webrtcState).connection).not.toBeNull(); // sanity: no stop yet
+
+		await vi.advanceTimersByTimeAsync(5_000); // still inside the background grace window
+		options.onError?.(new Error('Lost connection to the server...'));
+		await vi.advanceTimersByTimeAsync(0);
+
+		const state = get(webrtcState);
+		expect(state.activeDisconnectReason).toBe('background');
+		expect(state.errorMessage).toBe(BACKGROUND_STOP_MESSAGE);
+		expect(getRawProbes().every((p) => p.sentAt < hideStartAt)).toBe(true);
+	});
+
+	it('keeps the plain error message when the connection fails while the page is visible', async () => {
 		await startSession();
 		options.onError?.(new Error('Lost connection to the server...'));
 		await vi.advanceTimersByTimeAsync(0);
 
-		expect(get(webrtcState).errorMessage).toBe('Lost connection to the server...');
+		const state = get(webrtcState);
+		expect(state.errorMessage).toBe('Lost connection to the server...');
+		expect(state.activeDisconnectReason).toBe('error');
 	});
 });

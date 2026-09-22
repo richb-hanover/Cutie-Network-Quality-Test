@@ -234,34 +234,71 @@ enough to reach each step):
   held mostly lost samples. The lost count was not logged, so this mechanism comes from
   reading the code and matching the timing, not from a measured count.
 
-## What Cutie does now (implemented 2026-09-20)
+## 2026-09-21 test matrix: continuous vs. useless
 
-Cutie never stops itself because the page was hidden. Code: `src/lib/background-gap.ts`
-(the rules) and `handleVisibilityChange()` in `src/lib/webrtc.ts` (the wiring).
+Five desktop-browser scenarios, tested by hand (screenshots and console logs kept
+outside this doc). Phone browsers are out of scope for now; a later version will
+look at them.
+
+| Scenario                           | Firefox                         | Chrome                                        | Edge                                        | Safari                                  |
+| ---------------------------------- | ------------------------------- | --------------------------------------------- | ------------------------------------------- | --------------------------------------- |
+| 1. Window uncovered                | continually tests               | continually tests                             | continually tests                           | continually tests                       |
+| 2. Lid closed ~1 hour              | intermittent polls, useless     | loses server connection after several minutes | loses server connection after a few minutes | no polls, but connection stays up       |
+| 3. Switch to another tab           | continually tests while hidden  | continually tests while hidden                | no data collected (was: yellow warning)     | no data collected (was: yellow warning) |
+| 4. Fully covered by another window | continually tests while covered | continually tests while covered               | continually tests while covered             | no data collected (was: yellow warning) |
+| 5. Half-covered by another window  | same as fully covered           | same as fully covered                         | same as fully covered                       | same as fully covered                   |
+
+The pattern behind the new rule below: some browsers keep collecting through a hide
+(Chrome/Firefox in cases 3-5; Edge in cases 4-5), and everyone else either stops
+outright or collects so little it is useless (Safari in 3-5; Edge in case 3; every
+browser's lid-close case, one way or another). There is no reliable signal that tells
+a covered/backgrounded tab apart from the machine actually sleeping — both look like
+"the page went hidden, then very few or no probes arrived" from inside the page — so
+Cutie does not try to report which one happened.
+
+## What Cutie does now (implemented 2026-09-20, revised 2026-09-21)
+
+Code: `src/lib/background-gap.ts` (the rules), `handleVisibilityChange()` and
+`stopForBackground()` in `src/lib/webrtc.ts` (the wiring), `trimSessionDataAfter()` in
+`src/lib/stores/mosStore.ts` (trimming the charts and the "recent" 10 s averages),
+`src/lib/browser-detect.ts` (Safari detection for the header notice).
 
 - **Probing resumes by itself.** When a frozen page thaws, its timers run again and
-  probes go back to 10 per second. Cutie charts whatever arrived.
-- **Yellow notice.** When the page becomes visible again after more than 30 s hidden,
+  probes go back to 10 per second. Cutie charts whatever arrived, unless the gap below
+  applies.
+- **Background stop.** When the page becomes visible again after more than 30 s hidden,
   and fewer than half of the 1 probe/s that Chrome, Edge and Firefox keep sending
-  arrived, Cutie shows "Some samples were not collected while Cutie was in the
-  background" on a yellow background. It removes itself after 15 s. A newer notice
-  restarts the timer, so an old timer cannot clear it early. On the measurements
-  above this fires for Safari (1.3 to 7%) and stays quiet for Chrome, Edge and
-  Firefox (68 to 100%).
+  arrived, Cutie stops collection and shows the red message "Collection stopped
+  because Cutie was in the background." The same stop and message also cover a
+  connection that fails outright while hidden (Edge/Chrome losing the server during a
+  long lid-close) — there is one code path (`stopForBackground()`) and one message for
+  both causes. This replaced the earlier yellow "Some samples were not collected"
+  notice, which warned but kept collecting; that middle state is gone; the previous
+  30 s / 50%-of-throttled-rate threshold carried over unchanged, just with a different
+  consequence.
+- **Data is trimmed at the same stop.** Everything from the moment the page was
+  hidden onward is discarded: the raw probes behind the `.cutie` save file, the chart
+  history, and the "recent 10 s average" tiles in the Latency Monitor panel. The
+  panel's running totals (Sent/Received/Lost, current latency/jitter) are left as the
+  real lifetime counts — they are diagnostic, not part of the trimmed story. Reloading
+  a saved `.cutie` file reproduces the same trimmed charts, since they are rebuilt from
+  the (already trimmed) saved probes.
+- **Safari header notice.** Safari is the one browser that goes to zero data the
+  moment its window is covered or backgrounded (case 3-5 above), so the header always
+  shows "Cutie window must remain visible" when Cutie detects Safari (user-agent
+  sniffing in `browser-detect.ts`; there is no feature-detection API for this).
 - **Two-hour limit.** When the page becomes visible, a session older than two hours
   stops with the green "Collection stopped after two hours." message. `disconnect()`
-  also turns an `error` or `timeout` stop into that same stop when the session is past
-  two hours, because the failed-connection event can reach the page before the
-  visibility event. The two-hour `setTimeout` is still there for pages that are not
-  throttled.
-- **Lost connection while hidden.** The red message says "Lost connection to the
-  server while Cutie was in the background" when the page was hidden, or became
-  visible less than 10 s earlier.
-- **No auto-reconnect.** A dropped connection (Safari after a few minutes hidden)
-  ends the session; the user clicks Start.
+  also turns an `error`, `timeout` or `background` stop into that same stop when the
+  session is past two hours, because the failed-connection or background-stop event
+  can reach the page before the visibility event. The two-hour `setTimeout` is still
+  there for pages that are not throttled.
+- **No auto-reconnect.** A background stop, or any other dropped connection, ends the
+  session; the user clicks Start.
 - **Chart gaps.** The chart line is not drawn between two points more than 30 s apart
-  (`src/lib/chart-gaps.ts`); the dots stay. A hidden period shows as a gap, not as flat
-  "Excellent" or a loss ramp.
+  (`src/lib/chart-gaps.ts`); the dots stay. This still matters for the "kept going"
+  browsers (case 3-5, Chrome/Firefox/sometimes Edge), where a hidden period's sampling
+  can be irregular without crossing the background-stop threshold.
 - **No false loss on wake-up.** When the loss check itself has been stalled for more than
   its 2 s timeout, the probes that expired in the meantime are dropped, not counted lost
   (`latency-probe.ts`). The log says "Forgave N pending probe(s) after a Xs stall".
@@ -289,7 +326,9 @@ page becomes visible ("Visible again after N s hidden: received M probes ...").
 Deliberately not done: flagging hidden-period samples despite their small upward latency
 bias.
 
-Still untested: Windows and Linux; Chrome and Edge with the lid closed; Edge with a
-page hidden for 2 hours; minimized windows; mobile browsers; what decides whether
-Safari's client ends up `failed` on return; the chart gap and the loss forgiveness in a
-real browser (both are covered by unit tests only).
+Still untested: Windows and Linux; Edge with a page hidden for 2 hours; minimized
+windows; mobile browsers; what decides whether Safari's client ends up `failed` on
+return; the chart gap and the loss forgiveness in a real browser (both are covered by
+unit tests only). The background-stop, data-trim and Safari-header-notice behavior
+above (2026-09-21) is likewise covered by unit tests only, not yet exercised against a
+real hide/sleep in each of the four browsers.

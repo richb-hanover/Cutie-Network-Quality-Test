@@ -14,7 +14,8 @@ import {
 	tenSecondAverages,
 	tenSecondMos,
 	loadRecentAverages,
-	loadSessionSummaries
+	loadSessionSummaries,
+	trimSessionDataAfter
 } from '$lib/stores/mosStore';
 import {
 	formatCutieFile,
@@ -27,18 +28,15 @@ import {
 import { get as getStore } from 'svelte/store';
 import { getLogger } from './logger';
 import {
-	NOTICE_DURATION_MS,
-	SAMPLES_NOTICE_TEXT,
+	BACKGROUND_STOP_MESSAGE,
 	applyTwoHourRule,
-	createTransientNotice,
-	shouldShowSamplesNotice,
-	wasInBackground,
-	withBackgroundContext
+	shouldStopForBackground,
+	wasInBackground
 } from './background-gap';
 
 const logger = getLogger('webrtc');
 
-export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload';
+export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload' | 'background';
 
 export type MessageEntry = {
 	id: number;
@@ -59,7 +57,6 @@ export type WebRtcState = {
 	messages: MessageEntry[];
 	latencyStats: LatencyStats;
 	collectionStatusMessage: string | null;
-	samplesNotice: string | null; // yellow, temporary: probes were missed while hidden
 	collectionStartAt: number | null;
 	collectionEndAt: number | null;
 	activeDisconnectReason: DisconnectReason | null;
@@ -78,7 +75,6 @@ const initialState: WebRtcState = {
 	messages: [],
 	latencyStats: createEmptyLatencyStats(),
 	collectionStatusMessage: null,
-	samplesNotice: null,
 	collectionStartAt: null,
 	collectionEndAt: null,
 	activeDisconnectReason: null,
@@ -101,12 +97,11 @@ let epochOffsetMs = 0; // Date.now() - performance.now() at session start
 let hiddenAt: number | null = null; // when the page was hidden; null while visible
 let receivedAtHide: number | null = null; // totalReceived at that moment
 let lastShownAt: number | null = null; // when the page last became visible again
-
-// Yellow "some samples were not collected" notice; removes itself after 15 s.
-const samplesNoticeControl = createTransientNotice(
-	(text) => webrtcState.update((state) => ({ ...state, samplesNotice: text })),
-	NOTICE_DURATION_MS
-);
+// When the most recent hide started. Unlike hiddenAt, this is NOT cleared on becoming
+// visible again — it stays available for the rest of the background grace window, so a
+// connection failure that surfaces just after waking still trims back to the true start
+// of the hide, not to the moment the page happened to wake up.
+let lastHideStartedAt: number | null = null;
 
 const latencyProbe = initializeLatencyMonitor({
 	onStats: (stats) => {
@@ -145,10 +140,60 @@ function scheduleCollectionAutoStop(): void {
 }
 
 /**
+ * stopForBackground() - stop collection because Cutie was in the background: too few
+ * probes arrived while hidden, or the connection itself failed while hidden (or just
+ * after waking, within the background grace window). Discards everything from
+ * cutoffMs (when the responsible hide started) onward — the raw probes behind the
+ * .cutie save file and the chart history — so only the good, pre-hide data is shown
+ * or saved. The running totals in the Latency Monitor panel are left alone; they are
+ * diagnostic, not part of the trimmed story.
+ */
+function stopForBackground(cutoffMs: number): void {
+	rawProbes = rawProbes.filter((probe) => probe.sentAt < cutoffMs);
+	trimSessionDataAfter(cutoffMs, cutoffMs - epochOffsetMs);
+	void disconnect('background', { message: BACKGROUND_STOP_MESSAGE, endAt: cutoffMs });
+}
+
+/**
+ * Where a background stop should cut off: the start of whichever hide is responsible.
+ * Valid only when wasInBackground() is true — that's guaranteed to have set
+ * lastHideStartedAt, either just now (still hidden) or on the most recent hide (within
+ * the grace window after waking). The Date.now() fallback never actually applies then;
+ * it exists so this can't return null.
+ */
+function backgroundStopCutoffMs(): number {
+	return lastHideStartedAt ?? Date.now();
+}
+
+/** Reasons meaning a disconnect is already under way or finished. */
+const HANDLED_DISCONNECT_REASONS: ReadonlySet<DisconnectReason> = new Set([
+	'manual',
+	'error',
+	'auto',
+	'background'
+]);
+
+/**
+ * isUnhandledDisconnect() - true when a "the connection just went away unexpectedly"
+ * handler (onError, dataChannel close/error) should still act: nothing has already
+ * claimed this disconnect. `extra` covers a handler-specific reason to also treat as
+ * already handled (the dataChannel 'error' handler also skips 'timeout').
+ */
+function isUnhandledDisconnect(
+	reason: DisconnectReason | null,
+	extra: readonly DisconnectReason[] = []
+): boolean {
+	if (reason === null) {
+		return true;
+	}
+	return !HANDLED_DISCONNECT_REASONS.has(reason) && !extra.includes(reason);
+}
+
+/**
  * handleVisibilityChange() - remember when the page is hidden; on return, apply the
- * two-hour limit and tell the user if so few probes arrived that the charts have a gap.
- * Hidden pages are throttled or frozen (see docs/Browser Background Behavior.md), so
- * this never stops the session just because the page was hidden.
+ * two-hour limit, then stop collection if so few probes arrived while hidden that the
+ * data since is useless. Short hides, and hides where Chrome/Edge/Firefox kept
+ * probing near their throttled rate, never stop the session.
  */
 function handleVisibilityChange(): void {
 	const now = Date.now();
@@ -156,6 +201,7 @@ function handleVisibilityChange(): void {
 
 	if (document.hidden) {
 		hiddenAt = now;
+		lastHideStartedAt = now;
 		receivedAtHide = latencyStats.totalReceived;
 		return;
 	}
@@ -179,8 +225,8 @@ function handleVisibilityChange(): void {
 		void disconnect('auto');
 		return;
 	}
-	if (shouldShowSamplesNotice(hiddenMs, receivedWhileHidden)) {
-		samplesNoticeControl.show(SAMPLES_NOTICE_TEXT);
+	if (shouldStopForBackground(hiddenMs, receivedWhileHidden)) {
+		stopForBackground(backgroundStopCutoffMs());
 	}
 }
 
@@ -200,6 +246,7 @@ function beginCollectionSession(dataChannel: RTCDataChannel): void {
 	hiddenAt = null;
 	receivedAtHide = null;
 	lastShownAt = null;
+	lastHideStartedAt = null;
 	if (typeof document !== 'undefined') {
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 	}
@@ -284,21 +331,18 @@ export async function connectToServer(): Promise<void> {
 			},
 			onError: (err: unknown) => {
 				const raw = err instanceof Error ? err.message : String(err);
-				const message = withBackgroundContext(
-					raw.includes('network is down')
-						? "Can't connect to the server when the network is down"
-						: raw,
-					wasInBackground({ hiddenAt, lastShownAt, now: Date.now() })
-				);
-				webrtcState.update((current) => ({ ...current, errorMessage: message }));
+				const message = raw.includes('network is down')
+					? "Can't connect to the server when the network is down"
+					: raw;
 				latencyProbe.stop();
 				const { activeDisconnectReason } = get(webrtcState);
-				if (
-					activeDisconnectReason !== 'manual' &&
-					activeDisconnectReason !== 'error' &&
-					activeDisconnectReason !== 'auto'
-				) {
-					void disconnect('error', { message });
+				if (isUnhandledDisconnect(activeDisconnectReason)) {
+					if (wasInBackground({ hiddenAt, lastShownAt, now: Date.now() })) {
+						stopForBackground(backgroundStopCutoffMs());
+					} else {
+						webrtcState.update((current) => ({ ...current, errorMessage: message }));
+						void disconnect('error', { message });
+					}
 				}
 			}
 		});
@@ -359,11 +403,7 @@ export async function connectToServer(): Promise<void> {
 			}));
 			latencyProbe.stop();
 			const { activeDisconnectReason } = get(webrtcState);
-			if (
-				activeDisconnectReason !== 'manual' &&
-				activeDisconnectReason !== 'error' &&
-				activeDisconnectReason !== 'auto'
-			) {
+			if (isUnhandledDisconnect(activeDisconnectReason)) {
 				const snap = get(webrtcState);
 				const elapsedMs = snap.collectionStartAt ? Date.now() - snap.collectionStartAt : null;
 				logger.info(
@@ -376,7 +416,11 @@ export async function connectToServer(): Promise<void> {
 						`totalLost=${snap.latencyStats.totalLost} ` +
 						`elapsedMs=${elapsedMs}`
 				);
-				void disconnect('timeout');
+				if (wasInBackground({ hiddenAt, lastShownAt, now: Date.now() })) {
+					stopForBackground(backgroundStopCutoffMs());
+				} else {
+					void disconnect('timeout');
+				}
 			}
 		});
 
@@ -385,13 +429,12 @@ export async function connectToServer(): Promise<void> {
 			latencyProbe.stop();
 			const message = e instanceof Error ? e.message : String(e);
 			const { activeDisconnectReason } = get(webrtcState);
-			if (
-				activeDisconnectReason !== 'manual' &&
-				activeDisconnectReason !== 'timeout' &&
-				activeDisconnectReason !== 'error' &&
-				activeDisconnectReason !== 'auto'
-			) {
-				void disconnect('error', { message });
+			if (isUnhandledDisconnect(activeDisconnectReason, ['timeout'])) {
+				if (wasInBackground({ hiddenAt, lastShownAt, now: Date.now() })) {
+					stopForBackground(backgroundStopCutoffMs());
+				} else {
+					void disconnect('error', { message });
+				}
 			}
 		});
 
@@ -416,11 +459,7 @@ export async function connectToServer(): Promise<void> {
 		}));
 		latencyProbe.stop();
 		const { activeDisconnectReason } = get(webrtcState);
-		if (
-			activeDisconnectReason !== 'manual' &&
-			activeDisconnectReason !== 'error' &&
-			activeDisconnectReason !== 'auto'
-		) {
+		if (isUnhandledDisconnect(activeDisconnectReason)) {
 			await disconnect('error', { message });
 		}
 	} finally {
@@ -430,7 +469,7 @@ export async function connectToServer(): Promise<void> {
 
 export async function disconnect(
 	requestedReason: DisconnectReason = 'timeout',
-	options: { message?: string; suppressMessage?: boolean } = {}
+	options: { message?: string; suppressMessage?: boolean; endAt?: number } = {}
 ): Promise<void> {
 	const state = get(webrtcState);
 	if (state.isDisconnecting) {
@@ -458,7 +497,7 @@ export async function disconnect(
 	hiddenAt = null;
 	receivedAtHide = null;
 	lastShownAt = null;
-	samplesNoticeControl.clear();
+	lastHideStartedAt = null;
 	if (typeof document !== 'undefined') {
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 	}
@@ -489,7 +528,7 @@ export async function disconnect(
 		}
 	}
 
-	if (reason === 'error' && options.message) {
+	if ((reason === 'error' || reason === 'background') && options.message) {
 		errorMessage = options.message;
 	} else if (reason !== 'error') {
 		errorMessage = '';
@@ -504,7 +543,9 @@ export async function disconnect(
 		iceConnectionState: 'new',
 		dataChannelState: 'closed',
 		collectionStatusMessage,
-		collectionEndAt: options.suppressMessage ? current.collectionEndAt : Date.now(),
+		collectionEndAt: options.suppressMessage
+			? current.collectionEndAt
+			: (options.endAt ?? Date.now()),
 		errorMessage,
 		isDisconnecting: false
 	}));
