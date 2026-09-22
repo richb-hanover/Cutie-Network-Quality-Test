@@ -252,13 +252,13 @@
 >
 	<section class="panel main-panel">
 		<h1>Cutie &mdash; Network Quality Test</h1>
-		{#if showSafariNotice}
-			<p class="safari-notice">Cutie window must remain visible</p>
-		{/if}
 		<p>
 			Open this page before beginning a call or videoconference and let it run in the background.
 			Cutie's charts show when problems affect the quality of your network.
 		</p>
+		{#if showSafariNotice}
+			<p class="safari-notice">Cutie window must remain visible with Safari</p>
+		{/if}
 
 		<div class="controls">
 			<div class="button-group">
@@ -269,10 +269,8 @@
 						on:click={connectToServer}
 						disabled={isConnecting || connectionState === 'connected'}
 					>
-						{#if connectionState === 'connected'}
-							Initializing…
-						{:else if isConnecting}
-							Connecting…
+						{#if isConnecting || connectionState === 'connected'}
+							<span class="spinner" aria-hidden="true"></span>Connecting…
 						{:else}
 							Start
 						{/if}
@@ -442,7 +440,7 @@
 		margin: 0 0 0.75rem;
 		font-size: 0.9rem;
 		font-weight: 600;
-		color: #854d0e;
+		color: #1d4ed8;
 	}
 
 	.controls {
@@ -483,6 +481,24 @@
 		background: #a0aec0;
 		cursor: not-allowed;
 		opacity: 0.7;
+	}
+
+	.spinner {
+		display: inline-block;
+		width: 0.85em;
+		height: 0.85em;
+		margin-right: 0.5em;
+		vertical-align: -0.125em;
+		border: 2px solid rgba(255, 255, 255, 0.45);
+		border-top-color: #fff;
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.status,

@@ -222,6 +222,13 @@
 		font-variant-numeric: tabular-nums;
 	}
 
+	/* Reserve room for the widest expected reading ("123.45 ms") so a value crossing
+	   from 2 to 3 integer digits doesn't shift the column width. Values past that
+	   (1000+ ms, effectively never) may still wiggle the layout a little. */
+	.latency-summary td {
+		min-width: 9ch;
+	}
+
 	.latency-summary {
 		margin-bottom: 1rem;
 	}

@@ -11,9 +11,16 @@
   collected" notice, which kept collecting through it.
 - Trim the raw probes, chart history and "recent" 10-second averages back to the moment
   the page was hidden, so a background stop and its saved `.cutie` file only show good
-  data. The Latency Monitor panel's running totals stay as real lifetime counts.
-- Show "Cutie window must remain visible" in the header on Safari, which goes to zero
-  data the moment its window is covered or backgrounded.
+  data. The Latency Monitor panel's running totals stay as real lifetime counts. A
+  two-hour stop is trimmed the same way if the hide leading into it was itself useless
+  (e.g. a Safari lid-close where the two-hour limit isn't noticed until the lid reopens
+  hours later).
+- Show "Cutie window must remain visible with Safari" (blue) below the intro paragraph,
+  since Safari goes to zero data the moment its window is covered or backgrounded.
+- Merge the Start button's "Initializing…" state into "Connecting…" with a spinner,
+  instead of two separate text labels.
+- Latency Monitor panel: reserve enough column width for a 3-digit reading
+  ("123.45 ms") so the columns don't jump when a value crosses from 2 to 3 digits.
 - Record the 2026-09-21 five-scenario x four-browser test matrix in
   docs/Browser Background Behavior.md.
 
