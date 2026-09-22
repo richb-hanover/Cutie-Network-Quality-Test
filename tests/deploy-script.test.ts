@@ -86,4 +86,16 @@ describe('deploy.sh host argument', () => {
 		expect(commands).toContain('npm run preview -- --host 0.0.0.0 --port 4173');
 		expect(commands).not.toContain('npm run preview -- --host localhost --port 4173');
 	});
+
+	it('skips lifecycle scripts on the initial npm install, since npm ci reruns them cleanly right after', () => {
+		// A prior npm install's "prepare" script (svelte-kit sync) intermittently
+		// crashed with a Bus error, likely racing an incremental install still
+		// rewriting a native binary underneath it. npm ci's own "prepare" run, on a
+		// fully clean reinstall, is unaffected, so the first install shouldn't run
+		// scripts at all.
+		const commands = deploy([]);
+
+		expect(commands).toContain('npm install --ignore-scripts');
+		expect(commands).toContain('npm ci');
+	});
 });

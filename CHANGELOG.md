@@ -23,6 +23,10 @@
   ("123.45 ms") so the columns don't jump when a value crosses from 2 to 3 digits.
 - Record the 2026-09-21 five-scenario x four-browser test matrix in
   docs/Browser Background Behavior.md.
+- deploy.sh: run the initial `npm install` with `--ignore-scripts`. Its "prepare"
+  script (svelte-kit sync) was redundant work — `npm ci` right after fully reinstalls
+  and reruns it cleanly — and intermittently crashed with a Bus error, likely racing
+  the incremental install still rewriting a native binary (e.g. esbuild) underneath it.
 
 ---
 

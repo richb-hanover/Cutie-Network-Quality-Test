@@ -107,8 +107,13 @@ branch="${1:-main}"
 log_and_run "git checkout $branch" git checkout "$branch"
 log_and_run "git pull origin $branch" git pull origin "$branch"
 
-# pull in all the dependencies
-log_and_run "npm install" npm install
+# pull in all the dependencies; heal package-lock.json if it's out of sync with
+# package.json (npm ci below refuses to run if they disagree). --ignore-scripts
+# skips its "prepare" step (svelte-kit sync): npm ci fully reinstalls node_modules
+# and reruns prepare properly right after, so running it here is redundant work
+# that intermittently crashed with a Bus error, likely a race against the
+# incremental install still rewriting a native binary (e.g. esbuild) underneath it.
+log_and_run "npm install" npm install --ignore-scripts
 
 # clean install:  use package-lock.json as reference to replace node_modules
 log_and_run "npm ci" npm ci
