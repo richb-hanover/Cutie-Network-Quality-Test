@@ -4,6 +4,21 @@
 
 ---
 
+## Version 0.3.5 - 2026-09-21
+
+- Stop collection when Cutie is in the background: too few probes arrive while hidden,
+  or the connection fails while hidden. Replaces the yellow "some samples were not
+  collected" notice, which kept collecting through it.
+- Trim the raw probes, chart history and "recent" 10-second averages back to the moment
+  the page was hidden, so a background stop and its saved `.cutie` file only show good
+  data. The Latency Monitor panel's running totals stay as real lifetime counts.
+- Show "Cutie window must remain visible" in the header on Safari, which goes to zero
+  data the moment its window is covered or backgrounded.
+- Record the 2026-09-21 five-scenario x four-browser test matrix in
+  docs/Browser Background Behavior.md.
+
+---
+
 ## Version 0.3.4 - 2026-09-20
 
 - Major research into browser behavior when hidden or when the computer sleeps.
