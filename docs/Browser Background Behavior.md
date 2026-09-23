@@ -354,6 +354,26 @@ another machine, all four browsers open at once, lid closed about 22:40.
   two-hour stop reached from the foreground, or after only a short hide, is unaffected.
   This does not retroactively fix an already-saved `.cutie` file.
 
+## Overnight tab-switch test, all four browsers (night of 2026-09-22, 0.3.5)
+
+Rich's report, not yet investigated. All four browsers ran Cutie against the remote
+server. In each, he then opened another tab on a fairly static page and left it
+overnight (case 3 in the matrix above, but for hours rather than minutes).
+
+- All four ended with "Collection stopped after two hours."
+- Firefox and Chrome collected for the whole two-hour session.
+- Edge and Safari stopped collecting after a few probes.
+
+This matches the case-3 row of the matrix: Edge and Safari collect nothing in a
+background tab. The two-hour message won over the background one, which is how it was
+designed to work. Open questions:
+
+- Did the two-hour-stop trim (2026-09-22 fix) run, so that the few probes collected
+  after the tab switch were discarded? Was that fix deployed on the server used for
+  this test?
+- Should a session that was useless for nearly all of its two hours say more than
+  "Collection stopped after two hours."?
+
 Still untested: Windows and Linux; Edge with a page hidden for 2 hours; minimized
 windows; mobile browsers; what decides whether Safari's client ends up `failed` on
 return; the chart gap and the loss forgiveness in a real browser (both are covered by
