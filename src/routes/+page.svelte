@@ -149,6 +149,9 @@
 			? statsSummary.bytesSent / (elapsedMs / 1000)
 			: null;
 
+	// A run has ended (or failed to start): tint the charts to match the message below Start
+	$: testFinished = !isConnecting && connectionState !== 'connected';
+
 	// eslint-disable-next-line svelte/no-immutable-reactive-statements -- page from $app/state is reactive
 	$: isChartTestMode = page.url.searchParams.get('chartTest') === '1';
 
@@ -269,8 +272,10 @@
 						on:click={connectToServer}
 						disabled={isConnecting || connectionState === 'connected'}
 					>
-						{#if isConnecting || connectionState === 'connected'}
-							<span class="spinner" aria-hidden="true"></span>Connecting…
+						{#if connectionState === 'connected'}
+							Initializing…<span class="spinner" aria-hidden="true"></span>
+						{:else if isConnecting}
+							Connecting…
 						{:else}
 							Start
 						{/if}
@@ -290,7 +295,11 @@
 		{/if}
 	</section>
 
-	<section class="panel charts-panel">
+	<section
+		class="panel charts-panel"
+		class:result-error={testFinished && !!errorMessage}
+		class:result-ok={testFinished && !errorMessage && !!collectionStatusMessage}
+	>
 		<div class="charts-grid">
 			<NetworkHistoryChart variant="mos" testMode={isChartTestMode} />
 			<NetworkHistoryChart variant="packetLoss" />
@@ -487,7 +496,7 @@
 		display: inline-block;
 		width: 0.85em;
 		height: 0.85em;
-		margin-right: 0.5em;
+		margin-left: 0.5em;
 		vertical-align: -0.125em;
 		border: 2px solid rgba(255, 255, 255, 0.45);
 		border-top-color: #fff;
@@ -551,6 +560,16 @@
 
 	.charts-panel {
 		padding: 0.5rem 0.75rem;
+	}
+
+	.charts-panel.result-ok {
+		background: #f4fdf7;
+		border-color: #ccfadc;
+	}
+
+	.charts-panel.result-error {
+		background: #fef6f6;
+		border-color: #fed6d6;
 	}
 
 	.charts-grid {

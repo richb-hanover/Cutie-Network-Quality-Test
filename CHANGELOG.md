@@ -4,6 +4,13 @@
 
 ---
 
+## Version 0.3.6 - 2026-10-19
+
+- Start button reads "Connecting…" until the WebRTC connection is up, then
+  "Initializing…" with a spinner until enough probes have arrived.
+- When a test ends, tint the charts panel faintly green or red to match the
+  status/error message below the Start button.
+
 ## Version 0.3.5 - 2026-09-21
 
 - Stop collection when Cutie is in the background: too few probes arrive while hidden,
