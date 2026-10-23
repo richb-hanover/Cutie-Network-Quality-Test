@@ -4,6 +4,16 @@
 
 ---
 
+## Version 0.3.7 - 2026-10-23
+
+- Start button reads "Connecting…", then "Connected (10)" counting down to 1, then
+  "Stop" as soon as the first point appears on the charts. Replaces "Initializing…".
+- Make the green "test finished" tint on the charts panel a bit stronger.
+- `npm run lint` passes again: fix the `no-useless-assignment` errors that ESLint 10
+  reports, Prettier-format the docs and brainstorm pages, and have Prettier skip
+  `.claude/`, which Claude Code rewrites in its own style.
+- package.json: approve the esbuild and fsevents install scripts.
+
 ## Version 0.3.6 - 2026-10-19
 
 - Start button reads "Connecting…" until the WebRTC connection is up, then

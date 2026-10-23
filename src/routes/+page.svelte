@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { get } from 'svelte/store';
 	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
@@ -14,7 +13,7 @@
 	import type { WebRtcState } from '$lib/webrtc';
 	import { decompressCutieFile, formatLocalDateTime } from '$lib/session-file';
 	import type { SessionBounds } from '$lib/session-file';
-	import { INITIALIZING_SAMPLE_THRESHOLD } from '$lib/latency-probe';
+	import { tenSecondSummaryHistory } from '$lib/stores/mosStore';
 	import { isSafari } from '$lib/browser-detect';
 	import { marked } from 'marked';
 	import LatencyMonitorPanel from '$lib/components/LatencyMonitorPanel.svelte';
@@ -52,20 +51,18 @@
 	// let elapsedMs: number | null = null;
 	// let bytesPerSecond: number | null = null;
 
-	let webrtcSnapshot: WebRtcState = get(webrtcState);
-	let {
-		connection,
-		connectionState,
-		dataChannelState,
-		statsSummary,
-		isConnecting,
-		errorMessage,
-		messages,
-		latencyStats,
-		collectionStatusMessage,
-		collectionStartAt,
-		collectionEndAt
-	} = webrtcSnapshot;
+	let webrtcSnapshot: WebRtcState;
+	let connection: WebRtcState['connection'];
+	let connectionState: WebRtcState['connectionState'];
+	let dataChannelState: WebRtcState['dataChannelState'];
+	let statsSummary: WebRtcState['statsSummary'];
+	let isConnecting: WebRtcState['isConnecting'];
+	let errorMessage: WebRtcState['errorMessage'];
+	let messages: WebRtcState['messages'];
+	let latencyStats: WebRtcState['latencyStats'];
+	let collectionStatusMessage: WebRtcState['collectionStatusMessage'];
+	let collectionStartAt: WebRtcState['collectionStartAt'];
+	let collectionEndAt: WebRtcState['collectionEndAt'];
 
 	function formatDataAmount(
 		value: number | null | undefined,
@@ -148,6 +145,48 @@
 		statsSummary && elapsedMs !== null && elapsedMs > 0
 			? statsSummary.bytesSent / (elapsedMs / 1000)
 			: null;
+
+	// After connecting, count down until the first chart point arrives (~10 s), then show Stop
+	const COUNTDOWN_SECONDS = 10;
+	let connectedAt: number | null = null;
+	let countdownNow = Date.now();
+	let countdownTimer: ReturnType<typeof setInterval> | null = null;
+
+	function tickCountdown() {
+		countdownNow = Date.now();
+	}
+
+	function stopCountdownTimer() {
+		if (countdownTimer) clearInterval(countdownTimer);
+		countdownTimer = null;
+	}
+
+	function startCountdown() {
+		connectedAt = Date.now();
+		countdownNow = connectedAt;
+		stopCountdownTimer();
+		countdownTimer = setInterval(tickCountdown, 250);
+	}
+
+	function resetCountdown() {
+		connectedAt = null;
+		stopCountdownTimer();
+	}
+
+	$: if (connectionState === 'connected' && connectedAt === null) {
+		startCountdown();
+	} else if (connectionState !== 'connected' && connectedAt !== null) {
+		resetCountdown();
+	}
+
+	$: lastChartPointAt = $tenSecondSummaryHistory.at(-1)?.at ?? null;
+	$: hasChartData =
+		connectedAt !== null && lastChartPointAt !== null && lastChartPointAt >= connectedAt;
+	$: if (hasChartData) stopCountdownTimer();
+	$: countdownSeconds =
+		connectedAt === null
+			? COUNTDOWN_SECONDS
+			: Math.max(1, COUNTDOWN_SECONDS - Math.floor((countdownNow - connectedAt) / 1000));
 
 	// A run has ended (or failed to start): tint the charts to match the message below Start
 	$: testFinished = !isConnecting && connectionState !== 'connected';
@@ -237,6 +276,7 @@
 	});
 
 	onDestroy(() => {
+		stopCountdownTimer();
 		void disconnect('manual', { suppressMessage: true });
 	});
 </script>
@@ -265,7 +305,7 @@
 
 		<div class="controls">
 			<div class="button-group">
-				{#if connectionState === 'connected' && latencyStats.totalReceived >= INITIALIZING_SAMPLE_THRESHOLD}
+				{#if connectionState === 'connected' && hasChartData}
 					<button on:click={() => disconnect('manual')}>Stop</button>
 				{:else}
 					<button
@@ -273,7 +313,7 @@
 						disabled={isConnecting || connectionState === 'connected'}
 					>
 						{#if connectionState === 'connected'}
-							Initializing…<span class="spinner" aria-hidden="true"></span>
+							Connected ({countdownSeconds})
 						{:else if isConnecting}
 							Connecting…
 						{:else}
@@ -563,8 +603,8 @@
 	}
 
 	.charts-panel.result-ok {
-		background: #f4fdf7;
-		border-color: #ccfadc;
+		background: #effbf3;
+		border-color: #bff4d2;
 	}
 
 	.charts-panel.result-error {

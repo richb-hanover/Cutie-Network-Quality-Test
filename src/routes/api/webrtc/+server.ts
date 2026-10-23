@@ -194,7 +194,7 @@ function registerConnection(pc: RTCPeerConnection, tag: string, clientIp: string
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const tag = ipTag(getClientAddress());
 	let offer: RTCSessionDescriptionInit;
-	let clientCandidates: RTCIceCandidateInit[] = [];
+	let clientCandidates: RTCIceCandidateInit[];
 	let payload;
 	try {
 		payload = await request.json();

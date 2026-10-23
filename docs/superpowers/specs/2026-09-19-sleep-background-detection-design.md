@@ -16,11 +16,11 @@ When a laptop lid closes, a screen locks, a computer sleeps, or a mobile user sw
 
 On desktop and laptop, JavaScript timers **keep running** when the user switches tabs — probes continue to flow. Sleep/lid-close **freezes** everything. This difference lets us distinguish the two cases without any platform-specific APIs:
 
-| Scenario | JS timers | Probes received while hidden? |
-|---|---|---|
-| Desktop/laptop — tab switch | Keep running | Yes |
-| Desktop/laptop — sleep / lid close | Frozen | No |
-| Mobile — tab switch | Frozen by browser | No |
+| Scenario                           | JS timers         | Probes received while hidden? |
+| ---------------------------------- | ----------------- | ----------------------------- |
+| Desktop/laptop — tab switch        | Keep running      | Yes                           |
+| Desktop/laptop — sleep / lid close | Frozen            | No                            |
+| Mobile — tab switch                | Frozen by browser | No                            |
 
 ## Decision
 
@@ -48,10 +48,10 @@ This approach requires no `setTimeout`, correctly ignores desktop/laptop tab swi
 
 Platform is detected at stop time using `isMobile()`.
 
-| Platform | Message | Background |
-|---|---|---|
-| Mobile (phone / tablet) | "Collection stopped — Cutie only works when visible" | Green (`#dcfce7 / #166534`) |
-| Non-mobile (desktop / laptop) | "Collection stopped — computer went to sleep" | Green (`#dcfce7 / #166534`) |
+| Platform                      | Message                                              | Background                  |
+| ----------------------------- | ---------------------------------------------------- | --------------------------- |
+| Mobile (phone / tablet)       | "Collection stopped — Cutie only works when visible" | Green (`#dcfce7 / #166534`) |
+| Non-mobile (desktop / laptop) | "Collection stopped — computer went to sleep"        | Green (`#dcfce7 / #166534`) |
 
 Both use the same green `.status` styling as manual and auto stops.
 
@@ -59,8 +59,8 @@ Both use the same green `.status` styling as manual and auto stops.
 
 ```ts
 export function isMobile(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return navigator.maxTouchPoints > 0 && /Mobi|Android/i.test(navigator.userAgent);
+	if (typeof navigator === 'undefined') return false;
+	return navigator.maxTouchPoints > 0 && /Mobi|Android/i.test(navigator.userAgent);
 }
 ```
 
@@ -82,18 +82,18 @@ All changes are confined to `src/lib/webrtc.ts`. No UI, chart, store, or probe-l
 
 ## Edge Cases
 
-| Scenario | Result |
-|---|---|
-| Desktop/laptop tab switch (any duration) | Probes flowed → continue |
-| Laptop lid closed / sleep >30s | No probes during hide → stop on wake; green "computer went to sleep" |
-| Mobile tab switch <30s | Gap too short → continue |
-| Mobile tab switch >30s | No probes, gap >30s → stop on return; green "Cutie only works when visible" |
-| User clicks Stop while page is hidden | Manual stop wins; `disconnect()` clears handler |
-| 2-hour auto-stop fires while hidden | Auto-stop wins; existing "two hours" message shown |
-| Connection error while hidden | Error stop wins; red error banner |
-| `disconnect()` called re-entrantly | Guarded by existing `isDisconnecting` flag |
-| SSR / no `document` | Listener attachment guarded by `typeof document !== 'undefined'`; `isMobile()` guarded by `typeof navigator !== 'undefined'` |
-| Device sleeps while Cutie is already in a background tab | Same: no probes during hide → stop on wake |
+| Scenario                                                 | Result                                                                                                                       |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Desktop/laptop tab switch (any duration)                 | Probes flowed → continue                                                                                                     |
+| Laptop lid closed / sleep >30s                           | No probes during hide → stop on wake; green "computer went to sleep"                                                         |
+| Mobile tab switch <30s                                   | Gap too short → continue                                                                                                     |
+| Mobile tab switch >30s                                   | No probes, gap >30s → stop on return; green "Cutie only works when visible"                                                  |
+| User clicks Stop while page is hidden                    | Manual stop wins; `disconnect()` clears handler                                                                              |
+| 2-hour auto-stop fires while hidden                      | Auto-stop wins; existing "two hours" message shown                                                                           |
+| Connection error while hidden                            | Error stop wins; red error banner                                                                                            |
+| `disconnect()` called re-entrantly                       | Guarded by existing `isDisconnecting` flag                                                                                   |
+| SSR / no `document`                                      | Listener attachment guarded by `typeof document !== 'undefined'`; `isMobile()` guarded by `typeof navigator !== 'undefined'` |
+| Device sleeps while Cutie is already in a background tab | Same: no probes during hide → stop on wake                                                                                   |
 
 ## Out of Scope
 

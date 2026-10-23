@@ -19,6 +19,7 @@
 ### Task 1: Write failing tests
 
 **Files:**
+
 - Create: `tests/webrtc-visibility.test.ts`
 
 - [ ] **Step 1: Create the test file**
@@ -47,13 +48,19 @@ describe('isMobile()', () => {
 	});
 
 	it('returns true for iPhone Safari', async () => {
-		setNavigator(5, 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 Safari/604.1');
+		setNavigator(
+			5,
+			'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 Safari/604.1'
+		);
 		const { isMobile } = await import('../src/lib/webrtc');
 		expect(isMobile()).toBe(true);
 	});
 
 	it('returns false for desktop Chrome (no touch, no mobile UA)', async () => {
-		setNavigator(0, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36');
+		setNavigator(
+			0,
+			'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
+		);
 		const { isMobile } = await import('../src/lib/webrtc');
 		expect(isMobile()).toBe(false);
 	});
@@ -121,15 +128,19 @@ Expected: all tests FAIL (`isMobile` not exported, strings/constants not present
 ### Task 2: Add type, constant, exported helper, and module variables
 
 **Files:**
+
 - Modify: `src/lib/webrtc.ts`
 
 - [ ] **Step 1: Add `'sleep'` to `DisconnectReason`**
 
 Find line 32:
+
 ```ts
 export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload';
 ```
+
 Change to:
+
 ```ts
 export type DisconnectReason = 'manual' | 'timeout' | 'error' | 'auto' | 'reload' | 'sleep';
 ```
@@ -146,6 +157,7 @@ export function isMobile(): boolean {
 - [ ] **Step 3: Add the constant after `COLLECTION_DURATION_MS`**
 
 After `const COLLECTION_DURATION_MS = 2 * 60 * 60 * 1000;` add:
+
 ```ts
 const VISIBILITY_STOP_DELAY_MS = 30_000;
 ```
@@ -153,6 +165,7 @@ const VISIBILITY_STOP_DELAY_MS = 30_000;
 - [ ] **Step 4: Add module-level variables after `let epochOffsetMs`**
 
 After `let epochOffsetMs = 0;` add:
+
 ```ts
 let hiddenAt: number | null = null;
 let probeCountAtHide: number | null = null;
@@ -172,6 +185,7 @@ Expected: all 7 source-inspection tests PASS; `isMobile()` unit tests still fail
 ### Task 3: Wire the `visibilitychange` listener
 
 **Files:**
+
 - Modify: `src/lib/webrtc.ts`
 
 - [ ] **Step 1: Build and attach the handler in `beginCollectionSession()`**
@@ -179,32 +193,32 @@ Expected: all 7 source-inspection tests PASS; `isMobile()` unit tests still fail
 `beginCollectionSession()` ends with `latencyProbe.start(dataChannel)`. Add after it:
 
 ```ts
-	if (typeof document !== 'undefined') {
-		visibilityChangeHandler = () => {
-			if (document.hidden) {
-				hiddenAt = Date.now();
-				probeCountAtHide = get(webrtcState).latencyStats.totalReceived;
-			} else {
-				if (
-					hiddenAt !== null &&
-					probeCountAtHide !== null &&
-					Date.now() - hiddenAt > VISIBILITY_STOP_DELAY_MS &&
-					get(webrtcState).latencyStats.totalReceived === probeCountAtHide
-				) {
-					hiddenAt = null;
-					probeCountAtHide = null;
-					const { connection, isDisconnecting } = get(webrtcState);
-					if (connection && !isDisconnecting) {
-						void disconnect('sleep');
-					}
-				} else {
-					hiddenAt = null;
-					probeCountAtHide = null;
+if (typeof document !== 'undefined') {
+	visibilityChangeHandler = () => {
+		if (document.hidden) {
+			hiddenAt = Date.now();
+			probeCountAtHide = get(webrtcState).latencyStats.totalReceived;
+		} else {
+			if (
+				hiddenAt !== null &&
+				probeCountAtHide !== null &&
+				Date.now() - hiddenAt > VISIBILITY_STOP_DELAY_MS &&
+				get(webrtcState).latencyStats.totalReceived === probeCountAtHide
+			) {
+				hiddenAt = null;
+				probeCountAtHide = null;
+				const { connection, isDisconnecting } = get(webrtcState);
+				if (connection && !isDisconnecting) {
+					void disconnect('sleep');
 				}
+			} else {
+				hiddenAt = null;
+				probeCountAtHide = null;
 			}
-		};
-		document.addEventListener('visibilitychange', visibilityChangeHandler);
-	}
+		}
+	};
+	document.addEventListener('visibilitychange', visibilityChangeHandler);
+}
 ```
 
 - [ ] **Step 2: Remove the listener in `disconnect()`**
@@ -212,12 +226,12 @@ Expected: all 7 source-inspection tests PASS; `isMobile()` unit tests still fail
 In `disconnect()`, after the `clearCollectionAutoStopTimer()` call, add:
 
 ```ts
-	hiddenAt = null;
-	probeCountAtHide = null;
-	if (typeof document !== 'undefined' && visibilityChangeHandler) {
-		document.removeEventListener('visibilitychange', visibilityChangeHandler);
-		visibilityChangeHandler = null;
-	}
+hiddenAt = null;
+probeCountAtHide = null;
+if (typeof document !== 'undefined' && visibilityChangeHandler) {
+	document.removeEventListener('visibilitychange', visibilityChangeHandler);
+	visibilityChangeHandler = null;
+}
 ```
 
 - [ ] **Step 3: Handle `'sleep'` in the message block of `disconnect()`**
@@ -271,7 +285,7 @@ No automated test covers the real browser lifecycle. Verify:
 
 - [ ] Run `npm run dev`, open `http://localhost:5173`, click **Start**
 - [ ] **Desktop tab switch:** Switch to another tab for >30s. Return. Verify collection **continues** (probe count increased while hidden).
-- [ ] **Laptop lid close:** Close the lid for >30s. Open. Verify green banner: *"Collection stopped — computer went to sleep"*
+- [ ] **Laptop lid close:** Close the lid for >30s. Open. Verify green banner: _"Collection stopped — computer went to sleep"_
 - [ ] **Grace period:** Switch tabs for <30s and return. Verify collection continues.
-- [ ] **Manual stop during hide:** Start, switch tab, click Stop within the grace window. Verify *"Collection stopped manually"* (not the sleep message).
-- [ ] **Mobile (if available):** Open on phone, start, switch apps for >30s, return. Verify green banner: *"Collection stopped — Cutie only works when visible"*
+- [ ] **Manual stop during hide:** Start, switch tab, click Stop within the grace window. Verify _"Collection stopped manually"_ (not the sleep message).
+- [ ] **Mobile (if available):** Open on phone, start, switch apps for >30s, return. Verify green banner: _"Collection stopped — Cutie only works when visible"_

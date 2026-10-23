@@ -284,7 +284,7 @@ Latency probes (100 samples per 10s, at 0.1s intervals) showed a wavy pattern wh
 
 - AWDL is macOS's peer-to-peer protocol underlying AirDrop, Handoff, Sidecar, AirPlay, and Continuity features.
 - It shares the single Wi-Fi radio — when active, it periodically hops the radio off your normal network channel (~every 10–15s) to scan for/communicate with nearby Apple devices, causing brief Wi-Fi latency spikes (tens to hundreds of ms).
-- AWDL is *not* always running. It's woken up when AirDrop is actively used, or when some process requests peer-to-peer networking (a `NetService`) — often triggered by Bluetooth LE discovery of a nearby Apple device (iPhone, AirPods, etc.) via Continuity/Handoff.
+- AWDL is _not_ always running. It's woken up when AirDrop is actively used, or when some process requests peer-to-peer networking (a `NetService`) — often triggered by Bluetooth LE discovery of a nearby Apple device (iPhone, AirPods, etc.) via Continuity/Handoff.
 - This explains the BT connection: Bluetooth itself doesn't directly cause the delay — it's the discovery trigger that wakes AWDL, which then steals the Wi-Fi radio.
 
 **Why does the pattern looks like a "beat frequency"?**
@@ -307,40 +307,43 @@ Since a web page can't query `ifconfig`, use autocorrelation on the raw 0.1s lat
 // Autocorrelation-based AWDL interference detector
 // Feed raw RTT samples (e.g. 0.1s interval), not pre-averaged buckets.
 function autocorrelate(samples, maxLagSamples) {
-  const n = samples.length;
-  const mean = samples.reduce((a, b) => a + b, 0) / n;
-  const centered = samples.map(s => s - mean);
-  const variance = centered.reduce((a, b) => a + b * b, 0) / n;
+	const n = samples.length;
+	const mean = samples.reduce((a, b) => a + b, 0) / n;
+	const centered = samples.map((s) => s - mean);
+	const variance = centered.reduce((a, b) => a + b * b, 0) / n;
 
-  const result = [];
-  for (let lag = 1; lag <= maxLagSamples; lag++) {
-    let sum = 0;
-    for (let i = 0; i < n - lag; i++) {
-      sum += centered[i] * centered[i + lag];
-    }
-    result.push({ lag, correlation: sum / (n - lag) / variance });
-  }
-  return result;
+	const result = [];
+	for (let lag = 1; lag <= maxLagSamples; lag++) {
+		let sum = 0;
+		for (let i = 0; i < n - lag; i++) {
+			sum += centered[i] * centered[i + lag];
+		}
+		result.push({ lag, correlation: sum / (n - lag) / variance });
+	}
+	return result;
 }
 
 // Example usage: rolling window of ~90s at 0.1s sampling = 900 samples
 // Look for a peak in the 10-15s lag range (100-150 samples at 0.1s interval)
 function detectAwdlPattern(rawSamples, sampleIntervalSec = 0.1) {
-  const minLagSec = 8;
-  const maxLagSec = 18;
-  const minLag = Math.round(minLagSec / sampleIntervalSec);
-  const maxLag = Math.round(maxLagSec / sampleIntervalSec);
+	const minLagSec = 8;
+	const maxLagSec = 18;
+	const minLag = Math.round(minLagSec / sampleIntervalSec);
+	const maxLag = Math.round(maxLagSec / sampleIntervalSec);
 
-  const acf = autocorrelate(rawSamples, maxLag);
-  const windowed = acf.filter(r => r.lag >= minLag && r.lag <= maxLag);
-  const peak = windowed.reduce((best, r) => r.correlation > best.correlation ? r : best, windowed[0]);
+	const acf = autocorrelate(rawSamples, maxLag);
+	const windowed = acf.filter((r) => r.lag >= minLag && r.lag <= maxLag);
+	const peak = windowed.reduce(
+		(best, r) => (r.correlation > best.correlation ? r : best),
+		windowed[0]
+	);
 
-  const THRESHOLD = 0.35; // tune against known AWDL-on/off calibration sessions
-  return {
-    detected: peak.correlation > THRESHOLD,
-    peakLagSeconds: peak.lag * sampleIntervalSec,
-    peakCorrelation: peak.correlation
-  };
+	const THRESHOLD = 0.35; // tune against known AWDL-on/off calibration sessions
+	return {
+		detected: peak.correlation > THRESHOLD,
+		peakLagSeconds: peak.lag * sampleIntervalSec,
+		peakCorrelation: peak.correlation
+	};
 }
 ```
 

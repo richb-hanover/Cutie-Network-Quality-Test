@@ -7,3 +7,6 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Claude Code settings (rewritten by the tool)
+.claude/

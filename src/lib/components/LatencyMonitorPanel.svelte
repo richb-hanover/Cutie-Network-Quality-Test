@@ -80,12 +80,8 @@
 		totalPacketLossPercent
 	);
 
-	let recent: RecentAverages = {
-		packetLossPercent: null,
-		averageLatencyMs: null,
-		averageJitterMs: null
-	};
-	let mosAverage: number | null = null;
+	let recent: RecentAverages;
+	let mosAverage: number | null;
 
 	$: recent = $tenSecondAverages;
 	$: mosAverage = $tenSecondMos;
