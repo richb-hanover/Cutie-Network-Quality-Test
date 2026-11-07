@@ -18,4 +18,4 @@ Do you find Cutie useful?
 
 <a href="https://www.buymeacoffee.com/richbhanover" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
-_Cutie © 2026 [Blueberry Hill Software](https://blueberryhillsoftware.com)_
+_Cutie © 2026 [Blueberry Hill Software](https://randomneuronsfiring.com/about-blueberry-hill-software/)_

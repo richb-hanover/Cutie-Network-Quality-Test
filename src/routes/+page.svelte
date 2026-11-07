@@ -313,7 +313,7 @@
 						disabled={isConnecting || connectionState === 'connected'}
 					>
 						{#if connectionState === 'connected'}
-							Connected ({countdownSeconds})
+							Connected ({countdownSeconds}...)
 						{:else if isConnecting}
 							Connecting…
 						{:else}
