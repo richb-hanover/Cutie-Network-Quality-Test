@@ -4,6 +4,45 @@ const logger = getLogger('rtc-client');
 const DEFAULT_SIGNAL_URL = '/api/webrtc';
 export const ICE_GATHER_TIMEOUT_MS = 5_000;
 
+const MAX_PLAIN_ERROR_LENGTH = 200;
+
+/**
+ * describeSignalingError() - turn a failed signaling response into a message fit for the UI.
+ * A proxy in front of the server (Apache, nginx) answers 502/503 with an HTML page, which
+ * must never be shown raw. SvelteKit's own errors are JSON with a `message` field.
+ * @param status - the HTTP status
+ * @param body - the response body text
+ * @param contentType - the Content-Type header, if any
+ * @returns a one-line, human-readable message
+ */
+export function describeSignalingError(
+	status: number,
+	body: string,
+	contentType: string | null
+): string {
+	const text = body.trim();
+	const isHtml = /html/i.test(contentType ?? '') || /^<(!doctype|html)/i.test(text);
+	if (isHtml) {
+		return `The Cutie server is unavailable right now (${status}). Try again later.`;
+	}
+
+	let detail = text;
+	try {
+		const parsed: unknown = JSON.parse(text);
+		const message = (parsed as { message?: unknown } | null)?.message;
+		if (typeof message === 'string') {
+			detail = message.trim();
+		}
+	} catch {
+		// not JSON: use the plain text as is
+	}
+
+	if (detail && detail.length <= MAX_PLAIN_ERROR_LENGTH && !detail.includes('\n')) {
+		return `Cutie server error (${status}): ${detail}`;
+	}
+	return `Cutie server error (${status})`;
+}
+
 function shouldNormaliseAddress(address: string | null | undefined): boolean {
 	if (!address) {
 		return false;
@@ -351,8 +390,11 @@ async function negotiate(
 	});
 
 	if (!response.ok) {
-		const message = await response.text();
-		throw new Error(`Signalling server error (${response.status}): ${message}`);
+		const body = await response.text();
+		logger.info(`[RTC] Signaling request failed (${response.status}): ${body}`);
+		throw new Error(
+			describeSignalingError(response.status, body, response.headers.get('content-type'))
+		);
 	}
 
 	const { answer, connectionId, candidates: remoteCandidates = [] } = await response.json();
@@ -440,8 +482,11 @@ export async function createServerConnection(
 		onDataChannelMessage: onMessage,
 		onDataChannelOpen: onOpen,
 		onDataChannelClose: onError
-			? (_channel) => {
-					logger.info(`datachannel onError: ${JSON.stringify(_channel)}`);
+			? (channel) => {
+					logger.info(
+						`Data channel "${channel.label}" closed (readyState=${channel.readyState}, ` +
+							`peer=${peer.connectionState}, ice=${peer.iceConnectionState})`
+					);
 					onError(new Error('Lost connection to the server...'));
 				}
 			: undefined

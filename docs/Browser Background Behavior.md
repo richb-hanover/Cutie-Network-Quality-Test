@@ -180,7 +180,7 @@ What the earlier Safari runs now suggest (needs the unfiltered logs to confirm):
 
 Where to look next time it happens:
 
-- Browser console: `Peer connection state: failed`, `datachannel onError`,
+- Browser console: `Peer connection state: failed`, `Data channel "..." closed`,
   `dataChannel closed`, and the `DIAG` lines.
 - Server log: `UNEXPECTED connection close: id=... state=failed iceState=failed
 lastMessageAt=... openDurationMs=...` (`src/routes/api/webrtc/+server.ts`,

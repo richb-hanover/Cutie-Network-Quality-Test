@@ -463,7 +463,7 @@ export async function connectToServer(): Promise<void> {
 			webrtcState.update((current) => ({ ...current, statsSummary: summary }));
 		});
 	} catch (err) {
-		logger.info(`dataChannel caught error: ${err}`);
+		logger.info(`Connection setup failed: ${err}`);
 		const raw = err instanceof Error ? err.message : String(err);
 		const message = raw.includes('network is down')
 			? "Can't connect to the server when the network is down"
@@ -497,7 +497,7 @@ export async function disconnect(
 	const elapsedMs = state.collectionStartAt !== null ? Date.now() - state.collectionStartAt : null;
 	const reason = applyTwoHourRule(requestedReason, elapsedMs, COLLECTION_DURATION_MS);
 
-	logger.info(`Clicked Stop button - reason: ${reason}`);
+	logger.info(`Stopping collection - reason: ${reason}`);
 
 	webrtcState.update((current) => ({
 		...current,

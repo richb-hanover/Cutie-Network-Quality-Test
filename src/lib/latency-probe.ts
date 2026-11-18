@@ -325,6 +325,12 @@ export function initializeLatencyMonitor(options: LatencyMonitorOptions = {}): L
 			return false; // and tell the world that we didn't handle it
 		}
 
+		if ((parsed as { type?: unknown } | null)?.type === 'welcome') {
+			const message = (parsed as { message?: unknown }).message;
+			logger.info(`Server welcome: ${typeof message === 'string' ? message : payload}`);
+			return false; // not a probe
+		}
+
 		if (
 			!parsed ||
 			typeof parsed !== 'object' ||
