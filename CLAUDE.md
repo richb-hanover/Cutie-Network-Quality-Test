@@ -17,6 +17,8 @@ npm test             # Run Vitest unit tests
 
 Before committing: run `npm run check` and `npm run lint` and ensure no errors or warnings.
 
+Before every commit, update `CHANGELOG.md`: add the change under `## Unreleased`, or under a new `## Version X.Y.Z - YYYY-MM-DD` heading when the commit bumps the version in `package.json`. Match the existing style: short bullets, user-visible effect first.
+
 ## Architecture
 
 Cutie is a SvelteKit full-stack app that measures network quality (latency, jitter, packet loss) using WebRTC data channels. The browser and the Node.js backend form a WebRTC peer connection; the client sends 10 probes/second and the server immediately echoes them back.

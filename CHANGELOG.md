@@ -4,6 +4,22 @@
 
 ---
 
+## Version 0.3.9 - 2026-11-18
+
+- When the server can't be reached (for example, a proxy answers 503 during
+  maintenance), show "The Cutie server is unavailable right now (503). Try again
+  later." instead of the proxy's raw HTML error page.
+- Clearer console log lines: the server's welcome message is logged as a welcome, not
+  a "bad payload"; every stop logs "Stopping collection - reason: X" instead of
+  "Clicked Stop button"; a failed connection setup logs "Connection setup failed"; a
+  closed data channel logs its state instead of "datachannel onError: {}".
+
+## Version 0.3.8 - 2026-11-06
+
+- The Start button countdown reads "Connected (10...)", "(9...)", and so on.
+- The About box's Blueberry Hill Software link goes straight to its page on Random
+  Neurons Firing.
+
 ## Version 0.3.7 - 2026-10-23
 
 - Start button reads "Connecting…", then "Connected (10)" counting down to 1, then
